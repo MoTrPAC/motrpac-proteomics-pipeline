@@ -37,9 +37,8 @@ You are looking for 1.8 or higher. If the requirement is not fulfilled follow in
 
 Pipeline code is packaged and distributed in Docker containers, and thus Docker installation is needed. Follow instructions for [mac](https://docs.docker.com/docker-for-mac/install/). (Docker Desktop recommended)
 
-<sub><sup>
+
 **Note**: When configuring Docker, don't forget to "share" the local folders where the source code of this project, data files, and the output are available. Check out the [file sharing](https://docs.docker.com/docker-for-mac/#file-sharing) section of the manual to find out more. In *Docker Desktop*: "Preferences" > "Resources" > "File Sharing" and use the "+" to add the directories.
-</sub></sup>
 
 
 ## Cromwell (optional)
@@ -54,8 +53,9 @@ Download the raw files available in the following bucket of the
 GCP `motrpac-project-dev` project:
 
 ```
-project: motrpac-project-dev
-bucket: gs://motrpac-test-datasets/proteomics_tmt/raw_light/Global/
+cd /the/directory/where/you/want/the/data
+gcloud config set project motrpac-portal-dev
+gsutil cp -r gs://motrpac-test-datasets/proteomics_tmt/raw_light/Global .
 ```
 
 which contains the following files:
@@ -65,6 +65,8 @@ MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05.raw
 MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05.raw
 MoTrPAC_Pilot_TMT_S3_88_24Jan18_Precious_18-01-05.raw # this one won't be used for this test
 ```
+
+**WARNING**: do not download the files using the GCP web interface (it changes the file names)
 
 ## JSON configuration file
 
@@ -87,6 +89,8 @@ where
 ```
 docker pull gcr.io/motrpac-portal-dev/motrpac-prot-masic@sha256:c4957d438ad59bf52485220a0bec8746110d83d9f7a93ae7f6b38b46f8bd2bc3
 ```
+
+**Note**: this assumes you have gcp set up [as described here](https://cloud.google.com/container-registry/docs/advanced-authentication)
 
 - `"proteomics.parameter_masic"`: is the path to `parameters` folder of this repo.
 
