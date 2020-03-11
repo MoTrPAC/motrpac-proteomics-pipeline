@@ -1,0 +1,8 @@
+{
+  "proteomics.masic_ramGB": "Int",
+  "proteomics.parameter_masic": "File",
+  "proteomics.masic_docker": "String",
+  "proteomics.raw_file": "Array[File] (optional, default = [])",
+  "proteomics.masic_ncpu": "Int"
+}
+
