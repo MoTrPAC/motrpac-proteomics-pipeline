@@ -77,14 +77,16 @@ Use the [input_config.json] file available in the `tests` folder, which looks li
   "proteomics.masic_ncpu": "2",
   "proteomics.masic_ramGB": "2",
   "proteomics.masic_docker": "gcr.io/motrpac-portal-dev/motrpac-prot-masic@sha256:c4957d438ad59bf52485220a0bec8746110d83d9f7a93ae7f6b38b46f8bd2bc3",
-  "proteomics.raw_file": ["/path/to/Global/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05.raw", "/path/to/Global/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05.raw"],
-  "proteomics.parameter_masic": "/path/to/motrpac-proteomics-pipeline/parameters/TMT10_LTQ-FT_10ppm_ReporterTol0.003Da_2014-08-06.xml"
+  "proteomics.masic_disk" : "local-disk 20 HDD",
+  "proteomics.raw_file": ["/full/path/to/Global/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05.raw", "/full/path/to/Global/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05.raw"],
+  "proteomics.parameter_masic": "/full/path/to/motrpac-proteomics-pipeline/parameters/TMT10_LTQ-FT_10ppm_ReporterTol0.003Da_2014-08-06.xml"
 }
 ```
 
 where
 
-- `"proteomics.masic_docker"`: is the docker container. Give it a try first to make sure you have access to the MoTrPAC BIC docker container registry (otherwise, contact Karen ;-):
+- `"proteomics.parameter_masic"`: is the path to `parameters` folder of this repo.
+- `"proteomics.masic_docker"`: is the docker container. We recommend to first test that the user can access the MoTrPAC BIC docker container registry (otherwise, contact the BIC ;-)
 
 ```
 docker pull gcr.io/motrpac-portal-dev/motrpac-prot-masic@sha256:c4957d438ad59bf52485220a0bec8746110d83d9f7a93ae7f6b38b46f8bd2bc3
@@ -92,7 +94,6 @@ docker pull gcr.io/motrpac-portal-dev/motrpac-prot-masic@sha256:c4957d438ad59bf5
 
 **Note**: this assumes you have gcp set up [as described here](https://cloud.google.com/container-registry/docs/advanced-authentication)
 
-- `"proteomics.parameter_masic"`: is the path to `parameters` folder of this repo.
 
 
 ## Run it!

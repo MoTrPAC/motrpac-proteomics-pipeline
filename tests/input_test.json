@@ -1,7 +1,8 @@
 {
-  "proteomics.masic_ncpu": "1",
+  "proteomics.masic_ncpu": "2",
   "proteomics.masic_ramGB": "2",
   "proteomics.masic_docker": "gcr.io/motrpac-portal-dev/motrpac-prot-masic@sha256:c4957d438ad59bf52485220a0bec8746110d83d9f7a93ae7f6b38b46f8bd2bc3",
-  "proteomics.raw_file": ["/Users/davidjm/buckets/motrpac-test-datasets/proteomics_tmt/raw_light/Global/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05.raw", "/Users/davidjm/buckets/motrpac-test-datasets/proteomics_tmt/raw_light/Global/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05.raw"],
-  "proteomics.parameter_masic": "/Users/davidjm/github/MoTrPAC/motrpac-proteomics-pipeline/parameters/TMT10_LTQ-FT_10ppm_ReporterTol0.003Da_2014-08-06.xml"
+  "proteomics.masic_disk" : "local-disk 20 HDD",
+  "proteomics.raw_file": ["/full/path/to/Global/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05.raw", "/full/path/to/Global/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05.raw"],
+  "proteomics.parameter_masic": "/full/path/to/motrpac-proteomics-pipeline/parameters/TMT10_LTQ-FT_10ppm_ReporterTol0.003Da_2014-08-06.xml"
 }
