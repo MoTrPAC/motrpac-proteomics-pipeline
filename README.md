@@ -26,6 +26,32 @@ $ pip install caper
 
 Note that conda run mode that is described in caper documentation is not supported by this pipeline.
 
+***About caper config file***
+
+Once `caper` is installed, the following config file should be available:
+
+```
+/Users/[[mac_user]]/.caper/default.conf
+```
+
+(please, create otherwise)
+
+Edit the config file and add the following options in order to be able to run it on GCP
+
+```
+backend=local
+
+# Caper stores all important temp files and cached big data files here
+tmp-dir=/Users/[[mac_user]]/temp/caper_temp
+
+# GCP options
+# GCP Project name
+gcp-prj=[[your-gcp-project-here]]
+# GCP output bucket
+out-gcs-bucket=gs://[[your-bucket-location]]/proteomics_tests_gcp
+```
+
+
 ## Java 8
 
 Java is required to run execution engine `Cromwell` that `caper` uses under the hood. To check which Java version you already have, run:
