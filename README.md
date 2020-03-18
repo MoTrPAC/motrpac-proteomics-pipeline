@@ -176,7 +176,7 @@ cd test_proteomics_gcp
 and run
 
 ```
-caper run proteomics_pipeline.wdl -i tests/input_test_gcp.json -b gcp -m testrun_metadata_gcp.json | tee run_masic_gcp.log
+caper run /full/path/to/motrpac-proteomics-pipeline/proteomics_pipeline.wdl -i /full/path/to/motrpac-proteomics-pipeline/tests/input_test_gcp.json -b gcp -m testrun_metadata_gcp.json | tee run_masic_gcp.log
 ```
 
 ### Outputs
