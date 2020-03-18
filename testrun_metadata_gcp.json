@@ -1,0 +1,494 @@
+{
+    "workflowName": "proteomics",
+    "workflowProcessingEvents": [
+        {
+            "cromwellId": "cromid-9e479bb",
+            "description": "Finished",
+            "timestamp": "2020-03-17T20:26:53.749Z",
+            "cromwellVersion": "47"
+        },
+        {
+            "cromwellId": "cromid-9e479bb",
+            "description": "PickedUp",
+            "timestamp": "2020-03-17T20:16:06.306Z",
+            "cromwellVersion": "47"
+        }
+    ],
+    "actualWorkflowLanguageVersion": "draft-2",
+    "submittedFiles": {
+        "workflow": "workflow proteomics {\n\n    # MASIC\n    Int masic_ncpu\n    Int masic_ramGB\n    String masic_docker\n    String? masic_disk\n    Array[File] raw_file = []\n    File parameter_masic\n    \n\n    scatter (i in range(length(raw_file))) {\n        call masic { input:\n            ncpu = masic_ncpu,\n            ramGB = masic_ramGB,\n            docker = masic_docker,\n            raw_file = raw_file[i],\n            parameter_masic = parameter_masic,\n            disks = masic_disk,\n            output_masic = \"masic_output\"\n        }\n    }\n\n}\n\ntask masic {\n    Int ncpu\n    Int ramGB\n    String docker\n    String? disks\n    File raw_file\n    File parameter_masic\n    String output_masic\n    \n    command {\n        echo \"Ready to run MASIC\"\n\n        mono /app/masic/MASIC_Console.exe \\\n        /I:${raw_file} \\\n        /P:${parameter_masic} \\\n        /O:${output_masic}\n    }\n\n    output {\n        File ReporterIons_output_file = glob(\"masic_output/*ReporterIons.txt\")[0]\n        File DatasetInfo_output_file = glob(\"masic_output/*DatasetInfo.xml\")[0]\n        File ScanStats_output_file = glob(\"masic_output/*ScanStats.txt\")[0]\n        File MS_scans_output_file = glob(\"masic_output/*MS_scans.csv\")[0]\n        File MSMS_scans_output_file = glob(\"masic_output/*MSMS_scans.csv\")[0]\n        File ScanStatsEx_output_file = glob(\"masic_output/*ScanStatsEx.txt\")[0]\n        File SICstats_output_file = glob(\"masic_output/*SICstats.txt\")[0]\n        File ScanStatsConstant_output_file = glob(\"masic_output/*ScanStatsConstant.txt\")[0]\n        File SICs_output_file = glob(\"masic_output/*SICs.xml\")[0]\n    }\n\n\n    runtime {\n        docker: \"${docker}\"\n        memory: \"${ramGB} GB\"\n        cpu: \"${ncpu}\"\n        disks : select_first([disks,\"local-disk 100 SSD\"])\n    }\n}\n\n\n",
+        "root": "",
+        "options": "{\n  \"backend\": \"gcp\",\n  \"default_runtime_attributes\": {\n    \"maxRetries\": 1\n  }\n}",
+        "inputs": "{\n  \"proteomics.masic_ncpu\": \"2\",\n  \"proteomics.masic_ramGB\": \"2\",\n  \"proteomics.masic_docker\": \"gcr.io/motrpac-portal-dev/motrpac-prot-masic:v1.0_20200122\",\n  \"proteomics.masic_disk\" : \"local-disk 20 HDD\",\n  \"proteomics.raw_file\": [\"gs://motrpac-test-datasets/proteomics_tmt/raw_light/Global/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05.raw\", \"gs://motrpac-test-datasets/proteomics_tmt/raw_light/Global/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05.raw\"],\n  \"proteomics.parameter_masic\": \"gs://motrpac-test-datasets/proteomics_tmt/parameters/TMT10_LTQ-FT_10ppm_ReporterTol0.003Da_2014-08-06.xml\"\n}",
+        "workflowUrl": "/Users/davidjm/github/MoTrPAC/motrpac-proteomics-pipeline/proteomics_pipeline.wdl",
+        "labels": "{\n    \"caper-backend\": \"gcp\",\n    \"caper-str-label\": \"input_test_gcp\",\n    \"caper-user\": \"davidjm\"\n}"
+    },
+    "calls": {
+        "proteomics.masic": [
+            {
+                "preemptible": false,
+                "executionStatus": "Done",
+                "stdout": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-0/stdout",
+                "backendStatus": "Success",
+                "compressedDockerSize": 253513100,
+                "commandLine": "echo \"Ready to run MASIC\"\n\nmono /app/masic/MASIC_Console.exe \\\n/I:/cromwell_root/motrpac-test-datasets/proteomics_tmt/raw_light/Global/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05.raw \\\n/P:/cromwell_root/motrpac-test-datasets/proteomics_tmt/parameters/TMT10_LTQ-FT_10ppm_ReporterTol0.003Da_2014-08-06.xml \\\n/O:masic_output",
+                "shardIndex": 0,
+                "jes": {
+                    "endpointUrl": "https://genomics.googleapis.com/",
+                    "machineType": "custom-2-2048",
+                    "googleProject": "motrpac-portal-dev",
+                    "executionBucket": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test",
+                    "zone": "us-central1-b",
+                    "instanceName": "google-pipelines-worker-36a3e4d907de6e70fa1fa55301b7318f"
+                },
+                "outputs": {
+                    "ReporterIons_output_file": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-0/glob-fc4d11d84f15789a6b364ac1c2ad631a/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_ReporterIons.txt",
+                    "MSMS_scans_output_file": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-0/glob-c744e7680f222aceef79f6ff81336630/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_MSMS_scans.csv",
+                    "SICs_output_file": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-0/glob-b069eab7e4d1edec185303ed4920ca86/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_SICs.xml",
+                    "MS_scans_output_file": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-0/glob-cb375dfd8c40490e7d395e9f60e10b65/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_MSMS_scans.csv",
+                    "SICstats_output_file": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-0/glob-2066f9e90c242769b62d9866c26b90c0/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_SICstats.txt",
+                    "ScanStatsConstant_output_file": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-0/glob-70dc246c20c4fd6400712f99f71d46e7/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_ScanStatsConstant.txt",
+                    "ScanStatsEx_output_file": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-0/glob-0c83d6906fbe3091d7f9ae5df309e090/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_ScanStatsEx.txt",
+                    "ScanStats_output_file": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-0/glob-90594c8d236cc66bb27d666c3b020fa1/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_ScanStats.txt",
+                    "DatasetInfo_output_file": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-0/glob-73480eaa13c897bb106798d152550136/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_DatasetInfo.xml"
+                },
+                "runtimeAttributes": {
+                    "preemptible": "0",
+                    "failOnStderr": "false",
+                    "bootDiskSizeGb": "10",
+                    "disks": "local-disk 20 HDD",
+                    "continueOnReturnCode": "0",
+                    "docker": "gcr.io/motrpac-portal-dev/motrpac-prot-masic:v1.0_20200122",
+                    "maxRetries": "1",
+                    "cpu": "2",
+                    "cpuMin": "1",
+                    "noAddress": "false",
+                    "zones": "us-central1-b",
+                    "memoryMin": "2 GB",
+                    "memory": "2 GB"
+                },
+                "callCaching": {
+                    "allowResultReuse": true,
+                    "hit": false,
+                    "result": "Cache Miss",
+                    "hashes": {
+                        "output count": "45C48CCE2E2D7FBDEA1AFC51C7C6AD26",
+                        "runtime attribute": {
+                            "docker": "A548EB5D22AA72E52A1113F97127EEEC",
+                            "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                            "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                        },
+                        "output expression": {
+                            "File ReporterIons_output_file": "AF0E34CFF827FC110C37A3FFAE2976A7",
+                            "File MS_scans_output_file": "BB65F1C01D8D6EFEBAB6743AAD967AA9",
+                            "File DatasetInfo_output_file": "3E10AFA82599E060C1C045712AB54FBE",
+                            "File MSMS_scans_output_file": "8FB7E9FAF96302B0F25427D78BC7BF42",
+                            "File ScanStats_output_file": "052DE09D397424F8C8AD4CC300997FFB",
+                            "File ScanStatsEx_output_file": "E191235085CFDE0F8242588A305B7378",
+                            "File ScanStatsConstant_output_file": "54032B01B61E4D5BD947E5F5FF54399E",
+                            "File SICs_output_file": "38733F6A32299499A09C9970DDA41D7D",
+                            "File SICstats_output_file": "04953EEB59B0C11ECC71F2732CC4977A"
+                        },
+                        "input count": "8F14E45FCEEA167A5A36DEDD4BEA2543",
+                        "backend name": "50F66ECBC45488EE5826941BFBC50411",
+                        "command template": "8EA46018D3126F1BB32081AD5D9373CB",
+                        "input": {
+                            "String disks": "F1ACD7E259F2D291B024F0A677D5E7A3",
+                            "File raw_file": "4cEgrQ==",
+                            "File parameter_masic": "mvlC8Q==",
+                            "String docker": "5A1C0BA3DC0830EFBCD9D02E91F6D9E5",
+                            "Int ncpu": "C81E728D9D4C2F636F067F89CC14862C",
+                            "Int ramGB": "C81E728D9D4C2F636F067F89CC14862C",
+                            "String output_masic": "96D72F9D52853B80C3540A16D2AB3517"
+                        }
+                    },
+                    "effectiveCallCachingMode": "ReadAndWriteCache"
+                },
+                "inputs": {
+                    "parameter_masic": "gs://motrpac-test-datasets/proteomics_tmt/parameters/TMT10_LTQ-FT_10ppm_ReporterTol0.003Da_2014-08-06.xml",
+                    "raw_file": "gs://motrpac-test-datasets/proteomics_tmt/raw_light/Global/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05.raw",
+                    "output_masic": "masic_output",
+                    "disks": "local-disk 20 HDD",
+                    "docker": "gcr.io/motrpac-portal-dev/motrpac-prot-masic:v1.0_20200122",
+                    "ramGB": 2,
+                    "ncpu": 2
+                },
+                "backendLabels": {
+                    "wdl-task-name": "masic",
+                    "cromwell-workflow-id": "cromwell-95def99f-2d34-4709-903d-ad9f4db1b7fc"
+                },
+                "returnCode": 0,
+                "labels": {
+                    "wdl-task-name": "masic",
+                    "cromwell-workflow-id": "cromwell-95def99f-2d34-4709-903d-ad9f4db1b7fc"
+                },
+                "jobId": "projects/motrpac-portal-dev/operations/6111055229858610747",
+                "backend": "gcp",
+                "end": "2020-03-17T20:26:21.037Z",
+                "dockerImageUsed": "gcr.io/motrpac-portal-dev/motrpac-prot-masic@sha256:c4957d438ad59bf52485220a0bec8746110d83d9f7a93ae7f6b38b46f8bd2bc3",
+                "stderr": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-0/stderr",
+                "callRoot": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-0",
+                "attempt": 1,
+                "executionEvents": [
+                    {
+                        "startTime": "2020-03-17T20:26:21.035Z",
+                        "description": "UpdatingJobStore",
+                        "endTime": "2020-03-17T20:26:21.038Z"
+                    },
+                    {
+                        "description": "Localization",
+                        "startTime": "2020-03-17T20:18:38.752Z",
+                        "endTime": "2020-03-17T20:18:59.639Z"
+                    },
+                    {
+                        "description": "ContainerSetup",
+                        "startTime": "2020-03-17T20:18:33.848Z",
+                        "endTime": "2020-03-17T20:18:38.752Z"
+                    },
+                    {
+                        "description": "UserAction",
+                        "startTime": "2020-03-17T20:18:59.639Z",
+                        "endTime": "2020-03-17T20:23:59.771Z"
+                    },
+                    {
+                        "startTime": "2020-03-17T20:16:15.665Z",
+                        "description": "CallCacheReading",
+                        "endTime": "2020-03-17T20:16:15.738Z"
+                    },
+                    {
+                        "startTime": "2020-03-17T20:16:14.140Z",
+                        "description": "PreparingJob",
+                        "endTime": "2020-03-17T20:16:15.665Z"
+                    },
+                    {
+                        "startTime": "2020-03-17T20:16:13.023Z",
+                        "description": "RequestingExecutionToken",
+                        "endTime": "2020-03-17T20:16:14.132Z"
+                    },
+                    {
+                        "description": "Background",
+                        "startTime": "2020-03-17T20:18:33.239Z",
+                        "endTime": "2020-03-17T20:18:33.413Z"
+                    },
+                    {
+                        "startTime": "2020-03-17T20:24:40.756Z",
+                        "description": "Worker released",
+                        "endTime": "2020-03-17T20:26:18.104Z"
+                    },
+                    {
+                        "description": "Delocalization",
+                        "startTime": "2020-03-17T20:23:59.771Z",
+                        "endTime": "2020-03-17T20:24:40.756Z"
+                    },
+                    {
+                        "startTime": "2020-03-17T20:16:43.970Z",
+                        "description": "Worker \"google-pipelines-worker-36a3e4d907de6e70fa1fa55301b7318f\" assigned in \"us-central1-b\"",
+                        "endTime": "2020-03-17T20:17:59.265Z"
+                    },
+                    {
+                        "startTime": "2020-03-17T20:26:18.104Z",
+                        "description": "UpdatingCallCache",
+                        "endTime": "2020-03-17T20:26:21.035Z"
+                    },
+                    {
+                        "startTime": "2020-03-17T20:16:13.009Z",
+                        "description": "Pending",
+                        "endTime": "2020-03-17T20:16:13.023Z"
+                    },
+                    {
+                        "startTime": "2020-03-17T20:16:15.738Z",
+                        "description": "RunningJob",
+                        "endTime": "2020-03-17T20:16:40.774Z"
+                    },
+                    {
+                        "description": "Pulling \"gcr.io/google.com/cloudsdktool/cloud-sdk:264.0.0-slim\"",
+                        "startTime": "2020-03-17T20:17:59.265Z",
+                        "endTime": "2020-03-17T20:18:15.894Z"
+                    },
+                    {
+                        "startTime": "2020-03-17T20:16:14.132Z",
+                        "description": "WaitingForValueStore",
+                        "endTime": "2020-03-17T20:16:14.140Z"
+                    },
+                    {
+                        "startTime": "2020-03-17T20:16:40.774Z",
+                        "description": "waiting for quota",
+                        "endTime": "2020-03-17T20:16:43.970Z"
+                    },
+                    {
+                        "description": "Pulling \"gcr.io/motrpac-portal-dev/motrpac-prot-masic@sha256:c4957d438ad59bf52485220a0bec8746110d83d9f7a93ae7f6b38b46f8bd2bc3\"",
+                        "startTime": "2020-03-17T20:18:15.894Z",
+                        "endTime": "2020-03-17T20:18:33.239Z"
+                    }
+                ],
+                "backendLogs": {
+                    "log": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-0/masic-0.log"
+                },
+                "start": "2020-03-17T20:16:12.995Z"
+            },
+            {
+                "preemptible": false,
+                "executionStatus": "Done",
+                "stdout": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-1/stdout",
+                "backendStatus": "Success",
+                "compressedDockerSize": 253513100,
+                "commandLine": "echo \"Ready to run MASIC\"\n\nmono /app/masic/MASIC_Console.exe \\\n/I:/cromwell_root/motrpac-test-datasets/proteomics_tmt/raw_light/Global/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05.raw \\\n/P:/cromwell_root/motrpac-test-datasets/proteomics_tmt/parameters/TMT10_LTQ-FT_10ppm_ReporterTol0.003Da_2014-08-06.xml \\\n/O:masic_output",
+                "shardIndex": 1,
+                "jes": {
+                    "endpointUrl": "https://genomics.googleapis.com/",
+                    "machineType": "custom-2-2048",
+                    "googleProject": "motrpac-portal-dev",
+                    "executionBucket": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test",
+                    "zone": "us-central1-b",
+                    "instanceName": "google-pipelines-worker-76d3f42b6ec29e1f56f56bc6e2041954"
+                },
+                "outputs": {
+                    "ReporterIons_output_file": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-1/glob-fc4d11d84f15789a6b364ac1c2ad631a/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_ReporterIons.txt",
+                    "MSMS_scans_output_file": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-1/glob-c744e7680f222aceef79f6ff81336630/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_MSMS_scans.csv",
+                    "SICs_output_file": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-1/glob-b069eab7e4d1edec185303ed4920ca86/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_SICs.xml",
+                    "MS_scans_output_file": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-1/glob-cb375dfd8c40490e7d395e9f60e10b65/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_MSMS_scans.csv",
+                    "SICstats_output_file": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-1/glob-2066f9e90c242769b62d9866c26b90c0/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_SICstats.txt",
+                    "ScanStatsConstant_output_file": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-1/glob-70dc246c20c4fd6400712f99f71d46e7/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_ScanStatsConstant.txt",
+                    "ScanStatsEx_output_file": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-1/glob-0c83d6906fbe3091d7f9ae5df309e090/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_ScanStatsEx.txt",
+                    "ScanStats_output_file": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-1/glob-90594c8d236cc66bb27d666c3b020fa1/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_ScanStats.txt",
+                    "DatasetInfo_output_file": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-1/glob-73480eaa13c897bb106798d152550136/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_DatasetInfo.xml"
+                },
+                "runtimeAttributes": {
+                    "preemptible": "0",
+                    "failOnStderr": "false",
+                    "bootDiskSizeGb": "10",
+                    "disks": "local-disk 20 HDD",
+                    "continueOnReturnCode": "0",
+                    "docker": "gcr.io/motrpac-portal-dev/motrpac-prot-masic:v1.0_20200122",
+                    "maxRetries": "1",
+                    "cpu": "2",
+                    "cpuMin": "1",
+                    "noAddress": "false",
+                    "zones": "us-central1-b",
+                    "memoryMin": "2 GB",
+                    "memory": "2 GB"
+                },
+                "callCaching": {
+                    "allowResultReuse": true,
+                    "hit": false,
+                    "result": "Cache Miss",
+                    "hashes": {
+                        "output count": "45C48CCE2E2D7FBDEA1AFC51C7C6AD26",
+                        "runtime attribute": {
+                            "docker": "A548EB5D22AA72E52A1113F97127EEEC",
+                            "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                            "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                        },
+                        "output expression": {
+                            "File ReporterIons_output_file": "AF0E34CFF827FC110C37A3FFAE2976A7",
+                            "File MS_scans_output_file": "BB65F1C01D8D6EFEBAB6743AAD967AA9",
+                            "File DatasetInfo_output_file": "3E10AFA82599E060C1C045712AB54FBE",
+                            "File MSMS_scans_output_file": "8FB7E9FAF96302B0F25427D78BC7BF42",
+                            "File ScanStats_output_file": "052DE09D397424F8C8AD4CC300997FFB",
+                            "File ScanStatsEx_output_file": "E191235085CFDE0F8242588A305B7378",
+                            "File ScanStatsConstant_output_file": "54032B01B61E4D5BD947E5F5FF54399E",
+                            "File SICs_output_file": "38733F6A32299499A09C9970DDA41D7D",
+                            "File SICstats_output_file": "04953EEB59B0C11ECC71F2732CC4977A"
+                        },
+                        "input count": "8F14E45FCEEA167A5A36DEDD4BEA2543",
+                        "backend name": "50F66ECBC45488EE5826941BFBC50411",
+                        "command template": "8EA46018D3126F1BB32081AD5D9373CB",
+                        "input": {
+                            "String disks": "F1ACD7E259F2D291B024F0A677D5E7A3",
+                            "File raw_file": "tKn6Ow==",
+                            "File parameter_masic": "mvlC8Q==",
+                            "String docker": "5A1C0BA3DC0830EFBCD9D02E91F6D9E5",
+                            "Int ncpu": "C81E728D9D4C2F636F067F89CC14862C",
+                            "Int ramGB": "C81E728D9D4C2F636F067F89CC14862C",
+                            "String output_masic": "96D72F9D52853B80C3540A16D2AB3517"
+                        }
+                    },
+                    "effectiveCallCachingMode": "ReadAndWriteCache"
+                },
+                "inputs": {
+                    "parameter_masic": "gs://motrpac-test-datasets/proteomics_tmt/parameters/TMT10_LTQ-FT_10ppm_ReporterTol0.003Da_2014-08-06.xml",
+                    "raw_file": "gs://motrpac-test-datasets/proteomics_tmt/raw_light/Global/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05.raw",
+                    "output_masic": "masic_output",
+                    "disks": "local-disk 20 HDD",
+                    "docker": "gcr.io/motrpac-portal-dev/motrpac-prot-masic:v1.0_20200122",
+                    "ramGB": 2,
+                    "ncpu": 2
+                },
+                "backendLabels": {
+                    "wdl-task-name": "masic",
+                    "cromwell-workflow-id": "cromwell-95def99f-2d34-4709-903d-ad9f4db1b7fc"
+                },
+                "returnCode": 0,
+                "labels": {
+                    "wdl-task-name": "masic",
+                    "cromwell-workflow-id": "cromwell-95def99f-2d34-4709-903d-ad9f4db1b7fc"
+                },
+                "jobId": "projects/motrpac-portal-dev/operations/280538625098684252",
+                "backend": "gcp",
+                "end": "2020-03-17T20:26:50.956Z",
+                "dockerImageUsed": "gcr.io/motrpac-portal-dev/motrpac-prot-masic@sha256:c4957d438ad59bf52485220a0bec8746110d83d9f7a93ae7f6b38b46f8bd2bc3",
+                "stderr": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-1/stderr",
+                "callRoot": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-1",
+                "attempt": 1,
+                "executionEvents": [
+                    {
+                        "description": "Localization",
+                        "startTime": "2020-03-17T20:19:06.975Z",
+                        "endTime": "2020-03-17T20:19:28.494Z"
+                    },
+                    {
+                        "description": "ContainerSetup",
+                        "startTime": "2020-03-17T20:19:01.589Z",
+                        "endTime": "2020-03-17T20:19:06.151Z"
+                    },
+                    {
+                        "startTime": "2020-03-17T20:16:16.119Z",
+                        "description": "PreparingJob",
+                        "endTime": "2020-03-17T20:16:16.132Z"
+                    },
+                    {
+                        "description": "Background",
+                        "startTime": "2020-03-17T20:19:00.853Z",
+                        "endTime": "2020-03-17T20:19:01.212Z"
+                    },
+                    {
+                        "startTime": "2020-03-17T20:16:43.970Z",
+                        "description": "Worker \"google-pipelines-worker-76d3f42b6ec29e1f56f56bc6e2041954\" assigned in \"us-central1-b\"",
+                        "endTime": "2020-03-17T20:18:26.597Z"
+                    },
+                    {
+                        "startTime": "2020-03-17T20:25:09.735Z",
+                        "description": "Worker released",
+                        "endTime": "2020-03-17T20:26:48.017Z"
+                    },
+                    {
+                        "description": "Pulling \"gcr.io/motrpac-portal-dev/motrpac-prot-masic@sha256:c4957d438ad59bf52485220a0bec8746110d83d9f7a93ae7f6b38b46f8bd2bc3\"",
+                        "startTime": "2020-03-17T20:18:43.948Z",
+                        "endTime": "2020-03-17T20:19:00.853Z"
+                    },
+                    {
+                        "startTime": "2020-03-17T20:26:50.956Z",
+                        "description": "UpdatingJobStore",
+                        "endTime": "2020-03-17T20:26:50.956Z"
+                    },
+                    {
+                        "startTime": "2020-03-17T20:16:40.772Z",
+                        "description": "waiting for quota",
+                        "endTime": "2020-03-17T20:16:43.970Z"
+                    },
+                    {
+                        "startTime": "2020-03-17T20:16:16.118Z",
+                        "description": "WaitingForValueStore",
+                        "endTime": "2020-03-17T20:16:16.119Z"
+                    },
+                    {
+                        "startTime": "2020-03-17T20:16:16.132Z",
+                        "description": "CallCacheReading",
+                        "endTime": "2020-03-17T20:16:16.139Z"
+                    },
+                    {
+                        "description": "Delocalization",
+                        "startTime": "2020-03-17T20:24:26.351Z",
+                        "endTime": "2020-03-17T20:25:09.735Z"
+                    },
+                    {
+                        "startTime": "2020-03-17T20:16:16.139Z",
+                        "description": "RunningJob",
+                        "endTime": "2020-03-17T20:16:40.772Z"
+                    },
+                    {
+                        "description": "UserAction",
+                        "startTime": "2020-03-17T20:19:28.494Z",
+                        "endTime": "2020-03-17T20:24:26.351Z"
+                    },
+                    {
+                        "startTime": "2020-03-17T20:26:48.017Z",
+                        "description": "UpdatingCallCache",
+                        "endTime": "2020-03-17T20:26:50.956Z"
+                    },
+                    {
+                        "description": "Pulling \"gcr.io/google.com/cloudsdktool/cloud-sdk:264.0.0-slim\"",
+                        "startTime": "2020-03-17T20:18:26.597Z",
+                        "endTime": "2020-03-17T20:18:43.948Z"
+                    },
+                    {
+                        "startTime": "2020-03-17T20:16:13.009Z",
+                        "description": "Pending",
+                        "endTime": "2020-03-17T20:16:13.023Z"
+                    },
+                    {
+                        "startTime": "2020-03-17T20:16:13.023Z",
+                        "description": "RequestingExecutionToken",
+                        "endTime": "2020-03-17T20:16:16.118Z"
+                    }
+                ],
+                "backendLogs": {
+                    "log": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-1/masic-1.log"
+                },
+                "start": "2020-03-17T20:16:12.997Z"
+            }
+        ]
+    },
+    "outputs": {
+        "proteomics.masic.ReporterIons_output_file": [
+            "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-0/glob-fc4d11d84f15789a6b364ac1c2ad631a/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_ReporterIons.txt",
+            "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-1/glob-fc4d11d84f15789a6b364ac1c2ad631a/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_ReporterIons.txt"
+        ],
+        "proteomics.masic.DatasetInfo_output_file": [
+            "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-0/glob-73480eaa13c897bb106798d152550136/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_DatasetInfo.xml",
+            "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-1/glob-73480eaa13c897bb106798d152550136/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_DatasetInfo.xml"
+        ],
+        "proteomics.masic.ScanStats_output_file": [
+            "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-0/glob-90594c8d236cc66bb27d666c3b020fa1/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_ScanStats.txt",
+            "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-1/glob-90594c8d236cc66bb27d666c3b020fa1/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_ScanStats.txt"
+        ],
+        "proteomics.masic.MS_scans_output_file": [
+            "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-0/glob-cb375dfd8c40490e7d395e9f60e10b65/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_MSMS_scans.csv",
+            "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-1/glob-cb375dfd8c40490e7d395e9f60e10b65/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_MSMS_scans.csv"
+        ],
+        "proteomics.masic.MSMS_scans_output_file": [
+            "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-0/glob-c744e7680f222aceef79f6ff81336630/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_MSMS_scans.csv",
+            "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-1/glob-c744e7680f222aceef79f6ff81336630/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_MSMS_scans.csv"
+        ],
+        "proteomics.masic.ScanStatsEx_output_file": [
+            "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-0/glob-0c83d6906fbe3091d7f9ae5df309e090/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_ScanStatsEx.txt",
+            "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-1/glob-0c83d6906fbe3091d7f9ae5df309e090/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_ScanStatsEx.txt"
+        ],
+        "proteomics.masic.SICstats_output_file": [
+            "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-0/glob-2066f9e90c242769b62d9866c26b90c0/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_SICstats.txt",
+            "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-1/glob-2066f9e90c242769b62d9866c26b90c0/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_SICstats.txt"
+        ],
+        "proteomics.masic.ScanStatsConstant_output_file": [
+            "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-0/glob-70dc246c20c4fd6400712f99f71d46e7/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_ScanStatsConstant.txt",
+            "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-1/glob-70dc246c20c4fd6400712f99f71d46e7/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_ScanStatsConstant.txt"
+        ],
+        "proteomics.masic.SICs_output_file": [
+            "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-0/glob-b069eab7e4d1edec185303ed4920ca86/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_SICs.xml",
+            "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/call-masic/shard-1/glob-b069eab7e4d1edec185303ed4920ca86/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_SICs.xml"
+        ]
+    },
+    "workflowRoot": "gs://motrpac-test-datasets/proteomics_tmt/proteomics_test/proteomics/95def99f-2d34-4709-903d-ad9f4db1b7fc/",
+    "actualWorkflowLanguage": "WDL",
+    "id": "95def99f-2d34-4709-903d-ad9f4db1b7fc",
+    "inputs": {
+        "proteomics.masic_ramGB": 2,
+        "proteomics.masic_disk": "local-disk 20 HDD",
+        "proteomics.parameter_masic": "gs://motrpac-test-datasets/proteomics_tmt/parameters/TMT10_LTQ-FT_10ppm_ReporterTol0.003Da_2014-08-06.xml",
+        "proteomics.masic_docker": "gcr.io/motrpac-portal-dev/motrpac-prot-masic:v1.0_20200122",
+        "proteomics.raw_file": [
+            "gs://motrpac-test-datasets/proteomics_tmt/raw_light/Global/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05.raw",
+            "gs://motrpac-test-datasets/proteomics_tmt/raw_light/Global/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05.raw"
+        ],
+        "proteomics.masic_ncpu": 2
+    },
+    "labels": {
+        "caper-str-label": "input_test_gcp",
+        "caper-backend": "gcp",
+        "caper-user": "davidjm",
+        "cromwell-workflow-id": "cromwell-95def99f-2d34-4709-903d-ad9f4db1b7fc"
+    },
+    "submission": "2020-03-17T20:16:06.236Z",
+    "status": "Succeeded",
+    "end": "2020-03-17T20:26:53.748Z",
+    "start": "2020-03-17T20:16:06.378Z"
+}
