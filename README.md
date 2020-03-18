@@ -11,7 +11,10 @@ WDL implementation of a MS-GF+ based proteomics data analysis pipeline based on 
 
 # Installations
 
-Only works locally on Mac OS X (>10.14)
+Tested on the following platforms: 
+
+- Locally on Mac OS X (>10.14)
+- GCP (launch locally)
 
 ## Caper
 
@@ -23,6 +26,32 @@ $ pip install caper
 
 Note that conda run mode that is described in caper documentation is not supported by this pipeline.
 
+***About caper config file***
+
+Once `caper` is installed, the following config file should be available:
+
+```
+/Users/[[mac_user]]/.caper/default.conf
+```
+
+(please, create otherwise)
+
+Edit the config file and add the following options in order to be able to run it on GCP
+
+```
+backend=local
+
+# Caper stores all important temp files and cached big data files here
+tmp-dir=/Users/[[mac_user]]/temp/caper_temp
+
+# GCP options
+# GCP Project name
+gcp-prj=[[your-gcp-project-here]]
+# GCP output bucket
+out-gcs-bucket=gs://[[your-bucket-location]]/proteomics_tests_gcp
+```
+
+
 ## Java 8
 
 Java is required to run execution engine `Cromwell` that `caper` uses under the hood. To check which Java version you already have, run:
@@ -33,7 +62,7 @@ $ java -version
 
 You are looking for 1.8 or higher. If the requirement is not fulfilled follow installation instructions for [mac](https://java.com/en/download/help/mac_install.xml) or use your favorite installation method.
 
-## Docker
+## Docker (only locally)
 
 Pipeline code is packaged and distributed in Docker containers, and thus Docker installation is needed. Follow instructions for [mac](https://docs.docker.com/docker-for-mac/install/). (Docker Desktop recommended)
 
@@ -49,8 +78,7 @@ We recommend using `caper` for running the pipeline, although it is possible to 
 
 ## Test data
 
-Download the raw files available in the following bucket of the 
-GCP `motrpac-project-dev` project:
+Download the raw files available in the following bucket of the GCP `motrpac-project-dev` project:
 
 ```
 cd /the/directory/where/you/want/the/data
@@ -68,48 +96,45 @@ MoTrPAC_Pilot_TMT_S3_88_24Jan18_Precious_18-01-05.raw # this one won't be used f
 
 **WARNING**: do not download the files using the GCP web interface (it changes the file names)
 
+
 ## JSON configuration file
 
-Use the [input_config.json] file available in the `tests` folder, which looks like this:
+### Local
 
-```
-{
-  "proteomics.masic_ncpu": "2",
-  "proteomics.masic_ramGB": "2",
-  "proteomics.masic_docker": "gcr.io/my-project-dev/motrpac-prot-masic@sha256:c4957d438ad59bf52485220a0bec8746110d83d9f7a93ae7f6b38b46f8bd2bc3",
-  "proteomics.raw_file": ["/path/to/Global/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05.raw", "/path/to/Global/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05.raw"],
-  "proteomics.parameter_masic": "/path/to/motrpac-proteomics-pipeline/parameters/TMT10_LTQ-FT_10ppm_ReporterTol0.003Da_2014-08-06.xml"
-}
-```
-
-where
-
-- `"proteomics.masic_docker"`: is the docker container. Give it a try first to make sure you have access to the MoTrPAC BIC docker container registry (otherwise, contact Karen ;-):
-
-```
-docker pull gcr.io/my-project-dev/motrpac-prot-masic@sha256:c4957d438ad59bf52485220a0bec8746110d83d9f7a93ae7f6b38b46f8bd2bc3
-```
-
-**Note**: this assumes you have gcp set up [as described here](https://cloud.google.com/container-registry/docs/advanced-authentication)
+Use the [input_config_local.json](tests/input_test_local.json) file available in the `tests` folder, where
 
 - `"proteomics.parameter_masic"`: is the path to `parameters` folder of this repo.
+- `"proteomics.masic_docker"`: is the docker container. We recommend to first test that the user can access the MoTrPAC BIC docker container registry (otherwise, contact the BIC ;-)
+
+```
+docker pull gcr.io/my-project-dev/motrpac-prot-masic:v1.0_20200122
+```
+
+### GCP
+
+Use the [input_config_gcp.json](tests/input_test_gcp.json) file available in `tests` folder to start the job (see below). **Notice** that the only difference is the location of the `proteomics.raw_file` and `proteomics.parameter_masic` files, being the new location a GCP bucket!
+
+**Note**: it assumes you have gcp set up [as described here](https://cloud.google.com/container-registry/docs/advanced-authentication)
+
 
 
 ## Run it!
 
+### Locally
+
 Create a folder and cd:
 
 ```
-mkdir test_proteomics
-cd test_proteomics
+mkdir test_proteomics_local
+cd test_proteomics_local
 ```
 
 and run
 
 ```
 caper run /full/path/to/motrpac-proteomics-pipeline/proteomics_pipeline.wdl \
--i /full/path/to/motrpac-proteomics-pipeline/tests/input_config.json \
--m testrun_metadata.json | tee run_masic.log
+-i /full/path/to/motrpac-proteomics-pipeline/tests/input_config_local.json \
+-m testrun_metadata_local.json | tee run_masic_local.log
 ```
 
 and everything was done correctly, you should see something like this...
@@ -136,9 +161,27 @@ Running this step should take some time (5 to 10 minutes depending on your compu
 docker ps
 ```
 
-and two beautiful docker containers should be up an running for a while.
+and two docker containers should be up an running for a while (the command `docker ps` should display both commands once running)
 
-Once completed, something like this will be printed in your console (also available in the `run_masic.log` file):
+
+### GCP
+
+Create a folder and cd:
+
+```
+mkdir test_proteomics_gcp
+cd test_proteomics_gcp
+```
+
+and run
+
+```
+caper run /full/path/to/motrpac-proteomics-pipeline/proteomics_pipeline.wdl -i /full/path/to/motrpac-proteomics-pipeline/tests/input_test_gcp.json -b gcp -m testrun_metadata_gcp.json | tee run_masic_gcp.log
+```
+
+### Outputs
+
+Once completed, something like this shold be printed in your console (also available in the `run_masic_[local or gcp].log` file):
 
 ```
 .
@@ -152,53 +195,71 @@ Once completed, something like this will be printed in your console (also availa
 2020-03-06 15:25:07,661  INFO  - Database closed
 2020-03-06 15:25:07,662  INFO  - Stream materializer shut down
 2020-03-06 15:25:07,663  INFO  - WDL HTTP import resolver closed
-[CaperURI] write to local, target: /path/to/whatever/temp/proteomics_pipeline_test/test_david_light_all/testrun_metadata.json, size: 19673
+[CaperURI] write to local, target: /path/to/whatever/test_proteomics_gcp/testrun_metadata.json, size: 19673
 [Caper] troubleshooting 86786b9a-7467-4c8f-82ef-08e769517fee ...
 This workflow ran successfully. There is nothing to troubleshoot
-[Caper] run:  0 86786b9a-7467-4c8f-82ef-08e769517fee /path/to/whatever/temp/proteomics_pipeline_test/test_david_light_all/testrun_metadata.json
+[Caper] run:  0 86786b9a-7467-4c8f-82ef-08e769517fee /path/to/whatever/test_proteomics_gcp/testrun_metadata.json
 ```
 
 Then the output folder should look like this:
 
 ```
-test_david_light_all/
+test_proteomics_[local or gcp]/
 |-- cromwell-workflow-logs
 `-- proteomics
-    `-- 86786b9a-7467-4c8f-82ef-08e769517fee
+    `-- 25127cbd-6ab1-45f2-81d4-9bdc0bca1e45
         `-- call-masic
             |-- shard-0
             |   |-- execution
+            |   |   |-- glob-0c83d6906fbe3091d7f9ae5df309e090
+            |   |   |-- glob-2066f9e90c242769b62d9866c26b90c0
+            |   |   |-- glob-70dc246c20c4fd6400712f99f71d46e7
+            |   |   |-- glob-73480eaa13c897bb106798d152550136
+            |   |   |-- glob-90594c8d236cc66bb27d666c3b020fa1
+            |   |   |-- glob-b069eab7e4d1edec185303ed4920ca86
+            |   |   |-- glob-c744e7680f222aceef79f6ff81336630
+            |   |   |-- glob-cb375dfd8c40490e7d395e9f60e10b65
+            |   |   |-- glob-fc4d11d84f15789a6b364ac1c2ad631a
+|           |   |   |-- masic_output
+|           |   |   |   |-- MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_DatasetInfo.xml
+|           |   |   |   |-- MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_MSMS_scans.csv
+|           |   |   |   |-- MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_MS_scans.csv
+|           |   |   |   |-- MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_ReporterIons.txt
+|           |   |   |   |-- MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_SICs.xml
+|           |   |   |   |-- MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_SICstats.txt
+|           |   |   |   |-- MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_ScanStats.txt
+|           |   |   |   |-- MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_ScanStatsConstant.txt
+|           |   |   |   `-- MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_ScanStatsEx.txt
             |   |-- inputs
-            |   |   |-- -2147115843
-            |   |   `-- 236662465
-			|   |       |-- MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05.raw
-			|   |       |-- MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_DatasetInfo.xml
-			|   |       |-- MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_MSMS_scans.csv
-			|   |       |-- MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_MS_scans.csv
-			|   |       |-- MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_ReporterIons.txt
-			|   |       |-- MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_SICs.xml
-			|   |       |-- MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_SICstats.txt
-			|   |       |-- MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_ScanStats.txt
-			|   |       |-- MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_ScanStatsConstant.txt
-			|   |       `-- MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05_ScanStatsEx.txt
-            |   `-- tmp.2f0d2009
-            |-- shard-1
-            |   |-- execution
-
-            |   |-- inputs
-            |   |   |-- -2147115843
-            |   |   `-- 236662465
-			|   |       |-- MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05.raw
-			|   |       |-- MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_DatasetInfo.xml
-			|   |       |-- MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_MSMS_scans.csv
-			|   |       |-- MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_MS_scans.csv
-			|   |       |-- MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_ReporterIons.txt
-			|   |       |-- MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_SICs.xml
-			|   |       |-- MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_SICstats.txt
-			|   |       |-- MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_ScanStats.txt
-			|   |       |-- MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_ScanStatsConstant.txt
-			|   |       `-- MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_ScanStatsEx.txt
-            |   `-- tmp.c52ed690
+            |   |   |-- -1036559106
+            |   |   `-- 1761609127
+            |   `-- tmp.f0f36feb
+            `-- shard-1
+                |-- execution
+                |   |-- glob-0c83d6906fbe3091d7f9ae5df309e090
+                |   |-- glob-2066f9e90c242769b62d9866c26b90c0
+                |   |-- glob-70dc246c20c4fd6400712f99f71d46e7
+                |   |-- glob-73480eaa13c897bb106798d152550136
+                |   |-- glob-90594c8d236cc66bb27d666c3b020fa1
+                |   |-- glob-b069eab7e4d1edec185303ed4920ca86
+                |   |-- glob-c744e7680f222aceef79f6ff81336630
+                |   |-- glob-cb375dfd8c40490e7d395e9f60e10b65
+                |   |-- glob-fc4d11d84f15789a6b364ac1c2ad631a
+|               |   |-- masic_output
+|               |   |   |-- MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_DatasetInfo.xml
+|               |   |   |-- MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_MSMS_scans.csv
+|               |   |   |-- MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_MS_scans.csv
+|               |   |   |-- MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_ReporterIons.txt
+|               |   |   |-- MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_SICs.xml
+|               |   |   |-- MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_SICstats.txt
+|               |   |   |-- MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_ScanStats.txt
+|               |   |   |-- MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_ScanStatsConstant.txt
+|               |   |   `-- MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05_ScanStatsEx.txt
+				
+                |-- inputs
+                |   |-- -1036559106
+                |   `-- 1761609127
+                `-- tmp.4fd0350b
 ```
 
 if so... congratulations!
