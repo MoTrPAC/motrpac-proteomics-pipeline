@@ -99,23 +99,24 @@ MoTrPAC_Pilot_TMT_S3_88_24Jan18_Precious_18-01-05.raw # this one won't be used f
 
 ## JSON configuration file
 
+Details for each parameter of the configuration file are available in [input_config_template.json](tests/input_config_template.json).
+
 ### Local
 
-Use the [input_config_local.json](tests/input_test_local.json) file available in the `tests` folder, where
+Use the [input_config_local.json](tests/input_test_local.json) file available in the `tests` folder as an example (but it will require to replace the "`/full/path/to/`" with your custom values)
 
-- `"proteomics.parameter_masic"`: is the path to `parameters` folder of this repo.
-- `"proteomics.masic_docker"`: is the docker container. We recommend to first test that the user can access the MoTrPAC BIC docker container registry (otherwise, contact the BIC ;-)
+We recommend to first test that the MoTrPAC BIC docker container registry (or docker.io) can be accessed (otherwise, contact the BIC ;-). For example:
 
 ```
 docker pull gcr.io/my-project-dev/motrpac-prot-masic:v1.0_20200122
+docker pull docker.io/chambm/pwiz-skyline-i-agree-to-the-vendor-licenses:latest
 ```
 
 ### GCP
 
-Use the [input_config_gcp.json](tests/input_test_gcp.json) file available in `tests` folder to start the job (see below). **Notice** that the only difference is the location of the `proteomics.raw_file` and `proteomics.parameter_masic` files, being the new location a GCP bucket!
+Use the [input_config_gcp.json](tests/input_test_gcp.json) file available in `tests` folder to start the job (see below). It will require to customize your values.
 
 **Note**: it assumes you have gcp set up [as described here](https://cloud.google.com/container-registry/docs/advanced-authentication)
-
 
 
 ## Run it!
