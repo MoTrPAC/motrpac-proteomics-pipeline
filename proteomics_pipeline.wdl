@@ -1,12 +1,21 @@
 workflow proteomics {
+    
+    # RAW INPUT FILES
+    Array[File] raw_file = []
 
     # MASIC
     Int masic_ncpu
     Int masic_ramGB
     String masic_docker
     String? masic_disk
-    Array[File] raw_file = []
+    
     File parameter_masic
+    
+    # MSCONVERT
+    Int msconvert_ncpu
+    Int msconvert_ramGB
+    String msconvert_docker
+    String? msconvert_disk
     
 
     scatter (i in range(length(raw_file))) {
@@ -14,10 +23,19 @@ workflow proteomics {
             ncpu = masic_ncpu,
             ramGB = masic_ramGB,
             docker = masic_docker,
+            disks = masic_disk,
             raw_file = raw_file[i],
             parameter_masic = parameter_masic,
-            disks = masic_disk,
             output_masic = "masic_output"
+        }
+
+        call msconvert { input:
+            ncpu = msconvert_ncpu,
+            ramGB = msconvert_ramGB,
+            docker = msconvert_docker,
+            disks = msconvert_disk,
+            raw_file = raw_file[i],
+            output_msconvert = "msconvert_output"
         }
     }
 
@@ -61,5 +79,33 @@ task masic {
         disks : select_first([disks,"local-disk 100 SSD"])
     }
 }
+
+task msconvert {
+    Int ncpu
+    Int ramGB
+    String docker
+    String? disks
+    File raw_file
+    String output_msconvert
+    
+    command {
+        echo "Ready to run MSCONVERT"
+        
+        wine msconvert ${raw_file} \
+        -o ${output_msconvert}
+    }
+
+    output {
+        File msconvert_output_file = glob("msconvert_output/*.mzML")[0]
+    }
+
+    runtime {
+        docker: "${docker}"
+        memory: "${ramGB} GB"
+        cpu: "${ncpu}"
+        disks : select_first([disks,"local-disk 100 SSD"])
+    }
+}
+
 
 
