@@ -1,8 +1,12 @@
 {
-  "proteomics.masic_ncpu": "2",
-  "proteomics.masic_ramGB": "2",
+  "proteomics.masic_disk": "local-disk 20 HDD",
   "proteomics.masic_docker": "gcr.io/my-project-dev/motrpac-prot-masic:v1.0_20200122",
-  "proteomics.masic_disk" : "local-disk 20 HDD",
-  "proteomics.raw_file": ["gs://[[YOUR-BUCKET-NAME]]/proteomics_tmt/raw_light/Global/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05.raw", "gs://[[YOUR-BUCKET-NAME]]/proteomics_tmt/raw_light/Global/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05.raw"],
-  "proteomics.parameter_masic": "gs://[[YOUR-BUCKET-NAME]]/proteomics_tmt/parameters/TMT10_LTQ-FT_10ppm_ReporterTol0.003Da_2014-08-06.xml"
+  "proteomics.masic_ncpu": 2,
+  "proteomics.masic_ramGB": 2,
+  "proteomics.msconvert_disk": "local-disk 20 HDD",
+  "proteomics.msconvert_docker": "docker.io/chambm/pwiz-skyline-i-agree-to-the-vendor-licenses:latest",
+  "proteomics.msconvert_ncpu": 2,
+  "proteomics.msconvert_ramGB": 2,
+  "proteomics.parameter_masic": "gs://[[YOUR-BUCKET-NAME-HERE]]/proteomics_tmt/parameters/TMT10_LTQ-FT_10ppm_ReporterTol0.003Da_2014-08-06.xml",
+  "proteomics.raw_file": ["gs://[[YOUR-BUCKET-NAME-HERE]]/proteomics_tmt/raw_light/Global/MoTrPAC_Pilot_TMT_S3_54_24Jan18_Precious_18-01-05.raw", "gs://[[YOUR-BUCKET-NAME-HERE]]/proteomics_tmt/raw_light/Global/MoTrPAC_Pilot_TMT_S3_81_24Jan18_Precious_18-01-05.raw"]
 }
