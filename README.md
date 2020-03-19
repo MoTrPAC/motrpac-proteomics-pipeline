@@ -114,7 +114,7 @@ docker pull docker.io/chambm/pwiz-skyline-i-agree-to-the-vendor-licenses:latest
 
 ### GCP
 
-Use the [input_config_gcp.json](tests/input_test_gcp.json) file available in `tests` folder to start the job (see below). It will require to customize your values.
+Use the [input_config_gcp.json](tests/input_test_gcp.json) file available in `tests` folder to start the job (see below). It will require you to customize your values.
 
 **Note**: it assumes you have gcp set up [as described here](https://cloud.google.com/container-registry/docs/advanced-authentication)
 
