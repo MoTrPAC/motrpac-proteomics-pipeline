@@ -1,12 +1,18 @@
 {
+  "proteomics.fasta_sequence_db": "File",
   "proteomics.masic_disk": "String? (optional)",
   "proteomics.masic_docker": "String",
   "proteomics.masic_ncpu": "Int",
+  "proteomics.masic_parameter": "File",
   "proteomics.masic_ramGB": "Int",
   "proteomics.msconvert_disk": "String? (optional)",
   "proteomics.msconvert_docker": "String",
   "proteomics.msconvert_ncpu": "Int",
   "proteomics.msconvert_ramGB": "Int",
-  "proteomics.parameter_masic": "File", // path to `parameters` folder of this repo.
-  "proteomics.raw_file": "Array[File] (optional, default = [])" //[/path/to/the/file/file1.raw, /path/to/the/file/file2.raw, etc]
+  "proteomics.msgf_tryptic_disk": "String? (optional)",
+  "proteomics.msgf_tryptic_docker": "String",
+  "proteomics.msgf_tryptic_ncpu": "Int",
+  "proteomics.msgf_tryptic_parameter": "File",
+  "proteomics.msgf_tryptic_ramGB": "Int",
+  "proteomics.raw_file": "Array[File] (optional, default = [])"
 }
