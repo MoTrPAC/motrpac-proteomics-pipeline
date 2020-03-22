@@ -58,6 +58,16 @@ workflow proteomics {
             output_msgf_tryptic = "msgf_tryptic_output"
         }
 
+        call msconvert_mzrefiner { input:
+            ncpu = msconvert_ncpu,
+            ramGB = msconvert_ramGB,
+            docker = msconvert_docker,
+            disks = msconvert_disk,
+            input_mzml = msconvert.mzml,
+            input_mzid = msgf_tryptic.mzid,
+            output_msconvert_mzrefiner = "msconvert_mzrefiner_output"
+        }
+
     }
 
 }
@@ -174,5 +184,40 @@ task msgf_tryptic {
     }
 }
 
+task msconvert_mzrefiner {
+    Int ncpu
+    Int ramGB
+    String docker
+    String? disks
+    File input_mzml
+    File input_mzid
+    String output_msconvert_mzrefiner
+
+    # Create new ouput destination
+    String sample_id = basename(input_mzml, ".mzML")
+    String ouput_name = sample_id + "_FIXED.mzML"
+    String output_full = output_msconvert_mzrefiner + "/" + ouput_name
+    
+    command {
+        echo "Step 3A: Ready to run MSCONVERT-MZREFINE"
+
+        wine msconvert ${input_mzml} \
+        -o ${output_msconvert_mzrefiner} \
+        --outfile ${output_full} \
+        --filter "mzRefiner ${input_mzid} thresholdValue=-1e-10 thresholdStep=10 maxSteps=2" \
+        --32 --mzML
+    }
+
+    output {
+        File mzml_fixed = glob("${output_msconvert_mzrefiner}/*_FIXED.mzML")[0]
+    }
+
+    runtime {
+        docker: "${docker}"
+        memory: "${ramGB} GB"
+        cpu: "${ncpu}"
+        disks : select_first([disks,"local-disk 100 SSD"])
+    }
+}
 
 
