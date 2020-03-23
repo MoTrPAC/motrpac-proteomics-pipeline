@@ -26,6 +26,9 @@ workflow proteomics {
     File fasta_sequence_db
     File msgf_tryptic_parameter
 
+    # PPMErrorCharter
+    String ppm_errorcharter_docker
+
 
     scatter (i in range(length(raw_file))) {
         call masic { input:
@@ -68,6 +71,14 @@ workflow proteomics {
             output_msconvert_mzrefiner = "msconvert_mzrefiner_output"
         }
 
+        call ppm_errorcharter { input:
+            ncpu = msconvert_ncpu,
+            ramGB = msconvert_ramGB,
+            docker = ppm_errorcharter_docker,
+            disks = msconvert_disk,
+            input_fixed_mzml = msconvert_mzrefiner.mzml_fixed,
+            input_mzid = msgf_tryptic.mzid
+        }
     }
 
 }
@@ -210,6 +221,34 @@ task msconvert_mzrefiner {
 
     output {
         File mzml_fixed = glob("${output_msconvert_mzrefiner}/*_FIXED.mzML")[0]
+    }
+
+    runtime {
+        docker: "${docker}"
+        memory: "${ramGB} GB"
+        cpu: "${ncpu}"
+        disks : select_first([disks,"local-disk 100 SSD"])
+    }
+}
+
+task ppm_errorcharter {
+    Int ncpu
+    Int ramGB
+    String docker
+    String? disks
+    File input_fixed_mzml
+    File input_mzid
+
+    # Create new ouput destination
+    String sample_id = basename(input_mzid, ".mzid")
+    
+    command {
+        echo "Step 3B: PPMErrorCharter"
+
+        mono /app/PPMErrorCharterPython.exe \
+        -I:${input_mzid} \
+        -F:${input_fixed_mzml} \
+        -EValue:1E-10
     }
 
     runtime {
