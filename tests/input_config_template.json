@@ -14,5 +14,6 @@
   "proteomics.msgf_tryptic_ncpu": "Int",
   "proteomics.msgf_tryptic_parameter": "File",
   "proteomics.msgf_tryptic_ramGB": "Int",
+  "proteomics.ppm_errorcharter_docker": "String",
   "proteomics.raw_file": "Array[File] (optional, default = [])"
 }
