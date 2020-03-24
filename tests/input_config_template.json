@@ -9,6 +9,7 @@
   "proteomics.msconvert_docker": "String",
   "proteomics.msconvert_ncpu": "Int",
   "proteomics.msconvert_ramGB": "Int",
+  "proteomics.msgf_identification_parameter": "File",
   "proteomics.msgf_tryptic_disk": "String? (optional)",
   "proteomics.msgf_tryptic_docker": "String",
   "proteomics.msgf_tryptic_ncpu": "Int",
