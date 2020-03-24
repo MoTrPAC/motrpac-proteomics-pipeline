@@ -29,6 +29,8 @@ workflow proteomics {
     # PPMErrorCharter
     String ppm_errorcharter_docker
 
+    # MS-GF+ IDENTIFICATION
+    File msgf_identification_parameter
 
     scatter (i in range(length(raw_file))) {
         call masic { input:
@@ -79,8 +81,18 @@ workflow proteomics {
             input_fixed_mzml = msconvert_mzrefiner.mzml_fixed,
             input_mzid = msgf_tryptic.mzid
         }
-    }
 
+        call msgf_identification { input:
+            ncpu = msgf_tryptic_ncpu,
+            ramGB = msgf_tryptic_ramGB,
+            docker = msgf_tryptic_docker,
+            disks = msgf_tryptic_disk,
+            input_fixed_mzml = msconvert_mzrefiner.mzml_fixed,
+            fasta_sequence_db = fasta_sequence_db,
+            msgf_identification_parameter = msgf_identification_parameter,
+            output_msgf_identification = "msgf_identification_output"
+        }
+    }
 }
 
 task masic {
@@ -112,7 +124,6 @@ task masic {
         File ScanStatsConstant_output_file = glob("${output_masic}/*ScanStatsConstant.txt")[0]
         File SICs_output_file = glob("${output_masic}/*SICs.xml")[0]
     }
-
 
     runtime {
         docker: "${docker}"
@@ -175,15 +186,9 @@ task msgf_tryptic {
         -o ${output_full} \
         -d ${fasta_sequence_db} \
         -conf ${msgf_tryptic_parameter}
-
     }
 
     output {
-        # File revCat_cnlcp = glob("*.revCat.cnlcp")[0]
-        # File revCat_csarr = glob("*.revCat.csarr")[0]
-        # File revCat_cseq  = glob("*.revCat.cseq")[0]
-        # File revCat_canno = glob("*.revCat.canno")[0]
-        # File revCat_fasta = glob("*.revCat.fasta")[0]
         File mzid = glob("${output_msgf_tryptic}/*.mzid")[0]
     }
 
@@ -238,9 +243,6 @@ task ppm_errorcharter {
     String? disks
     File input_fixed_mzml
     File input_mzid
-
-    # Create new ouput destination
-    String sample_id = basename(input_mzid, ".mzid")
     
     command {
         echo "Step 3B: PPMErrorCharter"
@@ -249,6 +251,47 @@ task ppm_errorcharter {
         -I:${input_mzid} \
         -F:${input_fixed_mzml} \
         -EValue:1E-10
+    }
+
+    runtime {
+        docker: "${docker}"
+        memory: "${ramGB} GB"
+        cpu: "${ncpu}"
+        disks : select_first([disks,"local-disk 100 SSD"])
+    }
+}
+
+
+task msgf_identification {
+    Int ncpu
+    Int ramGB
+    String docker
+    String? disks
+
+    File input_fixed_mzml
+    File fasta_sequence_db
+    File msgf_identification_parameter
+
+    String output_msgf_identification
+
+    # Create new ouput destination
+    String sample_id = basename(input_fixed_mzml, "_FIXED.mzML")
+    String ouput_name = sample_id + "_final.mzid"
+    String output_full = output_msgf_identification + "/" + ouput_name
+    
+    command {
+        echo "Ready to run MS-GF+ identification search:"
+
+        java -Xmx4000M \
+        -jar /app/MSGFPlus.jar \
+        -s ${input_fixed_mzml} \
+        -o ${output_full} \
+        -d ${fasta_sequence_db} \
+        -conf ${msgf_identification_parameter}
+    }
+
+    output {
+        File mzid_final = glob("${output_msgf_identification}/*_final.mzid")[0]
     }
 
     runtime {
