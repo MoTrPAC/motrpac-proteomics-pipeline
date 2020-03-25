@@ -32,6 +32,9 @@ workflow proteomics {
     # MS-GF+ IDENTIFICATION
     File msgf_identification_parameter
 
+    # MzidToTSVConverter
+    String mzidtotsvconverter_docker
+
     scatter (i in range(length(raw_file))) {
         call masic { input:
             ncpu = masic_ncpu,
@@ -91,6 +94,15 @@ workflow proteomics {
             fasta_sequence_db = fasta_sequence_db,
             msgf_identification_parameter = msgf_identification_parameter,
             output_msgf_identification = "msgf_identification_output"
+        }
+
+        call mzidtotsvconverter { input:
+            ncpu = msconvert_ncpu,
+            ramGB = msconvert_ramGB,
+            docker = mzidtotsvconverter_docker,
+            disks = msconvert_disk,
+            input_mzid_final = msgf_identification.mzid_final,
+            output_mzidtotsvconverter = "mzidtotsvconverter_output"
         }
     }
 }
@@ -292,6 +304,37 @@ task msgf_identification {
 
     output {
         File mzid_final = glob("${output_msgf_identification}/*_final.mzid")[0]
+    }
+
+    runtime {
+        docker: "${docker}"
+        memory: "${ramGB} GB"
+        cpu: "${ncpu}"
+        disks : select_first([disks,"local-disk 100 SSD"])
+    }
+}
+
+task mzidtotsvconverter {
+    Int ncpu
+    Int ramGB
+    String docker
+    String? disks
+    File input_mzid_final
+
+    String output_mzidtotsvconverter
+
+    # Create new ouput destination
+    String sample_id = basename(input_mzid_final, "_final.mzid")
+    String ouput_name = sample_id + ".tsv"
+    String output_full = output_mzidtotsvconverter + "/" + ouput_name
+    
+    command {
+        echo "Step 5: MzidToTSVConverter"
+
+        mono /app/mzid2tsv/net462/MzidToTsvConverter.exe \
+		-mzid:${input_mzid_final} \
+		-tsv:${output_full} \
+		-unroll -showDecoy
     }
 
     runtime {
