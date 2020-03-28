@@ -17,23 +17,32 @@ workflow proteomics {
     String msconvert_docker
     String? msconvert_disk
 
-    # MS-GF+ TRYPTIC
-    Int msgf_tryptic_ncpu
-    Int msgf_tryptic_ramGB
-    String msgf_tryptic_docker
-    String? msgf_tryptic_disk
-
+    # MS-GF+ SHARED OPTIONS
+    Int msgf_ncpu
+    Int msgf_ramGB
+    String msgf_docker
+    String? msgf_disk
     File fasta_sequence_db
-    File msgf_tryptic_parameter
 
-    # PPMErrorCharter
-    String ppm_errorcharter_docker
+    # MS-GF+ TRYPTIC
+    File msgf_tryptic_parameter
 
     # MS-GF+ IDENTIFICATION
     File msgf_identification_parameter
 
+    # PPMErrorCharter
+    String ppm_errorcharter_docker
+
     # MzidToTSVConverter
     String mzidtotsvconverter_docker
+
+    call msgf_sequences { input:
+        ncpu = msgf_ncpu,
+        ramGB = msgf_ramGB,
+        docker = msgf_docker,
+        disks = msgf_disk,
+        fasta_sequence_db = fasta_sequence_db
+    }
 
     scatter (i in range(length(raw_file))) {
         call masic { input:
@@ -56,14 +65,14 @@ workflow proteomics {
         }
 
         call msgf_tryptic { input:
-            ncpu = msgf_tryptic_ncpu,
-            ramGB = msgf_tryptic_ramGB,
-            docker = msgf_tryptic_docker,
-            disks = msgf_tryptic_disk,
+            ncpu = msgf_ncpu,
+            ramGB = msgf_ramGB,
+            docker = msgf_docker,
+            disks = msgf_disk,
             input_mzml = msconvert.mzml,
             fasta_sequence_db = fasta_sequence_db,
-            msgf_tryptic_parameter = msgf_tryptic_parameter,
-            output_msgf_tryptic = "msgf_tryptic_output"
+            sequencedb_files = msgf_sequences.sequencedb_files,
+            msgf_tryptic_parameter = msgf_tryptic_parameter
         }
 
         call msconvert_mzrefiner { input:
@@ -86,14 +95,14 @@ workflow proteomics {
         }
 
         call msgf_identification { input:
-            ncpu = msgf_tryptic_ncpu,
-            ramGB = msgf_tryptic_ramGB,
-            docker = msgf_tryptic_docker,
-            disks = msgf_tryptic_disk,
+            ncpu = msgf_ncpu,
+            ramGB = msgf_ramGB,
+            docker = msgf_docker,
+            disks = msgf_disk,
             input_fixed_mzml = msconvert_mzrefiner.mzml_fixed,
             fasta_sequence_db = fasta_sequence_db,
-            msgf_identification_parameter = msgf_identification_parameter,
-            output_msgf_identification = "msgf_identification_output"
+            sequencedb_files = msgf_sequences.sequencedb_files,
+            msgf_identification_parameter = msgf_identification_parameter
         }
 
         call mzidtotsvconverter { input:
@@ -104,6 +113,43 @@ workflow proteomics {
             input_mzid_final = msgf_identification.mzid_final,
             output_mzidtotsvconverter = "mzidtotsvconverter_output"
         }
+    }
+}
+
+task msgf_sequences {
+    Int ncpu
+    Int ramGB
+    String docker
+    String? disks
+
+    File fasta_sequence_db
+
+    String seq_file_id = basename(fasta_sequence_db, ".fasta")
+    # String output_full = output_msgf_tryptic + "/" + ouput_name
+    
+    command {
+        echo "MSGF+ READY TO PROCES SEQUENCE DB"
+
+        # Generate sequence indexes
+        java -Xmx4000M -cp /app/MSGFPlus.jar edu.ucsd.msjava.msdbsearch.BuildSA \
+        -d ${fasta_sequence_db} \
+        -tda 2 \
+        -o sequencedb_folder #test this
+
+        # Compress results
+        tar -C sequencedb_folder -zcvf sequencedb_files.tar.gz .
+    }
+
+    output {
+        File sequencedb_files = "sequencedb_files.tar.gz"
+        File revCat_fasta = "sequencedb_folder/${seq_file_id}.revCat.fasta"
+    }
+
+    runtime {
+        docker: "${docker}"
+        memory: "${ramGB} GB"
+        cpu: "${ncpu}"
+        disks : select_first([disks,"local-disk 100 SSD"])
     }
 }
 
@@ -154,7 +200,7 @@ task msconvert {
     String output_msconvert
     
     command {
-        echo "Ready to run MSCONVERT"
+        echo "EXECUTE MSCONVERT - - - - - - - -"
 
         wine msconvert ${raw_file} \
         -o ${output_msconvert}
@@ -180,28 +226,38 @@ task msgf_tryptic {
 
     File input_mzml
     File fasta_sequence_db
+    File sequencedb_files
     File msgf_tryptic_parameter
-
-    String output_msgf_tryptic
 
     # Create new ouput destination
     String sample_id = basename(input_mzml, ".mzML")
-    String ouput_name = sample_id + ".mzid"
-    String output_full = output_msgf_tryptic + "/" + ouput_name
+    String seq_file_id = basename(fasta_sequence_db, ".fasta")
     
     command {
-        echo "Ready to run MS-GF+ tryptic search:"
+        echo "RUN MS-GF+ TRYPTIC SEARCH"
+        ls
+        echo "COPY FILES - - - - - - - - - -"
+        
+        cp ${sequencedb_files} .
+        ls
+        tar xvzf ${sequencedb_files}
+
+        echo "MSGF+ BEGINs - - - - - - - - - -"
 
         java -Xmx4000M \
         -jar /app/MSGFPlus.jar \
         -s ${input_mzml} \
-        -o ${output_full} \
-        -d ${fasta_sequence_db} \
+        -o ${sample_id}.mzid \
+        -d ${seq_file_id}.fasta \
         -conf ${msgf_tryptic_parameter}
+        
+        echo "LIST RESULTS - - - - - - - - - -"
+        ls
+        echo "ADIOS - - - - - - - - - -"
     }
 
     output {
-        File mzid = glob("${output_msgf_tryptic}/*.mzid")[0]
+        File mzid = "${sample_id}.mzid"
     }
 
     runtime {
@@ -282,28 +338,38 @@ task msgf_identification {
 
     File input_fixed_mzml
     File fasta_sequence_db
+    File sequencedb_files
     File msgf_identification_parameter
-
-    String output_msgf_identification
 
     # Create new ouput destination
     String sample_id = basename(input_fixed_mzml, "_FIXED.mzML")
-    String ouput_name = sample_id + "_final.mzid"
-    String output_full = output_msgf_identification + "/" + ouput_name
+    String seq_file_id = basename(fasta_sequence_db, ".fasta")
     
     command {
-        echo "Ready to run MS-GF+ identification search:"
+        echo "EXECUTE MS-GF+ IDENTIFICATION SEARCH - - - - - - - - - -"
+        ls
+        echo "COPY FILES - - - - - - - - - -"
+        
+        cp ${sequencedb_files} .
+        ls
+        tar xvzf ${sequencedb_files}
+
+        echo "MSGF+ IDENTIFICATION BEGINs - - - - - - - - - -"
 
         java -Xmx4000M \
         -jar /app/MSGFPlus.jar \
         -s ${input_fixed_mzml} \
-        -o ${output_full} \
-        -d ${fasta_sequence_db} \
+        -o ${sample_id}_final.mzid \
+        -d ${seq_file_id}.fasta \
         -conf ${msgf_identification_parameter}
+
+        echo "LIST RESULTS - - - - - - - - - -"
+        ls
+        echo "ADIOS - - - - - - - - - -"
     }
 
     output {
-        File mzid_final = glob("${output_msgf_identification}/*_final.mzid")[0]
+        File mzid_final = "${sample_id}_final.mzid"
     }
 
     runtime {
@@ -320,7 +386,6 @@ task mzidtotsvconverter {
     String docker
     String? disks
     File input_mzid_final
-
     String output_mzidtotsvconverter
 
     # Create new ouput destination
@@ -335,6 +400,10 @@ task mzidtotsvconverter {
 		-mzid:${input_mzid_final} \
 		-tsv:${output_full} \
 		-unroll -showDecoy
+    }
+
+    output {
+        File tsv = glob("${output_mzidtotsvconverter}/*.tsv")[0]
     }
 
     runtime {
