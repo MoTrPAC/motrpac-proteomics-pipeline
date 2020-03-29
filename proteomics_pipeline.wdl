@@ -36,6 +36,18 @@ workflow proteomics {
     # MzidToTSVConverter
     String mzidtotsvconverter_docker
 
+    # PHRP
+    Int phrp_ncpu
+    Int phrp_ramGB
+    String phrp_docker
+    String? phrp_disk
+
+    File phrp_parameter_m
+    File phrp_parameter_t
+    File phrp_parameter_n
+    Float phrp_synpvalue
+    Float phrp_synprob
+
     call msgf_sequences { input:
         ncpu = msgf_ncpu,
         ramGB = msgf_ramGB,
@@ -113,6 +125,21 @@ workflow proteomics {
             input_mzid_final = msgf_identification.mzid_final,
             output_mzidtotsvconverter = "mzidtotsvconverter_output"
         }
+
+        call phrp { input:
+            ncpu = phrp_ncpu,
+            ramGB = phrp_ramGB,
+            docker = phrp_docker,
+            disks = phrp_disk,
+            input_tsv = mzidtotsvconverter.tsv,
+            output_phrp = "phrp_output",
+            phrp_parameter_m = phrp_parameter_m,
+            phrp_parameter_t = phrp_parameter_t,
+            phrp_parameter_n = phrp_parameter_n,
+            phrp_synpvalue = phrp_synpvalue,
+            phrp_synprob = phrp_synprob,
+            input_revcat_fasta = msgf_sequences.revcat_fasta
+        }
     }
 }
 
@@ -128,7 +155,7 @@ task msgf_sequences {
     # String output_full = output_msgf_tryptic + "/" + ouput_name
     
     command {
-        echo "MSGF+ READY TO PROCES SEQUENCE DB"
+        echo "PRE-STEP: MSGF+ READY TO PROCES SEQUENCE DB"
 
         # Generate sequence indexes
         java -Xmx4000M -cp /app/MSGFPlus.jar edu.ucsd.msjava.msdbsearch.BuildSA \
@@ -142,7 +169,7 @@ task msgf_sequences {
 
     output {
         File sequencedb_files = "sequencedb_files.tar.gz"
-        File revCat_fasta = "sequencedb_folder/${seq_file_id}.revCat.fasta"
+        File revcat_fasta = "sequencedb_folder/${seq_file_id}.revCat.fasta"
     }
 
     runtime {
@@ -163,7 +190,7 @@ task masic {
     String output_masic
 
     command {
-        echo "Ready to run MASIC"
+        echo "STEP 0: Ready to run MASIC"
 
         mono /app/masic/MASIC_Console.exe \
         /I:${raw_file} \
@@ -200,7 +227,7 @@ task msconvert {
     String output_msconvert
     
     command {
-        echo "EXECUTE MSCONVERT - - - - - - - -"
+        echo "STEP 1: MSCONVERT - - - - - - - -"
 
         wine msconvert ${raw_file} \
         -o ${output_msconvert}
@@ -234,7 +261,7 @@ task msgf_tryptic {
     String seq_file_id = basename(fasta_sequence_db, ".fasta")
     
     command {
-        echo "RUN MS-GF+ TRYPTIC SEARCH"
+        echo "STEP 2: MS-GF+ TRYPTIC SEARCH"
         ls
         echo "COPY FILES - - - - - - - - - -"
         
@@ -283,7 +310,7 @@ task msconvert_mzrefiner {
     String output_full = output_msconvert_mzrefiner + "/" + ouput_name
     
     command {
-        echo "Step 3A: Ready to run MSCONVERT-MZREFINE"
+        echo "STEP 3A: MSCONVERT-MZREFINE"
 
         wine msconvert ${input_mzml} \
         -o ${output_msconvert_mzrefiner} \
@@ -313,7 +340,7 @@ task ppm_errorcharter {
     File input_mzid
     
     command {
-        echo "Step 3B: PPMErrorCharter"
+        echo "STEP 3B: PPMErrorCharter"
 
         mono /app/PPMErrorCharterPython.exe \
         -I:${input_mzid} \
@@ -346,7 +373,7 @@ task msgf_identification {
     String seq_file_id = basename(fasta_sequence_db, ".fasta")
     
     command {
-        echo "EXECUTE MS-GF+ IDENTIFICATION SEARCH - - - - - - - - - -"
+        echo "STEP 4: MS-GF+ IDENTIFICATION SEARCH - - - - - - - - - -"
         ls
         echo "COPY FILES - - - - - - - - - -"
         
@@ -394,7 +421,7 @@ task mzidtotsvconverter {
     String output_full = output_mzidtotsvconverter + "/" + ouput_name
     
     command {
-        echo "Step 5: MzidToTSVConverter"
+        echo "STEP 5:: MzidToTSVConverter"
 
         mono /app/mzid2tsv/net462/MzidToTsvConverter.exe \
 		-mzid:${input_mzid_final} \
@@ -414,4 +441,58 @@ task mzidtotsvconverter {
     }
 }
 
+task phrp {
+    Int ncpu
+    Int ramGB
+    String docker
+    String? disks
+    
+    File input_tsv
+    String output_phrp
 
+    File phrp_parameter_m
+    File phrp_parameter_t
+    File phrp_parameter_n
+    Float phrp_synpvalue
+    Float phrp_synprob
+    
+    # Create new ouput destination
+    String phrp_logfile = "PHRP_LogFile.txt"
+    String output_logfile = output_phrp + "/" + phrp_logfile
+
+    File input_revcat_fasta
+    
+    command {
+        echo "STEP 6: PeptideHitResultsProcRunner"
+
+		mono /app/phrp/PeptideHitResultsProcRunner.exe \
+		-I:${input_tsv} \
+		-O:${output_phrp} \
+		-M:${phrp_parameter_m} \
+		-T:${phrp_parameter_t} \
+		-N:${phrp_parameter_n} \
+		-SynPvalue:${phrp_synpvalue} -SynProb:${phrp_synprob} \
+		-L:${output_logfile} \
+		-ProteinMods \
+		-F:${input_revcat_fasta}
+    }
+
+    output {
+        File PepToProtMapMTS = glob("${output_phrp}/*_PepToProtMapMTS.txt")[0]
+        File fht = glob("${output_phrp}/*_fht.txt")[0]
+        File syn = glob("${output_phrp}/*_syn.txt")[0]
+        File syn_ModDetails = glob("${output_phrp}/*_syn_ModDetails.txt")[0]
+        File syn_ModSummary = glob("${output_phrp}/*_syn_ModSummary.txt")[0]
+        File syn_ProteinMods = glob("${output_phrp}/*_syn_ProteinMods.txt")[0]
+        File syn_ResultToSeqMap = glob("${output_phrp}/*_syn_ResultToSeqMap.txt")[0]
+        File syn_SeqInfo = glob("${output_phrp}/*_syn_SeqInfo.txt")[0]
+        File syn_SeqToProteinMap = glob("${output_phrp}/*_syn_SeqToProteinMap.txt")[0]
+    }
+
+    runtime {
+        docker: "${docker}"
+        memory: "${ramGB} GB"
+        cpu: "${ncpu}"
+        disks : select_first([disks,"local-disk 100 SSD"])
+    }
+}
