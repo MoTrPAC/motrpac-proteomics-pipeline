@@ -16,6 +16,16 @@
   "proteomics.msgf_ramGB": "Int",
   "proteomics.msgf_tryptic_parameter": "File",
   "proteomics.mzidtotsvconverter_docker": "String",
+  "proteomics.phrp.phrp_logfile": "String (optional, default = \"PHRP_LogFile.txt\")",
+  "proteomics.phrp_disk": "String? (optional)",
+  "proteomics.phrp_docker": "String",
+  "proteomics.phrp_ncpu": "Int",
+  "proteomics.phrp_parameter_m": "File",
+  "proteomics.phrp_parameter_n": "File",
+  "proteomics.phrp_parameter_t": "File",
+  "proteomics.phrp_ramGB": "Int",
+  "proteomics.phrp_synprob": "Int",
+  "proteomics.phrp_synpvalue": "Int",
   "proteomics.ppm_errorcharter_docker": "String",
   "proteomics.raw_file": "Array[File] (optional, default = [])"
 }
