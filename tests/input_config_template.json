@@ -1,5 +1,11 @@
-{
+{  
+  "proteomics.ascore_disk": "String? (optional)",
+  "proteomics.ascore_docker": "String? (optional)",
+  "proteomics.ascore_ncpu": "Int? (optional)",
+  "proteomics.ascore_parameter_p": "File? (optional)",
+  "proteomics.ascore_ramGB": "Int? (optional)",
   "proteomics.fasta_sequence_db": "File",
+  "proteomics.isPTM": "Boolean",
   "proteomics.masic_disk": "String? (optional)",
   "proteomics.masic_docker": "String",
   "proteomics.masic_ncpu": "Int",
@@ -16,6 +22,7 @@
   "proteomics.msgf_ramGB": "Int",
   "proteomics.msgf_tryptic_parameter": "File",
   "proteomics.mzidtotsvconverter_docker": "String",
+  "proteomics.phrp.null": "File? (optional)",
   "proteomics.phrp.phrp_logfile": "String (optional, default = \"PHRP_LogFile.txt\")",
   "proteomics.phrp_disk": "String? (optional)",
   "proteomics.phrp_docker": "String",
@@ -24,8 +31,8 @@
   "proteomics.phrp_parameter_n": "File",
   "proteomics.phrp_parameter_t": "File",
   "proteomics.phrp_ramGB": "Int",
-  "proteomics.phrp_synprob": "Int",
-  "proteomics.phrp_synpvalue": "Int",
+  "proteomics.phrp_synprob": "Float",
+  "proteomics.phrp_synpvalue": "Float",
   "proteomics.ppm_errorcharter_docker": "String",
   "proteomics.raw_file": "Array[File] (optional, default = [])"
 }
