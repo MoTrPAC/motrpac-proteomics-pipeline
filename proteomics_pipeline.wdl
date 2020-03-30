@@ -48,6 +48,15 @@ workflow proteomics {
     Float phrp_synpvalue
     Float phrp_synprob
 
+    # ASCORE (ONLY PTMs)
+    Boolean isPTM
+    Int? ascore_ncpu
+    Int? ascore_ramGB
+    String? ascore_docker
+    String? ascore_disk
+
+    File? ascore_parameter_p
+
     call msgf_sequences { input:
         ncpu = msgf_ncpu,
         ramGB = msgf_ramGB,
@@ -131,6 +140,7 @@ workflow proteomics {
             ramGB = phrp_ramGB,
             docker = phrp_docker,
             disks = phrp_disk,
+            isPTM = isPTM,
             input_tsv = mzidtotsvconverter.tsv,
             output_phrp = "phrp_output",
             phrp_parameter_m = phrp_parameter_m,
@@ -139,6 +149,19 @@ workflow proteomics {
             phrp_synpvalue = phrp_synpvalue,
             phrp_synprob = phrp_synprob,
             input_revcat_fasta = msgf_sequences.revcat_fasta
+        }
+
+        if(isPTM){
+            call ascore { input:
+                ncpu = ascore_ncpu,
+                ramGB = ascore_ramGB,
+                docker = ascore_docker,
+                disks = ascore_disk,
+                input_syn = phrp.syn,
+                input_fixed_mzml = msconvert_mzrefiner.mzml_fixed,
+                ascore_parameter_p = ascore_parameter_p,
+                fasta_sequence_db = fasta_sequence_db
+            }
         }
     }
 }
@@ -446,6 +469,9 @@ task phrp {
     Int ramGB
     String docker
     String? disks
+
+    Boolean isPTM
+    File? null
     
     File input_tsv
     String output_phrp
@@ -478,15 +504,60 @@ task phrp {
     }
 
     output {
-        File PepToProtMapMTS = glob("${output_phrp}/*_PepToProtMapMTS.txt")[0]
+        File? PepToProtMapMTS = if (isPTM == false) then glob("${output_phrp}/*_PepToProtMapMTS.txt")[0] else null
         File fht = glob("${output_phrp}/*_fht.txt")[0]
         File syn = glob("${output_phrp}/*_syn.txt")[0]
         File syn_ModDetails = glob("${output_phrp}/*_syn_ModDetails.txt")[0]
         File syn_ModSummary = glob("${output_phrp}/*_syn_ModSummary.txt")[0]
-        File syn_ProteinMods = glob("${output_phrp}/*_syn_ProteinMods.txt")[0]
+        File? syn_ProteinMods = if (isPTM == false) then glob("${output_phrp}/*_syn_ProteinMods.txt")[0] else null
         File syn_ResultToSeqMap = glob("${output_phrp}/*_syn_ResultToSeqMap.txt")[0]
         File syn_SeqInfo = glob("${output_phrp}/*_syn_SeqInfo.txt")[0]
         File syn_SeqToProteinMap = glob("${output_phrp}/*_syn_SeqToProteinMap.txt")[0]
+    }
+
+    runtime {
+        docker: "${docker}"
+        memory: "${ramGB} GB"
+        cpu: "${ncpu}"
+        disks : select_first([disks,"local-disk 100 SSD"])
+    }
+}
+
+task ascore {
+    Int ncpu
+    Int ramGB
+    String docker
+    String? disks
+    
+    File input_syn
+    File input_fixed_mzml
+
+    File ascore_parameter_p
+
+    File fasta_sequence_db
+    
+    # Create new ouput destination
+    String seq_file_id = basename(input_syn, "_syn.txt")
+    String ascore_logfile = "${seq_file_id}_ascore_LogFile.txt"
+    
+    command {
+        echo "STEP 7 (PTM): Ascore"
+
+        mono /app/ascore/AScore_Console.exe \
+        -T:msgfplus \
+        -F:${input_syn} \
+        -D:${input_fixed_mzml} \
+        -P:${ascore_parameter_p} \
+        -U:${seq_file_id}_syn_plus_ascore.txt \
+        -Fasta:${fasta_sequence_db} \
+        -L:${ascore_logfile}
+    }
+
+    output {
+        File syn_ascore = "${seq_file_id}_syn_ascore.txt"
+        File syn_plus_ascore = "${seq_file_id}_syn_plus_ascore.txt"
+        File syn_ascore_proteinmap = "${seq_file_id}_syn_ascore_ProteinMap.txt"
+        File output_ascore_logfile = "${ascore_logfile}"
     }
 
     runtime {
