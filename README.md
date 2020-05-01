@@ -19,7 +19,7 @@ WDL implementation of a MS-GF+ based proteomics data analysis pipeline based on 
 
 # How to test it
 
-[This section shows](docs/readme_howtorun.md)
+[Follo this link to learn](docs/readme_howtotest.md):
 
 - Proteomics raw files that can be used for testing
 - Configuration files required for testing on
