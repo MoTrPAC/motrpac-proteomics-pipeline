@@ -253,6 +253,8 @@ task msconvert {
         echo "STEP 1: MSCONVERT - - - - - - - -"
 
         wine msconvert ${raw_file} \
+        --zlib \
+        --filter "peakPicking true 2-" \
         -o ${output_msconvert}
     }
 
