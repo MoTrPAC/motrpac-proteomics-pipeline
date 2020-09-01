@@ -10,7 +10,7 @@ if [ "$#" -ne 2 ]; then
     printf "\n- e r r o r -----------------------------------------\n"
     printf " Error: Illegal number of parameters\n"
     printf " Usage: $0 <Docker Name> <Docker Version>\n" 1>&2
-    printf "\t- <Docker Name> valid options: [masic, msgfplus, msconvert, ppmerror, mzid2tsv, phrp, ascore, plexedpiper]\n"
+    printf "\t- <Docker Name> valid options: [ascore, masic, msconvert, msgfplus, mzid2tsv, phrp, plexedpiper, ppmerror]\n"
     printf "\t- <Docker Version> format: v#.#_YYYYMMDD (example: v1.1_20200327)\n\n"
     exit "Try again when ready"
 fi
