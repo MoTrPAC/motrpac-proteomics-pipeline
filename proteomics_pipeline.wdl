@@ -1,5 +1,10 @@
 workflow proteomics {
-    
+
+    meta {
+        author: "David Jimenez-Morales"
+        version: "v0.1.6"
+    }
+
     # RAW INPUT FILES
     Array[File] raw_file = []
 
