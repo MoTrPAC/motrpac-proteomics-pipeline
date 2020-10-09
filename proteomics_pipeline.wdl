@@ -2,7 +2,7 @@ workflow proteomics {
 
     meta {
         author: "David Jimenez-Morales"
-        version: "v0.1.6"
+        version: "v0.2.0"
     }
 
     # RAW INPUT FILES
@@ -77,8 +77,7 @@ workflow proteomics {
             docker = masic_docker,
             disks = masic_disk,
             raw_file = raw_file[i],
-            masic_parameter = masic_parameter,
-            output_masic = "masic_output"
+            masic_parameter = masic_parameter
         }
 
         call msconvert { input:
@@ -86,8 +85,7 @@ workflow proteomics {
             ramGB = msconvert_ramGB,
             docker = msconvert_docker,
             disks = msconvert_disk,
-            raw_file = raw_file[i],
-            output_msconvert = "msconvert_output"
+            raw_file = raw_file[i]
         }
 
         call msgf_tryptic { input:
@@ -107,8 +105,7 @@ workflow proteomics {
             docker = msconvert_docker,
             disks = msconvert_disk,
             input_mzml = msconvert.mzml,
-            input_mzid = msgf_tryptic.mzid,
-            output_msconvert_mzrefiner = "msconvert_mzrefiner_output"
+            input_mzid = msgf_tryptic.mzid
         }
 
         call ppm_errorcharter { input:
@@ -136,8 +133,7 @@ workflow proteomics {
             ramGB = msconvert_ramGB,
             docker = mzidtotsvconverter_docker,
             disks = msconvert_disk,
-            input_mzid_final = msgf_identification.mzid_final,
-            output_mzidtotsvconverter = "mzidtotsvconverter_output"
+            input_mzid_final = msgf_identification.mzid_final
         }
 
         call phrp { input:
@@ -147,7 +143,6 @@ workflow proteomics {
             disks = phrp_disk,
             isPTM = isPTM,
             input_tsv = mzidtotsvconverter.tsv,
-            output_phrp = "phrp_output",
             phrp_parameter_m = phrp_parameter_m,
             phrp_parameter_t = phrp_parameter_t,
             phrp_parameter_n = phrp_parameter_n,
@@ -163,9 +158,10 @@ workflow proteomics {
                 docker = ascore_docker,
                 disks = ascore_disk,
                 input_syn = phrp.syn,
-                input_fixed_mzml = msconvert_mzrefiner.mzml_fixed,
+                input_fixed_mzml = msgf_identification.rename_mzmlfixed,
                 ascore_parameter_p = ascore_parameter_p,
-                fasta_sequence_db = fasta_sequence_db
+                fasta_sequence_db = fasta_sequence_db,
+                syn_ModSummary = phrp.syn_ModSummary
             }
         }
     }
@@ -189,7 +185,7 @@ task msgf_sequences {
         java -Xmx4000M -cp /app/MSGFPlus.jar edu.ucsd.msjava.msdbsearch.BuildSA \
         -d ${fasta_sequence_db} \
         -tda 2 \
-        -o sequencedb_folder #test this
+        -o sequencedb_folder
 
         # Compress results
         tar -C sequencedb_folder -zcvf sequencedb_files.tar.gz .
@@ -215,7 +211,8 @@ task masic {
     String? disks
     File raw_file
     File masic_parameter
-    String output_masic
+
+    String sample_id = basename(raw_file, ".raw")
 
     command {
         echo "STEP 0: Ready to run MASIC"
@@ -223,19 +220,19 @@ task masic {
         mono /app/masic/MASIC_Console.exe \
         /I:${raw_file} \
         /P:${masic_parameter} \
-        /O:${output_masic}
+        /O:output_masic
     }
 
     output {
-        File ReporterIons_output_file = glob("${output_masic}/*ReporterIons.txt")[0]
-        File DatasetInfo_output_file = glob("${output_masic}/*DatasetInfo.xml")[0]
-        File ScanStats_output_file = glob("${output_masic}/*ScanStats.txt")[0]
-        File MS_scans_output_file = glob("${output_masic}/*MS_scans.csv")[0]
-        File MSMS_scans_output_file = glob("${output_masic}/*MSMS_scans.csv")[0]
-        File ScanStatsEx_output_file = glob("${output_masic}/*ScanStatsEx.txt")[0]
-        File SICstats_output_file = glob("${output_masic}/*SICstats.txt")[0]
-        File ScanStatsConstant_output_file = glob("${output_masic}/*ScanStatsConstant.txt")[0]
-        File SICs_output_file = glob("${output_masic}/*SICs.xml")[0]
+        File ReporterIons_output_file = "output_masic/${sample_id}_ReporterIons.txt"
+        File DatasetInfo_output_file = "output_masic/${sample_id}_DatasetInfo.xml"
+        File ScanStats_output_file = "output_masic/${sample_id}_ScanStats.txt"
+        File MS_scans_output_file = "output_masic/${sample_id}_MS_scans.csv"
+        File MSMS_scans_output_file = "output_masic/${sample_id}_MSMS_scans.csv"
+        File ScanStatsEx_output_file = "output_masic/${sample_id}_ScanStatsEx.txt"
+        File SICstats_output_file = "output_masic/${sample_id}_SICstats.txt"
+        File ScanStatsConstant_output_file = "output_masic/${sample_id}_ScanStatsConstant.txt"
+        File SICs_output_file = "output_masic/${sample_id}_SICs.xml"
     }
 
     runtime {
@@ -252,7 +249,8 @@ task msconvert {
     String docker
     String? disks
     File raw_file
-    String output_msconvert
+
+    String sample_id = basename(raw_file, ".raw")
     
     command {
         echo "STEP 1: MSCONVERT - - - - - - - -"
@@ -260,11 +258,11 @@ task msconvert {
         wine msconvert ${raw_file} \
         --zlib \
         --filter "peakPicking true 2-" \
-        -o ${output_msconvert}
+        -o output_msconvert
     }
 
     output {
-        File mzml = glob("${output_msconvert}/*.mzML")[0]
+        File mzml = "output_msconvert/${sample_id}.mzML"
     }
 
     runtime {
@@ -304,7 +302,7 @@ task msgf_tryptic {
         java -Xmx4000M \
         -jar /app/MSGFPlus.jar \
         -s ${input_mzml} \
-        -o ${sample_id}.mzid \
+        -o output_msgf_tryptic/${sample_id}.mzid \
         -d ${seq_file_id}.fasta \
         -conf ${msgf_tryptic_parameter}
         
@@ -314,7 +312,7 @@ task msgf_tryptic {
     }
 
     output {
-        File mzid = "${sample_id}.mzid"
+        File mzid = "output_msgf_tryptic/${sample_id}.mzid"
     }
 
     runtime {
@@ -332,25 +330,24 @@ task msconvert_mzrefiner {
     String? disks
     File input_mzml
     File input_mzid
-    String output_msconvert_mzrefiner
 
     # Create new ouput destination
     String sample_id = basename(input_mzml, ".mzML")
     String ouput_name = sample_id + "_FIXED.mzML"
-    String output_full = output_msconvert_mzrefiner + "/" + ouput_name
+    #String output_full = output_msconvert_mzrefiner + "/" + ouput_name
     
     command {
         echo "STEP 3A: MSCONVERT-MZREFINE"
 
         wine msconvert ${input_mzml} \
-        -o ${output_msconvert_mzrefiner} \
-        --outfile ${output_full} \
+        -o output_msconvert_mzrefiner \
+        --outfile output_msconvert_mzrefiner/${ouput_name} \
         --filter "mzRefiner ${input_mzid} thresholdValue=-1e-10 thresholdStep=10 maxSteps=2" \
         --32 --mzML
     }
 
     output {
-        File mzml_fixed = glob("${output_msconvert_mzrefiner}/*_FIXED.mzML")[0]
+        File mzml_fixed = "output_msconvert_mzrefiner/${ouput_name}"
     }
 
     runtime {
@@ -368,6 +365,8 @@ task ppm_errorcharter {
     String? disks
     File input_fixed_mzml
     File input_mzid
+
+    String sample_id = basename(input_mzid, ".mzid")
     
     command {
         echo "STEP 3B: PPMErrorCharter"
@@ -377,6 +376,11 @@ task ppm_errorcharter {
         -F:${input_fixed_mzml} \
         -EValue:1E-10
     }
+
+    #output {
+    #    File ppm_masserror_png = "${sample_id}_MZRefinery_MassErrors.png"
+    #    File ppm_histogram_png = "${sample_id}_MZRefinery_Histograms.png"
+    #}
 
     runtime {
         docker: "${docker}"
@@ -411,22 +415,32 @@ task msgf_identification {
         ls
         tar xvzf ${sequencedb_files}
 
+        echo "Rename _FIXED.mzML to .mzML"
+    
+        cp ${input_fixed_mzml} ${sample_id}.mzML
+
+        echo "(check that it worked)"
+        ls *.mzid
+
         echo "MSGF+ IDENTIFICATION BEGINs - - - - - - - - - -"
 
         java -Xmx4000M \
         -jar /app/MSGFPlus.jar \
-        -s ${input_fixed_mzml} \
-        -o ${sample_id}_final.mzid \
+        -s ${sample_id}.mzML \
+        -o output_msgf_identification/${sample_id}_final.mzid \
         -d ${seq_file_id}.fasta \
         -conf ${msgf_identification_parameter}
 
+        cp ${sample_id}.mzML output_msgf_identification/${sample_id}.mzML
+
         echo "LIST RESULTS - - - - - - - - - -"
-        ls
+        ls -lR
         echo "ADIOS - - - - - - - - - -"
     }
 
     output {
-        File mzid_final = "${sample_id}_final.mzid"
+        File mzid_final = "output_msgf_identification/${sample_id}_final.mzid"
+        File rename_mzmlfixed = "output_msgf_identification/${sample_id}.mzML"
     }
 
     runtime {
@@ -443,24 +457,23 @@ task mzidtotsvconverter {
     String docker
     String? disks
     File input_mzid_final
-    String output_mzidtotsvconverter
 
     # Create new ouput destination
     String sample_id = basename(input_mzid_final, "_final.mzid")
     String ouput_name = sample_id + ".tsv"
-    String output_full = output_mzidtotsvconverter + "/" + ouput_name
+    #String output_full = output_mzidtotsvconverter + "/" + ouput_name
     
     command {
         echo "STEP 5:: MzidToTSVConverter"
 
         mono /app/mzid2tsv/net462/MzidToTsvConverter.exe \
 		-mzid:${input_mzid_final} \
-		-tsv:${output_full} \
+		-tsv:output_mzidtotsvconverter/${ouput_name} \
 		-unroll -showDecoy
     }
 
     output {
-        File tsv = glob("${output_mzidtotsvconverter}/*.tsv")[0]
+        File tsv = "output_mzidtotsvconverter/${sample_id}.tsv"
     }
 
     runtime {
@@ -481,7 +494,7 @@ task phrp {
     File? null
     
     File input_tsv
-    String output_phrp
+    String sample_id = basename(input_tsv, ".tsv")
 
     File phrp_parameter_m
     File phrp_parameter_t
@@ -490,8 +503,8 @@ task phrp {
     Float phrp_synprob
     
     # Create new ouput destination
-    String phrp_logfile = "PHRP_LogFile.txt"
-    String output_logfile = output_phrp + "/" + phrp_logfile
+    String phrp_logfile = sample_id + "_PHRP_LogFile.txt"
+    #String output_logfile = output_phrp + "/" + phrp_logfile
 
     File input_revcat_fasta
     
@@ -500,26 +513,28 @@ task phrp {
 
 		mono /app/phrp/PeptideHitResultsProcRunner.exe \
 		-I:${input_tsv} \
-		-O:${output_phrp} \
+		-O:output_phrp \
 		-M:${phrp_parameter_m} \
 		-T:${phrp_parameter_t} \
 		-N:${phrp_parameter_n} \
 		-SynPvalue:${phrp_synpvalue} -SynProb:${phrp_synprob} \
-		-L:${output_logfile} \
+		-L:output_phrp/${phrp_logfile} \
 		-ProteinMods \
 		-F:${input_revcat_fasta}
     }
 
     output {
-        File? PepToProtMapMTS = if (isPTM == false) then glob("${output_phrp}/*_PepToProtMapMTS.txt")[0] else null
-        File fht = glob("${output_phrp}/*_fht.txt")[0]
-        File syn = glob("${output_phrp}/*_syn.txt")[0]
-        File syn_ModDetails = glob("${output_phrp}/*_syn_ModDetails.txt")[0]
-        File syn_ModSummary = glob("${output_phrp}/*_syn_ModSummary.txt")[0]
-        File? syn_ProteinMods = if (isPTM == false) then glob("${output_phrp}/*_syn_ProteinMods.txt")[0] else null
-        File syn_ResultToSeqMap = glob("${output_phrp}/*_syn_ResultToSeqMap.txt")[0]
-        File syn_SeqInfo = glob("${output_phrp}/*_syn_SeqInfo.txt")[0]
-        File syn_SeqToProteinMap = glob("${output_phrp}/*_syn_SeqToProteinMap.txt")[0]
+        #File? PepToProtMapMTS = if (isPTM == false) then "output_phrp/${sample_id}_PepToProtMapMTS.txt" else null
+        File PepToProtMapMTS = "output_phrp/${sample_id}_PepToProtMapMTS.txt"
+        File fht = "output_phrp/${sample_id}_fht.txt"
+        File syn = "output_phrp/${sample_id}_syn.txt"
+        File syn_ModDetails = "output_phrp/${sample_id}_syn_ModDetails.txt"
+        File syn_ModSummary = "output_phrp/${sample_id}_syn_ModSummary.txt"
+        #File? syn_ProteinMods = if (isPTM == false) then "output_phrp/${sample_id}_syn_ProteinMods.txt" else null
+        File syn_ProteinMods = "output_phrp/${sample_id}_syn_ProteinMods.txt"
+        File syn_ResultToSeqMap = "output_phrp/${sample_id}_syn_ResultToSeqMap.txt"
+        File syn_SeqInfo = "output_phrp/${sample_id}_syn_SeqInfo.txt"
+        File syn_SeqToProteinMap = "output_phrp/${sample_id}_syn_SeqToProteinMap.txt"
     }
 
     runtime {
@@ -542,6 +557,8 @@ task ascore {
     File ascore_parameter_p
 
     File fasta_sequence_db
+
+    File syn_ModSummary
     
     # Create new ouput destination
     String seq_file_id = basename(input_syn, "_syn.txt")
@@ -556,15 +573,16 @@ task ascore {
         -D:${input_fixed_mzml} \
         -P:${ascore_parameter_p} \
         -U:${seq_file_id}_syn_plus_ascore.txt \
+        -O:output_ascore \
         -Fasta:${fasta_sequence_db} \
-        -L:${ascore_logfile}
+        -L:output_ascore/${ascore_logfile}
     }
 
     output {
-        File syn_ascore = "${seq_file_id}_syn_ascore.txt"
-        File syn_plus_ascore = "${seq_file_id}_syn_plus_ascore.txt"
-        File syn_ascore_proteinmap = "${seq_file_id}_syn_ascore_ProteinMap.txt"
-        File output_ascore_logfile = "${ascore_logfile}"
+        File syn_ascore = "output_ascore/${seq_file_id}_syn_ascore.txt"
+        File syn_plus_ascore = "output_ascore/${seq_file_id}_syn_plus_ascore.txt"
+        File syn_ascore_proteinmap = "output_ascore/${seq_file_id}_syn_ascore_ProteinMap.txt"
+        File output_ascore_logfile = "output_ascore/${ascore_logfile}"
     }
 
     runtime {
