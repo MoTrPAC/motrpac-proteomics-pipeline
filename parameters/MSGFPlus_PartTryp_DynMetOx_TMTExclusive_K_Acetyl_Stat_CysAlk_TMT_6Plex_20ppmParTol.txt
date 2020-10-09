@@ -5,12 +5,15 @@ PrecursorMassTolerance=20ppm
 
 #Max Number of Modifications per peptide 
 # If this value is large, the search will be slow
-NumMods=3
+NumMods=4
 
 #Modifications (see below for examples)
-StaticMod=C2H3N1O1,  C, fix, any, Carbamidomethyl           # Fixed Carbamidomethyl C (alkylation)
-
-DynamicMod=O1,       M, opt, any, Oxidation                 # Oxidized methionine
+StaticMod=C2H3N1O1,     C,  fix, any,       Carbamidomethyl       # Fixed Carbamidomethyl C (alkylation, +57.0215)
+StaticMod=229.1629,     *,  fix, N-term,    TMT6plex
+StaticMod=229.1629,     K,  fix, any,       TMT6plex
+                            
+DynamicMod=O1,          M,  opt, any,       Oxidation             # Oxidized methionine
+DynamicMod=-187.15234,  K,  opt, any,       AcNoTMT               # Residue tagged by MSGF+ with static TMT6, but is actually acetylated and does not have TMT
 
 #Fragmentation Method
 #  0 means as written in the spectrum or CID if no info (Default)
@@ -39,7 +42,7 @@ EnzymeID=1
 #  Ignored if the parent mass tolerance is > 0.5Da or 500ppm
 #  The combination of -t and -ti determins the precursor mass tolerance.
 #  e.g. "-t 20ppm -ti -1,2" tests abs(exp-calc-n*1.00335Da)<20ppm for n=-1, 0, 1, 2.
-IsotopeErrorRange=-1,1
+IsotopeErrorRange=-1,2
 
 #Number of tolerable termini
 #  The number of peptide termini that must have been cleaved by the enzyme (default 1)
