@@ -5,14 +5,17 @@ PrecursorMassTolerance=20ppm
 
 #Max Number of Modifications per peptide 
 # If this value is large, the search will be slow
-NumMods=3
+NumMods=4
 
 #Modifications (see below for examples)
-StaticMod=229.1629,    *,  fix, N-term,    TMT6plex
-StaticMod=229.1629,    K,  fix, any,       TMT6plex
-StaticMod=C2H3N1O1,    C,  fix, any,       Carbamidomethyl       # Fixed Carbamidomethyl C (alkylation, +57.0215)
-
-DynamicMod=O1, M, opt, any,                Oxidation             # Oxidized methionine
+StaticMod=C2H3N1O1,     C,  fix, any,       Carbamidomethyl       # Fixed Carbamidomethyl C (alkylation, +57.0215)
+StaticMod=229.1629,     *,  fix, N-term,    TMT6plex
+StaticMod=229.1629,     K,  fix, any,       TMT6plex
+                            
+DynamicMod=O1,          M,  opt, any,       Oxidation             # Oxidized methionine
+DynamicMod=-187.15234,  K,  opt, any,       AcNoTMT               # Residue tagged by MS-GF+ with static TMT6, but is actually acetylated and does not have TMT   (mass changed from -187.152366 to -187.15234  on 2020-07-07)
+DynamicMod=-186.157086, K,  opt, any,       CbNoTMT               # Residue tagged by MS-GF+ with static TMT6, but is actually carbamylated and does not have TMT (mass changed from -186.157118 to -186.157086 on 2020-07-07)
+DynamicMod=H-1N-1O1,    N,  opt, any,       Deamidated            # Deamidation of Glutamine (+0.984016)
 
 #Fragmentation Method
 #  0 means as written in the spectrum or CID if no info (Default)
@@ -27,6 +30,7 @@ FragmentationMethodID=0
 #  1 means High-res LTQ (Default for HCD; also appropriate for high res CID).  Do not merge spectra (FragMethod=4) when InstrumentID is 1; scores will degrade
 #  2 means TOF
 #  3 means Q-Exactive
+# (note that this is automatically updated by the Analysis Manager for Thermo .Raw files based on the instrument type and MSn scan types present for a given dataset)
 InstrumentID=3
 
 #Enzyme ID
@@ -41,12 +45,12 @@ EnzymeID=1
 #  Ignored if the parent mass tolerance is > 0.5Da or 500ppm
 #  The combination of -t and -ti determins the precursor mass tolerance.
 #  e.g. "-t 20ppm -ti -1,2" tests abs(exp-calc-n*1.00335Da)<20ppm for n=-1, 0, 1, 2.
-IsotopeErrorRange=-1,2
+IsotopeErrorRange=0,1
 
 #Number of tolerable termini
 #  The number of peptide termini that must have been cleaved by the enzyme (default 1)
 #  For trypsin, 2 means fully tryptic only, 1 means partially tryptic, and 0 means no-enzyme search
-NTT=1
+NTT=2
 
 #Target/Decoy search mode
 #  0 means don't search decoy database (default)
@@ -92,7 +96,3 @@ NumMatchesPerSpec=1
 #   H-2O-1,    E,  opt, N-term,      Glu->pyro-Glu      # Pyro-glu from E
 #   H-3N-1,    Q,  opt, N-term,      Gln->pyro-Glu      # Pyro-glu from Q
 #   C2H2O,     *,  opt, Prot-N-term, Acetyl             # Acetylation Protein N-term
-
-MinNumPeaksPerSpectrum=5
-
-AddFeatures=1
