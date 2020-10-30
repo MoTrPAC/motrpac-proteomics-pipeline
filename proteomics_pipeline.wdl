@@ -1,8 +1,8 @@
-workflow proteomics {
+workflow proteomics_msgfplus {
 
     meta {
         author: "David Jimenez-Morales"
-        version: "v0.2.0"
+        version: "v0.2.1"
     }
 
     # RAW INPUT FILES
@@ -571,6 +571,7 @@ task ascore {
         -T:msgfplus \
         -F:${input_syn} \
         -D:${input_fixed_mzml} \
+        -MS:${syn_ModSummary} \
         -P:${ascore_parameter_p} \
         -U:${seq_file_id}_syn_plus_ascore.txt \
         -O:output_ascore \
