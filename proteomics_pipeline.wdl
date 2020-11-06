@@ -517,7 +517,8 @@ task phrp {
 		-M:${phrp_parameter_m} \
 		-T:${phrp_parameter_t} \
 		-N:${phrp_parameter_n} \
-		-SynPvalue:${phrp_synpvalue} -SynProb:${phrp_synprob} \
+		-SynPvalue:${phrp_synpvalue} \
+        -SynProb:${phrp_synprob} \
 		-L:output_phrp/${phrp_logfile} \
 		-ProteinMods \
 		-F:${input_revcat_fasta}
@@ -535,6 +536,7 @@ task phrp {
         File syn_ResultToSeqMap = "output_phrp/${sample_id}_syn_ResultToSeqMap.txt"
         File syn_SeqInfo = "output_phrp/${sample_id}_syn_SeqInfo.txt"
         File syn_SeqToProteinMap = "output_phrp/${sample_id}_syn_SeqToProteinMap.txt"
+        File phrp_log_file = "output_phrp/${phrp_logfile}"
     }
 
     runtime {
