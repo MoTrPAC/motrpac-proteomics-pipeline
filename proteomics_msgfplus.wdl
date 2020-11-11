@@ -59,8 +59,13 @@ workflow proteomics_msgfplus {
     Int? ascore_ramGB
     String? ascore_docker
     String? ascore_disk
-
     File? ascore_parameter_p
+
+    # WRAPPER
+    Int wrapper_ncpu
+    Int wrapper_ramGB
+    String wrapper_docker
+    String? wrapper_disk
 
     call msgf_sequences { input:
         ncpu = msgf_ncpu,
@@ -165,7 +170,38 @@ workflow proteomics_msgfplus {
             }
         }
     }
+
+    call wrapper { input:
+            ncpu = wrapper_ncpu,
+            ramGB = wrapper_ramGB,
+            docker = wrapper_docker,
+            disks = wrapper_disk,
+            ReporterIons_output_file = masic.ReporterIons_output_file,
+            DatasetInfo_output_file = masic.DatasetInfo_output_file,
+            ScanStats_output_file = masic.ScanStats_output_file,
+            MS_scans_output_file = masic.MS_scans_output_file,
+            MSMS_scans_output_file = masic.MSMS_scans_output_file,
+            ScanStatsEx_output_file = masic.ScanStatsEx_output_file,
+            SICstats_output_file = masic.SICstats_output_file,
+            ScanStatsConstant_output_file = masic.ScanStatsConstant_output_file,
+            SICs_output_file = masic.SICs_output_file,
+            PepToProtMapMTS = phrp.PepToProtMapMTS,
+            fht = phrp.fht,
+            syn = phrp.syn,
+            syn_ModDetails = phrp.syn_ModDetails,
+            syn_ModSummary = phrp.syn_ModSummary,
+            syn_ProteinMods = phrp.syn_ProteinMods,
+            syn_ResultToSeqMap = phrp.syn_ResultToSeqMap,
+            syn_SeqInfo = phrp.syn_SeqInfo,
+            syn_SeqToProteinMap = phrp.syn_SeqToProteinMap,
+            phrp_log_file = phrp.phrp_log_file,
+            syn_ascore = ascore.syn_ascore,
+            syn_plus_ascore = ascore.syn_plus_ascore,
+            syn_ascore_proteinmap = ascore.syn_ascore_proteinmap,
+            output_ascore_logfile = ascore.output_ascore_logfile
+        }
 }
+
 
 task msgf_sequences {
     Int ncpu
@@ -586,6 +622,104 @@ task ascore {
         File syn_plus_ascore = "output_ascore/${seq_file_id}_syn_plus_ascore.txt"
         File syn_ascore_proteinmap = "output_ascore/${seq_file_id}_syn_ascore_ProteinMap.txt"
         File output_ascore_logfile = "output_ascore/${ascore_logfile}"
+    }
+
+    runtime {
+        docker: "${docker}"
+        memory: "${ramGB} GB"
+        cpu: "${ncpu}"
+        disks : select_first([disks,"local-disk 100 SSD"])
+    }
+}
+
+task wrapper {
+    Int ncpu
+    Int ramGB
+    String docker
+    String? disks
+
+    # MASIC
+    File ReporterIons_output_file
+    File DatasetInfo_output_file
+    File ScanStats_output_file
+    File MS_scans_output_file
+    File MSMS_scans_output_file
+    File ScanStatsEx_output_file
+    File SICstats_output_file
+    File ScanStatsConstant_output_file
+    File SICs_output_file
+
+    #PHRP
+    File PepToProtMapMTS
+    File fht
+    File syn
+    File syn_ModDetails
+    File syn_ModSummary
+    File syn_ProteinMods
+    File syn_ResultToSeqMap
+    File syn_SeqInfo
+    File syn_SeqToProteinMap
+    File phrp_log_file
+
+    #ASCORE
+    File? syn_ascore
+    File? syn_plus_ascore
+    File? syn_ascore_proteinmap
+    File? output_ascore_logfile
+
+    command {
+        echo "FINAL-STEP: COPY ALL THE FILES TO THE SAME PLACE"
+
+        echo "MASIC"
+
+        mkdir final_output_masic
+
+        cp ${ReporterIons_output_file} final_output_masic
+        cp ${DatasetInfo_output_file} final_output_masic
+        cp ${ScanStats_output_file} final_output_masic
+        cp ${MS_scans_output_file} final_output_masic
+        cp ${MSMS_scans_output_file} final_output_masic
+        cp ${ScanStatsEx_output_file} final_output_masic
+        cp ${SICstats_output_file} final_output_masic
+        cp ${ScanStatsConstant_output_file} final_output_masic
+        cp ${SICs_output_file} final_output_masic
+
+        # Compress results
+        tar -C final_output_masic -zcvf final_output_masic.tar.gz .
+
+        echo "PHRP"
+
+        mkdir final_output_phrp
+
+        cp ${PepToProtMapMTS} final_output_phrp
+        cp ${fht} final_output_phrp
+        cp ${syn} final_output_phrp
+        cp ${syn_ModDetails} final_output_phrp
+        cp ${syn_ModSummary} final_output_phrp
+        cp ${syn_ProteinMods} final_output_phrp
+        cp ${syn_ResultToSeqMap} final_output_phrp
+        cp ${syn_SeqInfo} final_output_phrp
+        cp ${syn_SeqToProteinMap} final_output_phrp
+        cp ${phrp_log_file} final_output_phrp
+
+        tar -C final_output_phrp -zcvf final_output_phrp.tar.gz .
+
+        echo "ASCORE"
+
+        mkdir final_output_ascore
+
+        cp ${syn_ascore} final_output_ascore
+        cp ${syn_plus_ascore} final_output_ascore
+        cp ${syn_ascore_proteinmap} final_output_ascore
+        cp ${output_ascore_logfile} final_output_ascore
+
+        tar -C final_output_ascore -zcvf final_output_ascore.tar.gz .
+    }
+
+    output {
+        File final_output_masic = "final_output_masic.tar.gz"
+        File final_output_phrp = "final_output_phrp.tar.gz"
+        File? final_output_ascore = "final_output_ascore.tar.gz"
     }
 
     runtime {
