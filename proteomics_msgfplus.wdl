@@ -60,6 +60,7 @@ workflow proteomics_msgfplus {
     String? ascore_docker
     String? ascore_disk
     File? ascore_parameter_p
+    String? ptm_type
 
     # WRAPPER (PlexedPiper)
     Int wrapper_ncpu
@@ -174,7 +175,8 @@ workflow proteomics_msgfplus {
         }
     }
 
-    call wrapper { input:
+    if(isPTM){
+        call wrapper_pp_ptm { input:
             ncpu = wrapper_ncpu,
             ramGB = wrapper_ramGB,
             docker = wrapper_docker,
@@ -183,7 +185,7 @@ workflow proteomics_msgfplus {
             references = sd_references,
             samples = sd_samples,
             fasta_sequence_db = fasta_sequence_db,
-            isPTM = isPTM,
+            ptm_type = ptm_type,
             ReporterIons_output_file = masic.ReporterIons_output_file,
             DatasetInfo_output_file = masic.DatasetInfo_output_file,
             ScanStats_output_file = masic.ScanStats_output_file,
@@ -208,6 +210,39 @@ workflow proteomics_msgfplus {
             syn_ascore_proteinmap = ascore.syn_ascore_proteinmap,
             output_ascore_logfile = ascore.output_ascore_logfile
         }
+    }
+
+    if(!isPTM){
+        call wrapper_pp { input:
+            ncpu = wrapper_ncpu,
+            ramGB = wrapper_ramGB,
+            docker = wrapper_docker,
+            disks = wrapper_disk,
+            fractions =  sd_fractions,
+            references = sd_references,
+            samples = sd_samples,
+            fasta_sequence_db = fasta_sequence_db,
+            ReporterIons_output_file = masic.ReporterIons_output_file,
+            DatasetInfo_output_file = masic.DatasetInfo_output_file,
+            ScanStats_output_file = masic.ScanStats_output_file,
+            MS_scans_output_file = masic.MS_scans_output_file,
+            MSMS_scans_output_file = masic.MSMS_scans_output_file,
+            ScanStatsEx_output_file = masic.ScanStatsEx_output_file,
+            SICstats_output_file = masic.SICstats_output_file,
+            ScanStatsConstant_output_file = masic.ScanStatsConstant_output_file,
+            SICs_output_file = masic.SICs_output_file,
+            PepToProtMapMTS = phrp.PepToProtMapMTS,
+            fht = phrp.fht,
+            syn = phrp.syn,
+            syn_ModDetails = phrp.syn_ModDetails,
+            syn_ModSummary = phrp.syn_ModSummary,
+            syn_ProteinMods = phrp.syn_ProteinMods,
+            syn_ResultToSeqMap = phrp.syn_ResultToSeqMap,
+            syn_SeqInfo = phrp.syn_SeqInfo,
+            syn_SeqToProteinMap = phrp.syn_SeqToProteinMap,
+            phrp_log_file = phrp.phrp_log_file
+        }
+    }
 }
 
 
@@ -640,7 +675,7 @@ task ascore {
     }
 }
 
-task wrapper {
+task wrapper_pp_ptm {
     Int ncpu
     Int ramGB
     String docker
@@ -652,7 +687,7 @@ task wrapper {
 
     File fasta_sequence_db
 
-    Boolean isPTM
+    String ptm_type
 
     # MASIC
     Array[File] ReporterIons_output_file = []
@@ -678,10 +713,10 @@ task wrapper {
     Array[File] phrp_log_file = []
 
     # #ASCORE
-    Array[File]? syn_ascore = []
-    Array[File]? syn_plus_ascore = []
-    Array[File]? syn_ascore_proteinmap = []
-    Array[File]? output_ascore_logfile = []
+    Array[File] syn_ascore = []
+    Array[File] syn_plus_ascore = []
+    Array[File] syn_ascore_proteinmap = []
+    Array[File] output_ascore_logfile = []
 
     command {
         echo "FINAL-STEP: COPY ALL THE FILES TO THE SAME PLACE"
@@ -720,16 +755,122 @@ task wrapper {
 
         tar -C final_output_phrp -zcvf final_output_phrp.tar.gz .
 
-        if(isPTM) echo "ASCORE"
+        echo "ASCORE"
 
-        if(isPTM) mkdir final_output_ascore
+        mkdir final_output_ascore
 
-        if(isPTM) cp ${sep=' ' syn_ascore} final_output_ascore
-        if(isPTM) cp ${sep=' ' syn_plus_ascore} final_output_ascore
-        if(isPTM) cp ${sep=' ' syn_ascore_proteinmap} final_output_ascore
-        if(isPTM) cp ${sep=' ' output_ascore_logfile} final_output_ascore
+        cp ${sep=' ' syn_ascore} final_output_ascore
+        cp ${sep=' ' syn_plus_ascore} final_output_ascore
+        cp ${sep=' ' syn_ascore_proteinmap} final_output_ascore
+        cp ${sep=' ' output_ascore_logfile} final_output_ascore
 
-        if(isPTM) tar -C final_output_ascore -zcvf final_output_ascore.tar.gz .
+        tar -C final_output_ascore -zcvf final_output_ascore.tar.gz .
+
+        echo "STUDY DESIGN FOLDER"
+
+        mkdir study_design
+
+        cp ${samples} study_design
+        cp ${fractions} study_design
+        cp ${references} study_design
+        
+        Rscript /app/pp_ptm.R \
+        -p ptm_type \ 
+        -a final_output_ascore \
+        -i final_output_phrp \
+        -j final_output_masic \
+        -f ${fasta_sequence_db} \
+        -s study_design \
+        -o output_plexedpiper
+    }
+
+    output {
+        File final_output_masic = "final_output_masic.tar.gz"
+        File final_output_phrp = "final_output_phrp.tar.gz"
+        File final_output_ascore = "final_output_ascore.tar.gz"
+        File results_rii =  "output_plexedpiper/results_RII-peptide.txt"
+        File results_ratio = "output_plexedpiper/results_ratio.txt"
+    }
+
+    runtime {
+        docker: "${docker}"
+        memory: "${ramGB} GB"
+        cpu: "${ncpu}"
+        disks : select_first([disks,"local-disk 100 SSD"])
+    }
+}
+
+task wrapper_pp {
+    Int ncpu
+    Int ramGB
+    String docker
+    String? disks
+
+    File samples
+    File fractions
+    File references
+
+    File fasta_sequence_db
+
+    # MASIC
+    Array[File] ReporterIons_output_file = []
+    Array[File] DatasetInfo_output_file = []
+    Array[File] ScanStats_output_file = []
+    Array[File] MS_scans_output_file = []
+    Array[File] MSMS_scans_output_file = []
+    Array[File] ScanStatsEx_output_file = []
+    Array[File] SICstats_output_file = []
+    Array[File] ScanStatsConstant_output_file = []
+    Array[File] SICs_output_file = []
+
+    # #PHRP
+    Array[File] PepToProtMapMTS = []
+    Array[File] fht = []
+    Array[File] syn = []
+    Array[File] syn_ModDetails = []
+    Array[File] syn_ModSummary = []
+    Array[File] syn_ProteinMods = []
+    Array[File] syn_ResultToSeqMap = []
+    Array[File] syn_SeqInfo = []
+    Array[File] syn_SeqToProteinMap = []
+    Array[File] phrp_log_file = []
+
+    command {
+        echo "FINAL-STEP: COPY ALL THE FILES TO THE SAME PLACE"
+
+        echo "MASIC"
+
+        mkdir final_output_masic
+
+        cp ${sep=' ' ReporterIons_output_file} final_output_masic
+        cp ${sep=' ' DatasetInfo_output_file} final_output_masic
+        cp ${sep=' ' ScanStats_output_file} final_output_masic
+        cp ${sep=' ' MS_scans_output_file} final_output_masic
+        cp ${sep=' ' MSMS_scans_output_file} final_output_masic
+        cp ${sep=' ' ScanStatsEx_output_file} final_output_masic
+        cp ${sep=' ' SICstats_output_file} final_output_masic
+        cp ${sep=' ' ScanStatsConstant_output_file} final_output_masic
+        cp ${sep=' ' SICs_output_file} final_output_masic
+
+        # Compress results
+        tar -C final_output_masic -zcvf final_output_masic.tar.gz .
+
+        echo "PHRP"
+
+        mkdir final_output_phrp
+
+        cp ${sep=' ' PepToProtMapMTS} final_output_phrp
+        cp ${sep=' ' fht} final_output_phrp
+        cp ${sep=' ' syn} final_output_phrp
+        cp ${sep=' ' syn_ModDetails} final_output_phrp
+        cp ${sep=' ' syn_ModSummary} final_output_phrp
+        cp ${sep=' ' syn_ProteinMods} final_output_phrp
+        cp ${sep=' ' syn_ResultToSeqMap} final_output_phrp
+        cp ${sep=' ' syn_SeqInfo} final_output_phrp
+        cp ${sep=' ' syn_SeqToProteinMap} final_output_phrp
+        cp ${sep=' ' phrp_log_file} final_output_phrp
+
+        tar -C final_output_phrp -zcvf final_output_phrp.tar.gz .
 
         echo "STUDY DESIGN FOLDER"
 
@@ -750,10 +891,8 @@ task wrapper {
     output {
         File final_output_masic = "final_output_masic.tar.gz"
         File final_output_phrp = "final_output_phrp.tar.gz"
-        File? final_output_ascore = "final_output_ascore.tar.gz"
         File results_rii =  "output_plexedpiper/results_RII-peptide.txt"
         File results_ratio = "output_plexedpiper/results_ratio.txt"
-
     }
 
     runtime {

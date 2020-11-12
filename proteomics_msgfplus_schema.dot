@@ -8,39 +8,52 @@ digraph proteomics_msgfplus {
   CALL_phrp -> CALL_ascore
   CALL_msconvert -> CALL_msgf_tryptic
   CALL_msgf_sequences -> CALL_msgf_tryptic
-  SCATTER_0_VARIABLE_i -> CALL_msconvert
   CALL_msgf_tryptic -> CALL_msconvert_mzrefiner
-  CALL_masic -> CALL_wrapper
+  CALL_phrp -> CALL_wrapper_pp_ptm
+  CALL_masic -> CALL_wrapper_pp
+  CALL_masic -> CALL_wrapper_pp_ptm
+  SCATTER_1_VARIABLE_i -> CALL_masic
   CALL_mzidtotsvconverter -> CALL_phrp
   CALL_msconvert_mzrefiner -> CALL_msgf_identification
-  CALL_phrp -> CALL_wrapper
+  CALL_phrp -> CALL_wrapper_pp
   CALL_msgf_tryptic -> CALL_ppm_errorcharter
   CALL_msgf_identification -> CALL_ascore
+  SCATTER_1_VARIABLE_i -> CALL_msconvert
   CALL_msconvert_mzrefiner -> CALL_ppm_errorcharter
-  SCATTER_0_VARIABLE_i -> CALL_masic
   CALL_msgf_sequences -> CALL_phrp
   CALL_msgf_sequences -> CALL_msgf_identification
 
   # Nodes
-  CALL_msgf_sequences [label="call msgf_sequences"]
   subgraph cluster_0 {
+    style="filled,dashed";
+    fillcolor=white;
+    CALL_wrapper_pp [label="call wrapper_pp"]
+    CONDITIONAL_0_EXPRESSION [shape="hexagon" label="if (!isPTM)" style="dashed" ]
+  }
+  subgraph cluster_1 {
     style="filled,solid";
     fillcolor=white;
     CALL_msgf_tryptic [label="call msgf_tryptic"]
     CALL_mzidtotsvconverter [label="call mzidtotsvconverter"]
     CALL_msconvert [label="call msconvert"]
     CALL_msgf_identification [label="call msgf_identification"]
-    SCATTER_0_VARIABLE_i [shape="hexagon" label="scatter over Int as i"]
-    subgraph cluster_1 {
+    subgraph cluster_2 {
       style="filled,dashed";
       fillcolor=white;
       CALL_ascore [label="call ascore"]
-      CONDITIONAL_1_EXPRESSION [shape="hexagon" label="if (isPTM)" style="dashed" ]
+      CONDITIONAL_2_EXPRESSION [shape="hexagon" label="if (isPTM)" style="dashed" ]
     }
     CALL_phrp [label="call phrp"]
     CALL_msconvert_mzrefiner [label="call msconvert_mzrefiner"]
     CALL_ppm_errorcharter [label="call ppm_errorcharter"]
     CALL_masic [label="call masic"]
+    SCATTER_1_VARIABLE_i [shape="hexagon" label="scatter over Int as i"]
   }
-  CALL_wrapper [label="call wrapper"]
+  subgraph cluster_3 {
+    style="filled,dashed";
+    fillcolor=white;
+    CALL_wrapper_pp_ptm [label="call wrapper_pp_ptm"]
+    CONDITIONAL_3_EXPRESSION [shape="hexagon" label="if (isPTM)" style="dashed" ]
+  }
+  CALL_msgf_sequences [label="call msgf_sequences"]
 }
