@@ -61,11 +61,14 @@ workflow proteomics_msgfplus {
     String? ascore_disk
     File? ascore_parameter_p
 
-    # WRAPPER
+    # WRAPPER (PlexedPiper)
     Int wrapper_ncpu
     Int wrapper_ramGB
     String wrapper_docker
     String? wrapper_disk
+    File sd_fractions
+    File sd_references
+    File sd_samples
 
     call msgf_sequences { input:
         ncpu = msgf_ncpu,
@@ -176,6 +179,11 @@ workflow proteomics_msgfplus {
             ramGB = wrapper_ramGB,
             docker = wrapper_docker,
             disks = wrapper_disk,
+            fractions =  sd_fractions,
+            references = sd_references,
+            samples = sd_samples,
+            fasta_sequence_db = fasta_sequence_db,
+            isPTM = isPTM,
             ReporterIons_output_file = masic.ReporterIons_output_file,
             DatasetInfo_output_file = masic.DatasetInfo_output_file,
             ScanStats_output_file = masic.ScanStats_output_file,
@@ -194,11 +202,11 @@ workflow proteomics_msgfplus {
             syn_ResultToSeqMap = phrp.syn_ResultToSeqMap,
             syn_SeqInfo = phrp.syn_SeqInfo,
             syn_SeqToProteinMap = phrp.syn_SeqToProteinMap,
-            phrp_log_file = phrp.phrp_log_file
-            # syn_ascore = ascore.syn_ascore,
-            # syn_plus_ascore = ascore.syn_plus_ascore,
-            # syn_ascore_proteinmap = ascore.syn_ascore_proteinmap,
-            # output_ascore_logfile = ascore.output_ascore_logfile
+            phrp_log_file = phrp.phrp_log_file,
+            syn_ascore = ascore.syn_ascore,
+            syn_plus_ascore = ascore.syn_plus_ascore,
+            syn_ascore_proteinmap = ascore.syn_ascore_proteinmap,
+            output_ascore_logfile = ascore.output_ascore_logfile
         }
 }
 
@@ -638,6 +646,14 @@ task wrapper {
     String docker
     String? disks
 
+    File samples
+    File fractions
+    File references
+
+    File fasta_sequence_db
+
+    Boolean isPTM
+
     # MASIC
     Array[File] ReporterIons_output_file = []
     Array[File] DatasetInfo_output_file = []
@@ -704,22 +720,40 @@ task wrapper {
 
         tar -C final_output_phrp -zcvf final_output_phrp.tar.gz .
 
-        echo "ASCORE"
+        if(isPTM) echo "ASCORE"
 
-        mkdir final_output_ascore
+        if(isPTM) mkdir final_output_ascore
 
-        cp ${sep=' ' syn_ascore} final_output_ascore
-        cp ${sep=' ' syn_plus_ascore} final_output_ascore
-        cp ${sep=' ' syn_ascore_proteinmap} final_output_ascore
-        cp ${sep=' ' output_ascore_logfile} final_output_ascore
+        if(isPTM) cp ${sep=' ' syn_ascore} final_output_ascore
+        if(isPTM) cp ${sep=' ' syn_plus_ascore} final_output_ascore
+        if(isPTM) cp ${sep=' ' syn_ascore_proteinmap} final_output_ascore
+        if(isPTM) cp ${sep=' ' output_ascore_logfile} final_output_ascore
 
-        tar -C final_output_ascore -zcvf final_output_ascore.tar.gz .
+        if(isPTM) tar -C final_output_ascore -zcvf final_output_ascore.tar.gz .
+
+        echo "STUDY DESIGN FOLDER"
+
+        mkdir study_design
+
+        cp ${samples} study_design
+        cp ${fractions} study_design
+        cp ${references} study_design
+        
+        Rscript /app/pp.R \
+        -i final_output_phrp \
+        -j final_output_masic \
+        -f ${fasta_sequence_db} \
+        -s study_design \
+        -o output_plexedpiper
     }
 
     output {
         File final_output_masic = "final_output_masic.tar.gz"
-        # File final_output_phrp = "final_output_phrp.tar.gz"
-        # File? final_output_ascore = "final_output_ascore.tar.gz"
+        File final_output_phrp = "final_output_phrp.tar.gz"
+        File? final_output_ascore = "final_output_ascore.tar.gz"
+        File results_rii =  "output_plexedpiper/results_RII-peptide.txt"
+        File results_ratio = "output_plexedpiper/results_ratio.txt"
+
     }
 
     runtime {
