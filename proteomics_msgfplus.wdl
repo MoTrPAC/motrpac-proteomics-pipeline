@@ -713,10 +713,10 @@ task wrapper_pp_ptm {
     Array[File] phrp_log_file = []
 
     # #ASCORE
-    Array[File] syn_ascore = []
-    Array[File] syn_plus_ascore = []
-    Array[File] syn_ascore_proteinmap = []
-    Array[File] output_ascore_logfile = []
+    Array[File?] syn_ascore = []
+    Array[File?] syn_plus_ascore = []
+    Array[File?] syn_ascore_proteinmap = []
+    Array[File?] output_ascore_logfile = []
 
     command {
         echo "FINAL-STEP: COPY ALL THE FILES TO THE SAME PLACE"
@@ -735,9 +735,6 @@ task wrapper_pp_ptm {
         cp ${sep=' ' ScanStatsConstant_output_file} final_output_masic
         cp ${sep=' ' SICs_output_file} final_output_masic
 
-        # Compress results
-        tar -C final_output_masic -zcvf final_output_masic.tar.gz .
-
         echo "PHRP"
 
         mkdir final_output_phrp
@@ -753,8 +750,6 @@ task wrapper_pp_ptm {
         cp ${sep=' ' syn_SeqToProteinMap} final_output_phrp
         cp ${sep=' ' phrp_log_file} final_output_phrp
 
-        tar -C final_output_phrp -zcvf final_output_phrp.tar.gz .
-
         echo "ASCORE"
 
         mkdir final_output_ascore
@@ -763,8 +758,6 @@ task wrapper_pp_ptm {
         cp ${sep=' ' syn_plus_ascore} final_output_ascore
         cp ${sep=' ' syn_ascore_proteinmap} final_output_ascore
         cp ${sep=' ' output_ascore_logfile} final_output_ascore
-
-        tar -C final_output_ascore -zcvf final_output_ascore.tar.gz .
 
         echo "STUDY DESIGN FOLDER"
 
@@ -785,9 +778,6 @@ task wrapper_pp_ptm {
     }
 
     output {
-        File final_output_masic = "final_output_masic.tar.gz"
-        File final_output_phrp = "final_output_phrp.tar.gz"
-        File final_output_ascore = "final_output_ascore.tar.gz"
         File results_rii =  "output_plexedpiper/results_RII-peptide.txt"
         File results_ratio = "output_plexedpiper/results_ratio.txt"
     }
@@ -852,9 +842,6 @@ task wrapper_pp {
         cp ${sep=' ' ScanStatsConstant_output_file} final_output_masic
         cp ${sep=' ' SICs_output_file} final_output_masic
 
-        # Compress results
-        tar -C final_output_masic -zcvf final_output_masic.tar.gz .
-
         echo "PHRP"
 
         mkdir final_output_phrp
@@ -869,8 +856,6 @@ task wrapper_pp {
         cp ${sep=' ' syn_SeqInfo} final_output_phrp
         cp ${sep=' ' syn_SeqToProteinMap} final_output_phrp
         cp ${sep=' ' phrp_log_file} final_output_phrp
-
-        tar -C final_output_phrp -zcvf final_output_phrp.tar.gz .
 
         echo "STUDY DESIGN FOLDER"
 
@@ -889,8 +874,6 @@ task wrapper_pp {
     }
 
     output {
-        File final_output_masic = "final_output_masic.tar.gz"
-        File final_output_phrp = "final_output_phrp.tar.gz"
         File results_rii =  "output_plexedpiper/results_RII-peptide.txt"
         File results_ratio = "output_plexedpiper/results_ratio.txt"
     }
