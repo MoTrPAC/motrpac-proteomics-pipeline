@@ -768,7 +768,7 @@ task wrapper_pp_ptm {
         cp ${references} study_design
         
         Rscript /app/pp_ptm.R \
-        -p ptm_type \ 
+        -p ${ptm_type} \ 
         -a final_output_ascore \
         -i final_output_phrp \
         -j final_output_masic \
