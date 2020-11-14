@@ -767,14 +767,8 @@ task wrapper_pp_ptm {
         cp ${fractions} study_design
         cp ${references} study_design
         
-        Rscript /app/pp_ptm.R \
-        -p ${ptm_type} \ 
-        -a final_output_ascore \
-        -i final_output_phrp \
-        -j final_output_masic \
-        -f ${fasta_sequence_db} \
-        -s study_design \
-        -o output_plexedpiper
+        Rscript /app/pp_ptm.R -p ${ptm_type} -i final_output_phrp -a final_output_ascore -j final_output_masic -f ${fasta_sequence_db} -s study_design -o output_plexedpiper
+        
     }
 
     output {
