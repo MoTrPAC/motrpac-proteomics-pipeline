@@ -406,7 +406,7 @@ task msconvert_mzrefiner {
         -o output_msconvert_mzrefiner \
         --outfile output_msconvert_mzrefiner/${ouput_name} \
         --filter "mzRefiner ${input_mzid} thresholdValue=-1e-10 thresholdStep=10 maxSteps=2" \
-        --32 --mzML
+        --zlib
     }
 
     output {
