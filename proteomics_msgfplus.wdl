@@ -441,6 +441,9 @@ task ppm_errorcharter {
         -F:${input_fixed_mzml} \
         -EValue:1E-10 \
         -O:output_ppm_errorcharter -Python
+
+        mv output_ppm_errorcharter/proteomics/proteomics_Histograms.png output_ppm_errorcharter/${sample_id}_MZRefinery_Histograms.png
+        mv output_ppm_errorcharter/proteomics/proteomics_MassErrors.png output_ppm_errorcharter/${sample_id}_MZRefinery_MassErrors.png
     }
 
     output {
