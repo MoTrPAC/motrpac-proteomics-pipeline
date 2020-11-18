@@ -434,16 +434,19 @@ task ppm_errorcharter {
     command {
         echo "STEP 3B: PPMErrorCharter"
 
+        mkdir output_ppm_errorcharter
+
         mono /app/PPMErrorCharterPython.exe \
         -I:${input_mzid} \
         -F:${input_fixed_mzml} \
-        -EValue:1E-10
+        -EValue:1E-10 \
+        -O:output_ppm_errorcharter -Python
     }
 
-    #output {
-    #    File ppm_masserror_png = "${sample_id}_MZRefinery_MassErrors.png"
-    #    File ppm_histogram_png = "${sample_id}_MZRefinery_Histograms.png"
-    #}
+    output {
+       File ppm_masserror_png = "output_ppm_errorcharter/${sample_id}_MZRefinery_MassErrors.png"
+       File ppm_histogram_png = "output_ppm_errorcharter/${sample_id}_MZRefinery_Histograms.png"
+    }
 
     runtime {
         docker: "${docker}"
