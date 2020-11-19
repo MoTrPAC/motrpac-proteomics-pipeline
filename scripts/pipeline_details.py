@@ -15,7 +15,7 @@ def arg_parser():
     parser = argparse.ArgumentParser(description='Calculate a job completion time')
     parser.add_argument('-p', '--project', required=True, type=str, help='GCP project name. Required.')
     parser.add_argument('-b', '--bucket_origin', required=True, type=str, help='Bucket with output files. Required.')
-    parser.add_argument('-c', '--caper_job_id', required=True, type=str, help='Caper job id (E.g.: 9c6ff6fe-ce7d-4d23-ac18-9935614d6f9b)')
+    parser.add_argument('-i', '--caper_job_id', required=True, type=str, help='Caper job id (E.g.: 9c6ff6fe-ce7d-4d23-ac18-9935614d6f9b)')
     return parser
 
 def main():
@@ -46,13 +46,27 @@ def main():
             filename = blob.name
             metadata = json.loads(blob.download_as_string(client=None))
             break
-
-    start_time = dateparser.parse(metadata['start'])
-    end_time = dateparser.parse(metadata['end'])
-
-    print('\nPipeline Running Time: ',end_time - start_time)
+    
+    if metadata.get('start'):
+        start_time = dateparser.parse(metadata['start'])
+        end_time = dateparser.parse(metadata['end'])
+        print('\nPipeline Running Time: ',end_time - start_time)
+    else:
+        print('\nStart time not available!!!\n')
 
     print('\n')
+
+    if metadata.get('failures'):
+        failures_length = (len(metadata['failures']))
+        print('PIPELINE ERRORS (', failures_length, ')')
+        for x in range(failures_length):
+            causeby_len = (len(metadata['failures'][x]['causedBy']))
+            for y in range(causeby_len):
+                output = metadata['failures'][x]['causedBy'][y]['message']
+                print('\t- MESSAGE ', y+1,': ', output,"\n")
+    else:
+        print('No errors detected (congratulations)!')
+
 
 if __name__ == "__main__":
     main()
