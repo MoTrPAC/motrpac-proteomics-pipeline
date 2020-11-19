@@ -1,4 +1,0 @@
--	57.021465	C	S	IodoAcet
-*	79.966331	S	D	Phosph  
-*	79.966331	T	D	Phosph  
-*	79.966331	Y	D	Phosph  
