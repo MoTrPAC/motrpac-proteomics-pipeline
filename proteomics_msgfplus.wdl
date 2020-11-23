@@ -415,16 +415,11 @@ task ppm_errorcharter {
     command {
         echo "STEP 3B: PPMErrorCharter"
 
-        mkdir output_ppm_errorcharter
-
         mono /app/PPMErrorCharterPython.exe \
         -I:${input_mzid} \
         -F:${input_fixed_mzml} \
         -EValue:1E-10 \
         -O:output_ppm_errorcharter -Python
-
-        cp /cromwell_root/output_ppm_errorcharter/proteomics/proteomics_Histograms.png /cromwell_root/output_ppm_errorcharter/${sample_id}_MZRefinery_Histograms.png
-        cp /cromwell_root/output_ppm_errorcharter/proteomics/proteomics_MassErrors.png /cromwell_root/output_ppm_errorcharter/${sample_id}_MZRefinery_MassErrors.png
     }
 
     output {
