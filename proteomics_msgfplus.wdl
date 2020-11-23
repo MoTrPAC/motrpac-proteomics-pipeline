@@ -117,14 +117,14 @@ workflow proteomics_msgfplus {
             input_mzid = msgf_tryptic.mzid
         }
 
-        # call ppm_errorcharter { input:
-        #     ncpu = msconvert_ncpu,
-        #     ramGB = msconvert_ramGB,
-        #     docker = ppm_errorcharter_docker,
-        #     disks = msconvert_disk,
-        #     input_fixed_mzml = msconvert_mzrefiner.mzml_fixed,
-        #     input_mzid = msgf_tryptic.mzid
-        # }
+        call ppm_errorcharter { input:
+            ncpu = msconvert_ncpu,
+            ramGB = msconvert_ramGB,
+            docker = ppm_errorcharter_docker,
+            disks = msconvert_disk,
+            input_fixed_mzml = msconvert_mzrefiner.mzml_fixed,
+            input_mzid = msgf_tryptic.mzid
+        }
 
         call msgf_identification { input:
             ncpu = msgf_ncpu,
