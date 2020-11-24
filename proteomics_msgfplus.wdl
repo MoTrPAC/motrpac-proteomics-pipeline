@@ -419,8 +419,8 @@ task ppm_errorcharter {
         -I:${input_mzid} \
         -F:${input_fixed_mzml} \
         -EValue:1E-10 \
-        -HistogramPlot:/output_ppm_errorcharter/${sample_id}-histograms.png \
-        -MassErrorPlot:/output_ppm_errorcharter/${sample_id}-masserrors.png \
+        -HistogramPlot:output_ppm_errorcharter/${sample_id}-histograms.png \
+        -MassErrorPlot:output_ppm_errorcharter/${sample_id}-masserrors.png \
         -Python
     }
 
