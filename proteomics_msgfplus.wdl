@@ -419,12 +419,14 @@ task ppm_errorcharter {
         -I:${input_mzid} \
         -F:${input_fixed_mzml} \
         -EValue:1E-10 \
-        -O:output_ppm_errorcharter -Python
+        -HistogramPlot:/output_ppm_errorcharter/${sample_id}-histograms.png \
+        -MassErrorPlot:/output_ppm_errorcharter/${sample_id}-masserrors.png \
+        -Python
     }
 
     output {
-       File ppm_masserror_png = "output_ppm_errorcharter/${sample_id}_MZRefinery_MassErrors.png"
-       File ppm_histogram_png = "output_ppm_errorcharter/${sample_id}_MZRefinery_Histograms.png"
+       File ppm_histogram_png = "output_ppm_errorcharter/${sample_id}-histograms.png"
+       File ppm_masserror_png = "output_ppm_errorcharter/${sample_id}-masserrors.png"
     }
 
     runtime {
