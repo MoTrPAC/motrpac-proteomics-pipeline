@@ -51,6 +51,9 @@ def copy_ascore( metadata, dest_root_folder, bucket_source, bucket_origin, bucke
             ascore_stdout = metadata['calls']['proteomics_msgfplus.ascore'][x]["stdout"]
             ascore_stdout_clean = remove_gsbucket( ascore_stdout, bucket_origin)
             ascore_stdout_rename =  ascore_output  + seq_id + '-ascore-stdout.log'
+            print('- Log to:', ascore_stdout_rename)
+            blob_stdout = bucket_source.get_blob(ascore_stdout_clean)
+            bucket_source.copy_blob(blob_stdout, bucket_destination, ascore_stdout_rename)
         
         # ascore_output_length = len(metadata['calls']['proteomics_msgfplus.ascore'][x]['outputs'])
         # print('(Number of outputs:', ascore_output_length, ')')
@@ -80,11 +83,6 @@ def copy_ascore( metadata, dest_root_folder, bucket_source, bucket_origin, bucke
             new_syn_ascore = ascore_output + os.path.basename(syn_ascore)
             new_syn_ascore_proteinmap = ascore_output + os.path.basename(syn_ascore_proteinmap)
             new_output_ascore_logfile = ascore_output + os.path.basename(output_ascore_logfile)
-
-            if 'stdout' in metadata['calls']['proteomics_msgfplus.ascore'][x]:
-                print('- Log to:', ascore_stdout_rename)
-                blob_stdout = bucket_source.get_blob(ascore_stdout_clean)
-                bucket_source.copy_blob(blob_stdout, bucket_destination, ascore_stdout_rename)
 
             print('- File to:', new_syn_plus_ascore)
             print('- File to:', new_syn_ascore)
@@ -116,6 +114,9 @@ def copy_msconvert_mzrefiner( metadata, dest_root_folder, bucket_source, bucket_
             msconvert_mzrefiner_stdout_clean = remove_gsbucket( msconvert_mzrefiner_stdout, bucket_origin)
             msconvert_mzrefiner_stdout_rename =  msconvert_mzrefiner_output  + seq_id + '-msconvert_mzrefiner-stdout.log'
             # print('Stdout: ', msconvert_mzrefiner_stdout_rename)
+            print('- Log to:', msconvert_mzrefiner_stdout_rename)
+            blob_stdout = bucket_source.get_blob(msconvert_mzrefiner_stdout_clean)
+            bucket_source.copy_blob(blob_stdout, bucket_destination, msconvert_mzrefiner_stdout_rename)
         
         if 'commandLine' in metadata['calls']['proteomics_msgfplus.msconvert_mzrefiner'][x]:
             # Get and upload the command
@@ -135,14 +136,53 @@ def copy_msconvert_mzrefiner( metadata, dest_root_folder, bucket_source, bucket_
             mzml_fixed = remove_gsbucket( metadata['calls']['proteomics_msgfplus.msconvert_mzrefiner'][x]['outputs']['mzml_fixed'], bucket_origin )
             blob_mzml_fixed = bucket_source.get_blob(mzml_fixed)
             new_mzml_fixed = msconvert_mzrefiner_output + os.path.basename(mzml_fixed)
-
-            if 'stdout' in metadata['calls']['proteomics_msgfplus.msconvert_mzrefiner'][x]:
-                print('- Log to:', msconvert_mzrefiner_stdout_rename)
-                blob_stdout = bucket_source.get_blob(msconvert_mzrefiner_stdout_clean)
-                bucket_source.copy_blob(blob_stdout, bucket_destination, msconvert_mzrefiner_stdout_rename)
-
             print('- File to:', new_mzml_fixed)
             bucket_source.copy_blob(blob_mzml_fixed, bucket_destination, new_mzml_fixed)
+        else:
+            print(' (-) Execution Status: ', executionStatus)
+            print(' (-) Data cannot be copied')
+
+def copy_ppm_errorcharter( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination):
+
+    ppm_errorcharter_output = dest_root_folder + 'output_ppm_errorcharter/'
+    ppm_errorcharter_length = (len(metadata['calls']['proteomics_msgfplus.ppm_errorcharter']))
+    # print('- Number of files processed:', ppm_errorcharter_length)
+
+    for x in range(ppm_errorcharter_length):
+        # print('\nBlob-', x, ' ', end = '')
+        if 'stdout' in metadata['calls']['proteomics_msgfplus.ppm_errorcharter'][x]:
+            # STDOUT, which requires to rename the file
+            seq_id = metadata['calls']['proteomics_msgfplus.ppm_errorcharter'][x]["inputs"]['sample_id'] 
+            ppm_errorcharter_stdout = metadata['calls']['proteomics_msgfplus.ppm_errorcharter'][x]["stdout"]
+            ppm_errorcharter_stdout_clean = remove_gsbucket( ppm_errorcharter_stdout, bucket_origin)
+            ppm_errorcharter_stdout_rename =  ppm_errorcharter_output  + seq_id + '-ppm_errorcharter-stdout.log'
+            print('- Log to:', ppm_errorcharter_stdout_rename)
+            blob_stdout = bucket_source.get_blob(ppm_errorcharter_stdout_clean)
+            bucket_source.copy_blob(blob_stdout, bucket_destination, ppm_errorcharter_stdout_rename)
+
+        # # Get and upload the command
+        if 'commandLine' in metadata['calls']['proteomics_msgfplus.ppm_errorcharter'][x]:
+            ppm_errorcharter_cmd = metadata['calls']['proteomics_msgfplus.ppm_errorcharter'][x]["commandLine"]
+            # print('The Command line:\n', ppm_errorcharter_cmd)
+            cmd_local_file_name = 'command-ppm_errorcharter.txt'
+            cmd_blob_filename = ppm_errorcharter_output + cmd_local_file_name
+            print('- Command: ', cmd_blob_filename)
+            upload_string(bucket_destination, ppm_errorcharter_cmd, cmd_blob_filename)
+
+        executionStatus = remove_gsbucket( metadata['calls']['proteomics_msgfplus.ppm_errorcharter'][x]['executionStatus'], bucket_origin )
+        if executionStatus == 'Done':
+            ppm_masserror_png = remove_gsbucket( metadata['calls']['proteomics_msgfplus.ppm_errorcharter'][x]['outputs']['ppm_masserror_png'], bucket_origin )
+            blob_ppm_masserror_png = bucket_source.get_blob(ppm_masserror_png)
+            new_ppm_masserror_png = ppm_errorcharter_output + os.path.basename(ppm_masserror_png)
+
+            ppm_histogram_png = remove_gsbucket( metadata['calls']['proteomics_msgfplus.ppm_errorcharter'][x]['outputs']['ppm_histogram_png'], bucket_origin )
+            blob_ppm_histogram_png = bucket_source.get_blob(ppm_histogram_png)
+            new_ppm_histogram_png = ppm_errorcharter_output + os.path.basename(ppm_histogram_png)
+
+            print('- File to:', new_ppm_masserror_png)
+            print('- File to:', new_ppm_histogram_png)
+            bucket_source.copy_blob(blob_ppm_masserror_png, bucket_destination, new_ppm_masserror_png)
+            bucket_source.copy_blob(blob_ppm_histogram_png, bucket_destination, new_ppm_histogram_png)
         else:
             print(' (-) Execution Status: ', executionStatus)
             print(' (-) Data cannot be copied')
@@ -163,6 +203,9 @@ def copy_masic( metadata, dest_root_folder, bucket_source, bucket_origin, bucket
             masic_stdout = metadata['calls']['proteomics_msgfplus.masic'][x]["stdout"]
             masic_stdout_clean = remove_gsbucket( masic_stdout, bucket_origin)
             masic_stdout_rename =  masic_output  + seq_id + '-masic-stdout.log'
+            print('- Log to:', masic_stdout_rename)
+            blob_stdout = bucket_source.get_blob(masic_stdout_clean)
+            bucket_source.copy_blob(blob_stdout, bucket_destination, masic_stdout_rename)
 
         # Get and upload the command
         if 'commandLine' in metadata['calls']['proteomics_msgfplus.masic'][x]:
@@ -209,11 +252,6 @@ def copy_masic( metadata, dest_root_folder, bucket_source, bucket_origin, bucket
             new_DatasetInfo_output_file = masic_output + os.path.basename(DatasetInfo_output_file)
 
             # COPY FILES TO NEW LOCATION
-            if 'stdout' in metadata['calls']['proteomics_msgfplus.masic'][x]:
-                print('- Log to:', masic_stdout_rename)
-                blob_stdout = bucket_source.get_blob(masic_stdout_clean)
-                bucket_source.copy_blob(blob_stdout, bucket_destination, masic_stdout_rename)
-
             print('- File to:', new_ReporterIons_output_file)
             print('- File to:', new_MSMS_scans_output_file)
             print('- File to:', new_SICs_output_file)
@@ -256,7 +294,12 @@ def copy_msconvert( metadata, dest_root_folder, bucket_source, bucket_origin, bu
             # print("msconvert_stdout", msconvert_stdout)
             msconvert_stdout_clean = remove_gsbucket( msconvert_stdout, bucket_origin)
             msconvert_stdout_rename =  msconvert_output  + seq_id + '-msconvert-stdout.log'
-            # print("msconvert_stdout_rename", msconvert_stdout_rename)
+            blob_stdout = bucket_source.get_blob(msconvert_stdout_clean)
+            print('- Log to:', msconvert_stdout_rename)
+            if not blob_stdout is None:
+                bucket_source.copy_blob(blob_stdout, bucket_destination, msconvert_stdout_rename)
+            else:
+                print('WARNING: stdout blob available in metadata file, but not available in bucket')
 
         # Get and upload the command
         if 'commandLine' in metadata['calls']['proteomics_msgfplus.msconvert'][x]:
@@ -277,15 +320,6 @@ def copy_msconvert( metadata, dest_root_folder, bucket_source, bucket_origin, bu
             blob_mzml = bucket_source.get_blob(mzml)
             new_mzml = msconvert_output + os.path.basename(mzml)
 
-            # COPY FILES TO NEW LOCATION
-            if 'stdout' in metadata['calls']['proteomics_msgfplus.msconvert'][x]:
-                blob_stdout = bucket_source.get_blob(msconvert_stdout_clean)
-                print('- Log to:', msconvert_stdout_rename)
-                if not blob_stdout is None:
-                    bucket_source.copy_blob(blob_stdout, bucket_destination, msconvert_stdout_rename)
-                else:
-                    print('WARNING: stdout blob available in metadata file, but not available in bucket')
-
             print('- File to:', new_mzml)
             bucket_source.copy_blob(blob_mzml, bucket_destination, new_mzml)
         else:
@@ -304,11 +338,11 @@ def copy_msgf_identification( metadata, dest_root_folder, bucket_source, bucket_
             # STDOUT, which requires to rename the file
             seq_id = metadata['calls']['proteomics_msgfplus.msgf_identification'][x]["inputs"]['sample_id'] 
             msgf_identification_stdout = metadata['calls']['proteomics_msgfplus.msgf_identification'][x]["stdout"]
-
             msgf_identification_stdout_clean = remove_gsbucket( msgf_identification_stdout, bucket_origin)
             msgf_identification_stdout_rename =  msgf_identification_output  + seq_id + '-msgf_identification-stdout.log'
-            msgf_identification_output_length = len(metadata['calls']['proteomics_msgfplus.msgf_identification'][x]['outputs'])
-            # print(' (number of outputs:', msgf_identification_output_length, ')')
+            print('- Log to:', msgf_identification_stdout_rename)
+            blob_stdout = bucket_source.get_blob(msgf_identification_stdout_clean)
+            bucket_source.copy_blob(blob_stdout, bucket_destination, msgf_identification_stdout_rename)
 
         # # Get and upload the command
         if 'commandLine' in metadata['calls']['proteomics_msgfplus.msgf_identification'][x]:
@@ -329,11 +363,6 @@ def copy_msgf_identification( metadata, dest_root_folder, bucket_source, bucket_
             blob_mzid_final = bucket_source.get_blob(mzid_final)
             new_mzid_final = msgf_identification_output + os.path.basename(mzid_final)
 
-            if 'stdout' in metadata['calls']['proteomics_msgfplus.msgf_identification'][x]:
-                print('- Log to:', msgf_identification_stdout_rename)
-                blob_stdout = bucket_source.get_blob(msgf_identification_stdout_clean)
-                bucket_source.copy_blob(blob_stdout, bucket_destination, msgf_identification_stdout_rename)
-
             print('- File to:', new_rename_mzmlfixed)
             print('- File to:', new_mzid_final)
             bucket_source.copy_blob(blob_rename_mzmlfixed, bucket_destination, new_rename_mzmlfixed)
@@ -351,13 +380,15 @@ def copy_msgf_sequences( metadata, dest_root_folder, bucket_source, bucket_origi
 
     for x in range(msgf_sequences_length):
         # print('\nBlob-', x, ' ', end = '')
-        # # STDOUT, which requires to rename the file
+        # # UNFORTUNATELY THE STDOUT HERE IS WRONG! It is listed as available but then the file is not available on GCP
         # if 'stdout' in metadata['calls']['proteomics_msgfplus.msgf_sequences'][x]:
         #     seq_id = os.path.basename(metadata['calls']['proteomics_msgfplus.msgf_sequences'][x]["inputs"]['seq_file_id']) 
         #     msgf_sequences_stdout = metadata['calls']['proteomics_msgfplus.msgf_sequences'][x]["stdout"]
         #     msgf_sequences_stdout_clean = remove_gsbucket( msgf_sequences_stdout, bucket_origin)
         #     msgf_sequences_stdout_rename =  msgf_sequences_output  + seq_id + '-msgf_sequences-stdout.log'
-        #     print('mira ', msgf_sequences_stdout_rename)
+        #     print('- Log to:', msgf_sequences_stdout_rename)
+        #     blob_stdout = bucket_source.get_blob(msgf_sequences_stdout_clean)
+        #     bucket_source.copy_blob(blob_stdout, bucket_destination, msgf_sequences_stdout_rename)
 
         # # Get and upload the command
         if 'commandLine' in metadata['calls']['proteomics_msgfplus.msgf_sequences'][x]:
@@ -377,11 +408,6 @@ def copy_msgf_sequences( metadata, dest_root_folder, bucket_source, bucket_origi
             sequencedb_files = remove_gsbucket( metadata['calls']['proteomics_msgfplus.msgf_sequences'][x]['outputs']['sequencedb_files'], bucket_origin )
             blob_sequencedb_files = bucket_source.get_blob(sequencedb_files)
             new_sequencedb_files = msgf_sequences_output + os.path.basename(sequencedb_files)
-
-            # if 'stdout' in metadata['calls']['proteomics_msgfplus.msgf_sequences'][x]:
-            #     print('- Log to:', msgf_sequences_stdout_rename)
-            #     blob_stdout = bucket_source.get_blob(msgf_sequences_stdout_clean)
-            #     bucket_source.copy_blob(blob_stdout, bucket_destination, msgf_sequences_stdout_rename)
 
             print('- File to:', new_revcat_fasta)
             print('- File to:', new_sequencedb_files)
@@ -407,6 +433,9 @@ def copy_msgf_tryptic( metadata, dest_root_folder, bucket_source, bucket_origin,
             msgf_tryptic_stdout = metadata['calls']['proteomics_msgfplus.msgf_tryptic'][x]["stdout"]
             msgf_tryptic_stdout_clean = remove_gsbucket( msgf_tryptic_stdout, bucket_origin)
             msgf_tryptic_stdout_rename =  msgf_tryptic_output  + seq_id + '-msgf_tryptic-stdout.log'
+            print('- Log to:', msgf_tryptic_stdout_rename)
+            blob_stdout = bucket_source.get_blob(msgf_tryptic_stdout_clean)
+            bucket_source.copy_blob(blob_stdout, bucket_destination, msgf_tryptic_stdout_rename)
 
         # # Get and upload the command
         if 'commandLine' in metadata['calls']['proteomics_msgfplus.msgf_tryptic'][x]:
@@ -425,11 +454,6 @@ def copy_msgf_tryptic( metadata, dest_root_folder, bucket_source, bucket_origin,
             mzid = remove_gsbucket( metadata['calls']['proteomics_msgfplus.msgf_tryptic'][x]['outputs']['mzid'], bucket_origin )
             blob_mzid = bucket_source.get_blob(mzid)
             new_mzid = msgf_tryptic_output + os.path.basename(mzid)
-
-            if 'stdout' in metadata['calls']['proteomics_msgfplus.msgf_tryptic'][x]:
-                print('- Log to:', msgf_tryptic_stdout_rename)
-                blob_stdout = bucket_source.get_blob(msgf_tryptic_stdout_clean)
-                bucket_source.copy_blob(blob_stdout, bucket_destination, msgf_tryptic_stdout_rename)
 
             print('- File to:', new_mzid)
             bucket_source.copy_blob(blob_mzid, bucket_destination, new_mzid)
@@ -455,6 +479,9 @@ def copy_phrp( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_
             phrp_stdout = metadata['calls']['proteomics_msgfplus.phrp'][x]["stdout"]
             phrp_stdout_clean = remove_gsbucket( phrp_stdout, bucket_origin)
             phrp_stdout_rename =  phrp_output  + seq_id + '-phrp-stdout.log'
+            print('- Log to:', phrp_stdout_rename)
+            blob_stdout = bucket_source.get_blob(phrp_stdout_clean)
+            bucket_source.copy_blob(blob_stdout, bucket_destination, phrp_stdout_rename)
 
         # Get and upload the command
         if 'commandLine' in metadata['calls']['proteomics_msgfplus.phrp'][x]:
@@ -500,11 +527,6 @@ def copy_phrp( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_
             new_syn_SeqInfo = phrp_output + os.path.basename(syn_SeqInfo)
             new_syn_ModDetails = phrp_output + os.path.basename(syn_ModDetails)
 
-            if 'stdout' in metadata['calls']['proteomics_msgfplus.phrp'][x]:
-                print('- Log to:', phrp_stdout_rename)
-                blob_stdout = bucket_source.get_blob(phrp_stdout_clean)
-                bucket_source.copy_blob(blob_stdout, bucket_destination, phrp_stdout_rename)
-
             print('- File to:', new_syn_ResultToSeqMap)
             print('- File to:', new_fht)
             print('- File to:', new_PepToProtMapMTS)
@@ -543,6 +565,9 @@ def copy_mzidtotsvconverter( metadata, dest_root_folder, bucket_source, bucket_o
             mzidtotsvconverter_stdout = metadata['calls']['proteomics_msgfplus.mzidtotsvconverter'][x]["stdout"]
             mzidtotsvconverter_stdout_clean = remove_gsbucket( mzidtotsvconverter_stdout, bucket_origin)
             mzidtotsvconverter_stdout_rename =  mzidtotsvconverter_output  + seq_id + '-mzidtotsvconverter-stdout.log'
+            print('- Log to:', mzidtotsvconverter_stdout_rename)
+            blob_stdout = bucket_source.get_blob(mzidtotsvconverter_stdout_clean)
+            bucket_source.copy_blob(blob_stdout, bucket_destination, mzidtotsvconverter_stdout_rename)
         
         # mzidtotsvconverter_output_length = len(metadata['calls']['proteomics_msgfplus.mzidtotsvconverter'][x]['outputs'])
         # print(' (number of outputs:', mzidtotsvconverter_output_length, ')')
@@ -561,11 +586,6 @@ def copy_mzidtotsvconverter( metadata, dest_root_folder, bucket_source, bucket_o
             tsv = remove_gsbucket( metadata['calls']['proteomics_msgfplus.mzidtotsvconverter'][x]['outputs']['tsv'], bucket_origin )
             blob_tsv = bucket_source.get_blob(tsv)
             new_tsv = mzidtotsvconverter_output + os.path.basename(tsv)
-
-            if 'stdout' in metadata['calls']['proteomics_msgfplus.mzidtotsvconverter'][x]:
-                print('- Log to:', mzidtotsvconverter_stdout_rename)
-                blob_stdout = bucket_source.get_blob(mzidtotsvconverter_stdout_clean)
-                bucket_source.copy_blob(blob_stdout, bucket_destination, mzidtotsvconverter_stdout_rename)
             
             print('- File to:', new_tsv)
             bucket_source.copy_blob(blob_tsv, bucket_destination, new_tsv)
@@ -604,6 +624,9 @@ def copy_wrapper_pp( metadata, dest_root_folder, bucket_source, bucket_origin, b
             wrapper_results_stdout = metadata['calls'][wrapper_method][x]["stdout"]
             wrapper_results_stdout_clean = remove_gsbucket( wrapper_results_stdout, bucket_origin)
             wrapper_results_stdout_rename =  wrapper_results_output  + 'wrapper_results-stdout.log'
+            print('- Log to:', wrapper_results_stdout_rename)
+            blob_stdout = bucket_source.get_blob(wrapper_results_stdout_clean)
+            bucket_source.copy_blob(blob_stdout, bucket_destination, wrapper_results_stdout_rename)
         
         # wrapper_results_output_length = len(metadata['calls'][wrapper_method][x]['outputs'])
         # print('(Number of outputs:', wrapper_results_output_length, ')')
@@ -626,11 +649,6 @@ def copy_wrapper_pp( metadata, dest_root_folder, bucket_source, bucket_origin, b
 
             new_results_ratio = wrapper_results_output + os.path.basename(results_ratio)
             new_results_rii = wrapper_results_output + os.path.basename(results_rii)
-
-            if 'stdout' in metadata['calls'][wrapper_method][x]:
-                print('- Log to:', wrapper_results_stdout_rename)
-                blob_stdout = bucket_source.get_blob(wrapper_results_stdout_clean)
-                bucket_source.copy_blob(blob_stdout, bucket_destination, wrapper_results_stdout_rename)
 
             print('- File to:', new_results_ratio)
             print('- File to:', new_results_rii)
@@ -675,8 +693,11 @@ def main():
     print('+ Copy files from:',results_location_path)
 
     dest_root_folder = args.dest_root_folder
+    if not dest_root_folder.endswith("/"):
+        dest_root_folder = dest_root_folder + "/"
+    
     print('+ Copy files to: ', dest_root_folder)
-
+    
     storage_client = storage.Client(project_name)
     bucket_source = storage_client.get_bucket(bucket_origin)
     bucket_destination = storage_client.get_bucket(bucket_destination_name)
@@ -700,15 +721,22 @@ def main():
 
     print('\nPipeline Running Time: ',end_time - start_time)
 
+    if 'inputs' in metadata:
+        is_ptm = metadata['inputs']['proteomics_msgfplus.isPTM']
+        if is_ptm:
+            print('\n######## PTM PROTEOMICS EXPERIMENT ########\n')
+        else:
+            print('\n######## GLOBAL PROTEIN ABUNDANCE EXPERIMENT ########\n')
+
     if 'proteomics_msgfplus.ascore' in metadata['calls']:
-        print('\n######## PTM PROTEOMICS RESULTS ########\n')
         print('\nASCORE OUTPUTS--------------------------------------\n')
         copy_ascore( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
-    else:
-        print('\n######## GLOBAL PROTEIN ABUNDANCE RESULTS ########\n')
 
     print('\nMSCONVERT_MZREFINER OUTPUTS-----------------------------\n')
     copy_msconvert_mzrefiner( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+
+    print('\nPPMErrorCharter (ppm_errorcharter)------------------------\n')
+    copy_ppm_errorcharter( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
 
     print('\nMASIC OUTPUTS-------------------------------------------\n')
     copy_masic( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
