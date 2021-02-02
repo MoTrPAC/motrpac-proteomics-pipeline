@@ -53,7 +53,10 @@ def copy_ascore( metadata, dest_root_folder, bucket_source, bucket_origin, bucke
             ascore_stdout_rename =  ascore_output  + seq_id + '-ascore-stdout.log'
             print('- Log to:', ascore_stdout_rename)
             blob_stdout = bucket_source.get_blob(ascore_stdout_clean)
-            bucket_source.copy_blob(blob_stdout, bucket_destination, ascore_stdout_rename)
+            if blob_stdout is not None:
+                bucket_source.copy_blob(blob_stdout, bucket_destination, ascore_stdout_rename)
+            else:
+                print('- Unable to copy stdout')
         
         # ascore_output_length = len(metadata['calls']['proteomics_msgfplus.ascore'][x]['outputs'])
         # print('(Number of outputs:', ascore_output_length, ')')
@@ -108,15 +111,18 @@ def copy_msconvert_mzrefiner( metadata, dest_root_folder, bucket_source, bucket_
     for x in range(msconvert_mzrefiner_length):
         # print('\nBlob-', x, ' ', end = '')
         if 'stdout' in metadata['calls']['proteomics_msgfplus.msconvert_mzrefiner'][x]:
+            # print('here it is', metadata['calls']['proteomics_msgfplus.msconvert_mzrefiner'][x], '<---End\n')
             # STDOUT, which requires to rename the file
             seq_id = metadata['calls']['proteomics_msgfplus.msconvert_mzrefiner'][x]["inputs"]['sample_id'] 
             msconvert_mzrefiner_stdout = metadata['calls']['proteomics_msgfplus.msconvert_mzrefiner'][x]["stdout"]
             msconvert_mzrefiner_stdout_clean = remove_gsbucket( msconvert_mzrefiner_stdout, bucket_origin)
             msconvert_mzrefiner_stdout_rename =  msconvert_mzrefiner_output  + seq_id + '-msconvert_mzrefiner-stdout.log'
             # print('Stdout: ', msconvert_mzrefiner_stdout_rename)
-            print('- Log to:', msconvert_mzrefiner_stdout_rename)
             blob_stdout = bucket_source.get_blob(msconvert_mzrefiner_stdout_clean)
-            bucket_source.copy_blob(blob_stdout, bucket_destination, msconvert_mzrefiner_stdout_rename)
+            if blob_stdout is not None:
+                bucket_source.copy_blob(blob_stdout, bucket_destination, msconvert_mzrefiner_stdout_rename)
+            else:
+                print('- Unable to copy stdout')
         
         if 'commandLine' in metadata['calls']['proteomics_msgfplus.msconvert_mzrefiner'][x]:
             # Get and upload the command
@@ -158,7 +164,10 @@ def copy_ppm_errorcharter( metadata, dest_root_folder, bucket_source, bucket_ori
             ppm_errorcharter_stdout_rename =  ppm_errorcharter_output  + seq_id + '-ppm_errorcharter-stdout.log'
             print('- Log to:', ppm_errorcharter_stdout_rename)
             blob_stdout = bucket_source.get_blob(ppm_errorcharter_stdout_clean)
-            bucket_source.copy_blob(blob_stdout, bucket_destination, ppm_errorcharter_stdout_rename)
+            if blob_stdout is not None:
+                bucket_source.copy_blob(blob_stdout, bucket_destination, ppm_errorcharter_stdout_rename)
+            else:
+                print('- Unable to copy stdout')
 
         # # Get and upload the command
         if 'commandLine' in metadata['calls']['proteomics_msgfplus.ppm_errorcharter'][x]:
@@ -205,7 +214,10 @@ def copy_masic( metadata, dest_root_folder, bucket_source, bucket_origin, bucket
             masic_stdout_rename =  masic_output  + seq_id + '-masic-stdout.log'
             print('- Log to:', masic_stdout_rename)
             blob_stdout = bucket_source.get_blob(masic_stdout_clean)
-            bucket_source.copy_blob(blob_stdout, bucket_destination, masic_stdout_rename)
+            if blob_stdout is not None:
+                bucket_source.copy_blob(blob_stdout, bucket_destination, masic_stdout_rename)
+            else:
+                print('- Unable to copy stdout')
 
         # Get and upload the command
         if 'commandLine' in metadata['calls']['proteomics_msgfplus.masic'][x]:
@@ -295,9 +307,9 @@ def copy_msconvert( metadata, dest_root_folder, bucket_source, bucket_origin, bu
             msconvert_stdout_clean = remove_gsbucket( msconvert_stdout, bucket_origin)
             msconvert_stdout_rename =  msconvert_output  + seq_id + '-msconvert-stdout.log'
             blob_stdout = bucket_source.get_blob(msconvert_stdout_clean)
-            print('- Log to:', msconvert_stdout_rename)
             if not blob_stdout is None:
                 bucket_source.copy_blob(blob_stdout, bucket_destination, msconvert_stdout_rename)
+                print('- Log to:', msconvert_stdout_rename)
             else:
                 print('WARNING: stdout blob available in metadata file, but not available in bucket')
 
@@ -342,7 +354,10 @@ def copy_msgf_identification( metadata, dest_root_folder, bucket_source, bucket_
             msgf_identification_stdout_rename =  msgf_identification_output  + seq_id + '-msgf_identification-stdout.log'
             print('- Log to:', msgf_identification_stdout_rename)
             blob_stdout = bucket_source.get_blob(msgf_identification_stdout_clean)
-            bucket_source.copy_blob(blob_stdout, bucket_destination, msgf_identification_stdout_rename)
+            if blob_stdout is not None:
+                bucket_source.copy_blob(blob_stdout, bucket_destination, msgf_identification_stdout_rename)
+            else:
+                print('- Unable to copy stdout')
 
         # # Get and upload the command
         if 'commandLine' in metadata['calls']['proteomics_msgfplus.msgf_identification'][x]:
@@ -435,7 +450,10 @@ def copy_msgf_tryptic( metadata, dest_root_folder, bucket_source, bucket_origin,
             msgf_tryptic_stdout_rename =  msgf_tryptic_output  + seq_id + '-msgf_tryptic-stdout.log'
             print('- Log to:', msgf_tryptic_stdout_rename)
             blob_stdout = bucket_source.get_blob(msgf_tryptic_stdout_clean)
-            bucket_source.copy_blob(blob_stdout, bucket_destination, msgf_tryptic_stdout_rename)
+            if blob_stdout is not None:
+                bucket_source.copy_blob(blob_stdout, bucket_destination, msgf_tryptic_stdout_rename)
+            else:
+                print('- Unable to copy stdout')
 
         # # Get and upload the command
         if 'commandLine' in metadata['calls']['proteomics_msgfplus.msgf_tryptic'][x]:
@@ -481,7 +499,10 @@ def copy_phrp( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_
             phrp_stdout_rename =  phrp_output  + seq_id + '-phrp-stdout.log'
             print('- Log to:', phrp_stdout_rename)
             blob_stdout = bucket_source.get_blob(phrp_stdout_clean)
-            bucket_source.copy_blob(blob_stdout, bucket_destination, phrp_stdout_rename)
+            if blob_stdout is not None:
+                bucket_source.copy_blob(blob_stdout, bucket_destination, phrp_stdout_rename)
+            else:
+                print('- Unable to copy stdout')
 
         # Get and upload the command
         if 'commandLine' in metadata['calls']['proteomics_msgfplus.phrp'][x]:
@@ -567,7 +588,10 @@ def copy_mzidtotsvconverter( metadata, dest_root_folder, bucket_source, bucket_o
             mzidtotsvconverter_stdout_rename =  mzidtotsvconverter_output  + seq_id + '-mzidtotsvconverter-stdout.log'
             print('- Log to:', mzidtotsvconverter_stdout_rename)
             blob_stdout = bucket_source.get_blob(mzidtotsvconverter_stdout_clean)
-            bucket_source.copy_blob(blob_stdout, bucket_destination, mzidtotsvconverter_stdout_rename)
+            if blob_stdout is not None:
+                bucket_source.copy_blob(blob_stdout, bucket_destination, mzidtotsvconverter_stdout_rename)
+            else:
+                print('- Unable to copy stdout')
         
         # mzidtotsvconverter_output_length = len(metadata['calls']['proteomics_msgfplus.mzidtotsvconverter'][x]['outputs'])
         # print(' (number of outputs:', mzidtotsvconverter_output_length, ')')
@@ -626,7 +650,10 @@ def copy_wrapper_pp( metadata, dest_root_folder, bucket_source, bucket_origin, b
             wrapper_results_stdout_rename =  wrapper_results_output  + 'wrapper_results-stdout.log'
             print('- Log to:', wrapper_results_stdout_rename)
             blob_stdout = bucket_source.get_blob(wrapper_results_stdout_clean)
-            bucket_source.copy_blob(blob_stdout, bucket_destination, wrapper_results_stdout_rename)
+            if blob_stdout is not None:
+                bucket_source.copy_blob(blob_stdout, bucket_destination, wrapper_results_stdout_rename)
+            else:
+                print('- Unable to copy stdout')
         
         # wrapper_results_output_length = len(metadata['calls'][wrapper_method][x]['outputs'])
         # print('(Number of outputs:', wrapper_results_output_length, ')')
