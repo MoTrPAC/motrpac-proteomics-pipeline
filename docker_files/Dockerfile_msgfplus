@@ -1,12 +1,12 @@
 # Dockerfile MSGFPlus
 
-FROM openjdk:latest
+FROM openjdk@sha256:0c77ca9d0c7df4481dd1358d40ffb99717c8e1d23f642bfb934978831b66dd34
 MAINTAINER DavidJM <biodavidjm@gmail.com>
 RUN yum install -y git
 RUN yum install -y wget
 RUN yum install -y unzip
 
-RUN wget -P /app/ https://github.com/MSGFPlus/msgfplus/releases/download/v2020.08.05/MSGFPlus_v20200805.zip
+RUN wget -P /app/ https://github.com/MSGFPlus/msgfplus/releases/download/v2021.01.08/MSGFPlus_v20210108.zip
 RUN cd /app/ && unzip MSGFPlus*.zip
 
 #RUN java -Xmx4000M -jar MSGFPlus.jar -s /data/MoTrPAC_Pilot_TMT_W_S1_01_12Oct17_Elm_AQ-17-09-02.mzML -o /data/MoTrPAC_Pilot_TMT_W_S1_01_12Oct17_Elm_AQ-17-09-02.mzid -d /data/ID_007275_FB1B42E8.fasta -conf /parameters/MzRef_StatCysAlk_TMT_6plex.txt
