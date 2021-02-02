@@ -30,6 +30,7 @@ digraph proteomics_msgfplus {
     CALL_wrapper_pp [label="call wrapper_pp"]
     CONDITIONAL_0_EXPRESSION [shape="hexagon" label="if (!isPTM)" style="dashed" ]
   }
+  CALL_msgf_sequences [label="call msgf_sequences"]
   subgraph cluster_1 {
     style="filled,solid";
     fillcolor=white;
@@ -55,5 +56,4 @@ digraph proteomics_msgfplus {
     CALL_wrapper_pp_ptm [label="call wrapper_pp_ptm"]
     CONDITIONAL_3_EXPRESSION [shape="hexagon" label="if (isPTM)" style="dashed" ]
   }
-  CALL_msgf_sequences [label="call msgf_sequences"]
 }
