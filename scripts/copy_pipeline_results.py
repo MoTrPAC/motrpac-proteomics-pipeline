@@ -701,10 +701,10 @@ def main():
     
     print('')
 
-    project_name = args.project
+    project_name = args.project.rstrip('/')
     print('GCP project:', project_name)
 
-    bucket_origin = args.bucket_origin
+    bucket_origin = args.bucket_origin.rstrip('/')
     print('Bucket origin:', bucket_origin)
 
     bucket_destination_name = args.bucket_destination_name
@@ -716,7 +716,7 @@ def main():
 
     print('\nOPTIONS:\n')
 
-    results_location_path = args.results_location_path
+    results_location_path = args.results_location_path.rstrip('/')
     print('+ Copy files from:',results_location_path)
 
     dest_root_folder = args.dest_root_folder
@@ -734,8 +734,8 @@ def main():
     # Get and load the metadata.json file
     for blob in bucket_content_list:
         here = blob.name
-        #print(type(here))
-        #print(here) 
+        # print(type(here))
+        # print(here) 
         reg = re.compile("(.*.metadata.json)")
         m = reg.match(here)
         if m:
