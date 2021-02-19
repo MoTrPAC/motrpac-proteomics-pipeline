@@ -2,7 +2,7 @@ workflow proteomics_msgfplus {
 
     meta {
         author: "David Jimenez-Morales"
-        version: "v0.2.1"
+        version: "v0.3.0"
     }
 
     # RAW INPUT FILES
