@@ -22,8 +22,6 @@ def arg_parser():
 def main():
     parser = arg_parser()
     args = parser.parse_args()
-    
-    print('')
 
     project_name = args.project.rstrip('/')
     print('GCP project:', project_name)
@@ -61,10 +59,10 @@ def main():
     print('\n')
 
     if metadata.get('failures'):
-        failures_length = (len(metadata['failures']))
+        failures_length = len(metadata['failures'])
         print('PIPELINE ERRORS (', failures_length, ')')
         for x in range(failures_length):
-            causeby_len = (len(metadata['failures'][x]['causedBy']))
+            causeby_len = len(metadata['failures'][x]['causedBy'])
             for y in range(causeby_len):
                 output = metadata['failures'][x]['causedBy'][y]['message']
                 print('\t- MESSAGE ', y+1,': ', output,"\n")
