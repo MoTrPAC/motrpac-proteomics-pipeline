@@ -23,7 +23,8 @@ workflow proteomics_maxquant {
         docker = mq_docker,
         disks = mq_disk,
         mq_parameters = mq_parameters ,
-        fasta_sequence_db = fasta_sequence_db
+        fasta_sequence_db = fasta_sequence_db,
+        raw_file = raw_file
     }
 }
 
@@ -34,13 +35,14 @@ task maxquant {
     String? disks
     File mq_parameters
     File fasta_sequence_db
+    File raw_file
 
     command {
         echo "STEP 1: Copy RAW files to mqdata folder"
 
         mkdir -p mqdata
         
-        for file in ${sep=' ' mq_parameters}; 
+        for file in ${sep=' ' raw_file}; 
             do cp $file mqdata/
         done
 
@@ -68,6 +70,7 @@ task maxquant {
         File peptides = "mqdata/combined/txt/peptides.txt"
         File proteinGroups = "mqdata/combined/txt/proteinGroups.txt"
         File summary = "mqdata/combined/txt/summary.txt"
+        File runningTimes = "mqdata/combined/proc/#runningTimes.txt"
     }
 
     runtime {
