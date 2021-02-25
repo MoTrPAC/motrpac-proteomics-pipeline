@@ -35,7 +35,7 @@ task maxquant {
     String? disks
     File mq_parameters
     File fasta_sequence_db
-    File raw_file
+    Array[File] raw_file
 
     command {
         echo "STEP 1: Copy RAW files to mqdata folder"
@@ -49,6 +49,17 @@ task maxquant {
         echo "STEP 2: Copy SEQUENCE DB to mqdata folder"
 
         cp ${fasta_sequence_db} mqdata/
+
+        echo "-----List file content----"
+
+        ls -lhtr mqdata
+
+        echo "-----PWD----"
+        pwd mqdata
+
+        echo "-----FIND----"
+
+        find . -name "MoTrPAC_Pilot_TMT_W_S1_01_12Oct17_Elm_AQ-17-09-02.raw"
 
         echo "STEP 3: Run Maxquant"
 
