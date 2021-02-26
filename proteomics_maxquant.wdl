@@ -22,7 +22,7 @@ workflow proteomics_maxquant {
         ramGB = mq_ramGB,
         docker = mq_docker,
         disks = mq_disk,
-        mq_parameters = mq_parameters ,
+        mq_parameters = mq_parameters,
         fasta_sequence_db = fasta_sequence_db,
         raw_file = raw_file
     }
@@ -59,9 +59,15 @@ task maxquant {
 
         echo "-----FIND----"
 
-        find . -name "MoTrPAC_Pilot_TMT_W_S1_01_12Oct17_Elm_AQ-17-09-02.raw"
+        find ~+ -name "MoTrPAC_Pilot_TMT_W_S1_01_12Oct17_Elm_AQ-17-09-02.raw"
 
-        echo "STEP 3: Run Maxquant"
+        echo "STEP 3: CHANGE THE FULL PATH OF FILES IN XML FILE"
+
+        cd mqdata
+
+        sed -i "s|mqdata|$PWD|g" ${mq_parameters}
+
+        echo "STEP 4: Run Maxquant"
 
         mono /app/maxquant1660/bin/MaxQuantCmd.exe ${mq_parameters}
     }
