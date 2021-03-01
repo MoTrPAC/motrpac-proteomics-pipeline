@@ -88,6 +88,7 @@ task maxquant {
         File proteinGroups = "mqdata/combined/txt/proteinGroups.txt"
         File summary = "mqdata/combined/txt/summary.txt"
         File runningTimes = "mqdata/combined/proc/#runningTimes.txt"
+        Array[File] sites = glob("*Sites.txt")
     }
 
     runtime {
