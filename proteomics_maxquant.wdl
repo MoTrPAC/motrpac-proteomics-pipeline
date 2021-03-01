@@ -73,7 +73,6 @@ task maxquant {
     }
 
     output {
-        #File OxidationSites = "mqdata/combined/txt/Oxidation\ \(M\)Sites.txt"
         File allPeptides = "mqdata/combined/txt/allPeptides.txt"
         File evidence = "mqdata/combined/txt/evidence.txt"
         File libraryMatch = "mqdata/combined/txt/libraryMatch.txt"
@@ -88,7 +87,7 @@ task maxquant {
         File proteinGroups = "mqdata/combined/txt/proteinGroups.txt"
         File summary = "mqdata/combined/txt/summary.txt"
         File runningTimes = "mqdata/combined/proc/#runningTimes.txt"
-        Array[File] sites = glob("*Sites.txt")
+        Array[File] sites = glob("mqdata/combined/txt/*Sites.txt")
     }
 
     runtime {
