@@ -685,11 +685,157 @@ def copy_wrapper_pp( metadata, dest_root_folder, bucket_source, bucket_origin, b
             print(' (-) Execution Status: ', executionStatus)
             print(' (-) Data cannot be copied')
 
+# MAXQUANT METHODS----------------------------------------------------
+# Copy maxquant results to the same or different bucket
+def copy_maxquant( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination):
+
+    maxquant_output = dest_root_folder + 'maxquant_outputs/'
+    maxquant_length = (len(metadata['calls']['proteomics_maxquant.maxquant']))
+    # print('- Number of files processed:', maxquant_length)
+
+    for x in range(maxquant_length):
+        # print('\nBlob-', x, ' ', end = '')
+        if 'stdout' in metadata['calls']['proteomics_maxquant.maxquant'][x]:
+            seq_id = "console"
+            maxquant_stdout = metadata['calls']['proteomics_maxquant.maxquant'][x]["stdout"]
+            maxquant_stdout_clean = remove_gsbucket( maxquant_stdout, bucket_origin)
+            maxquant_stdout_rename =  maxquant_output  + seq_id + '-maxquant-stdout.log'
+            print('- Log to:', maxquant_stdout_rename)
+            blob_stdout = bucket_source.get_blob(maxquant_stdout_clean)
+            if blob_stdout is not None:
+                bucket_source.copy_blob(blob_stdout, bucket_destination, maxquant_stdout_rename)
+            else:
+                print('- Unable to copy stdout')
+        
+        # maxquant_output_length = len(metadata['calls']['proteomics_maxquant.maxquant'][x]['outputs'])
+        # print(' (number of outputs:', maxquant_output_length, ')')
+
+        if 'commandLine' in metadata['calls']['proteomics_maxquant.maxquant'][x]:
+            # Get and upload the command
+            maxquant_cmd = metadata['calls']['proteomics_maxquant.maxquant'][x]["commandLine"]
+            # print('The Command line:\n', maxquant_cmd)
+            cmd_local_file_name = 'command-maxquant.txt'
+            cmd_blob_filename = maxquant_output + cmd_local_file_name
+            print('- Command: ', cmd_blob_filename, '\n')
+            upload_string(bucket_destination, maxquant_cmd, cmd_blob_filename)
+
+        executionStatus = remove_gsbucket( metadata['calls']['proteomics_maxquant.maxquant'][x]['executionStatus'], bucket_origin )
+        if executionStatus == 'Done':
+            evidence = remove_gsbucket( metadata['calls']['proteomics_maxquant.maxquant'][x]['outputs']['evidence'], bucket_origin )
+            blob_evidence = bucket_source.get_blob(evidence)
+            new_evidence = maxquant_output + os.path.basename(evidence)
+
+            modificationSpecificPeptides = remove_gsbucket( metadata['calls']['proteomics_maxquant.maxquant'][x]['outputs']['modificationSpecificPeptides'], bucket_origin )
+            blob_modificationSpecificPeptides = bucket_source.get_blob(modificationSpecificPeptides)
+            new_modificationSpecificPeptides = maxquant_output + os.path.basename(modificationSpecificPeptides)
+
+            allPeptides = remove_gsbucket( metadata['calls']['proteomics_maxquant.maxquant'][x]['outputs']['allPeptides'], bucket_origin )
+            blob_allPeptides = bucket_source.get_blob(allPeptides)
+            new_allPeptides = maxquant_output + os.path.basename(allPeptides)
+
+            peptides = remove_gsbucket( metadata['calls']['proteomics_maxquant.maxquant'][x]['outputs']['peptides'], bucket_origin )
+            blob_peptides = bucket_source.get_blob(peptides)
+            new_peptides = maxquant_output + os.path.basename(peptides)
+
+            mzRange = remove_gsbucket( metadata['calls']['proteomics_maxquant.maxquant'][x]['outputs']['mzRange'], bucket_origin )
+            blob_mzRange = bucket_source.get_blob(mzRange)
+            new_mzRange = maxquant_output + os.path.basename(mzRange)
+
+            matchedFeatures = remove_gsbucket( metadata['calls']['proteomics_maxquant.maxquant'][x]['outputs']['matchedFeatures'], bucket_origin )
+            blob_matchedFeatures = bucket_source.get_blob(matchedFeatures)
+            new_matchedFeatures = maxquant_output + os.path.basename(matchedFeatures)
+
+            ms3Scans = remove_gsbucket( metadata['calls']['proteomics_maxquant.maxquant'][x]['outputs']['ms3Scans'], bucket_origin )
+            blob_ms3Scans = bucket_source.get_blob(ms3Scans)
+            new_ms3Scans = maxquant_output + os.path.basename(ms3Scans)
+
+            proteinGroups = remove_gsbucket( metadata['calls']['proteomics_maxquant.maxquant'][x]['outputs']['proteinGroups'], bucket_origin )
+            blob_proteinGroups = bucket_source.get_blob(proteinGroups)
+            new_proteinGroups = maxquant_output + os.path.basename(proteinGroups)
+
+            msms = remove_gsbucket( metadata['calls']['proteomics_maxquant.maxquant'][x]['outputs']['msms'], bucket_origin )
+            blob_msms = bucket_source.get_blob(msms)
+            new_msms = maxquant_output + os.path.basename(msms)
+
+            runningTimes = remove_gsbucket( metadata['calls']['proteomics_maxquant.maxquant'][x]['outputs']['runningTimes'], bucket_origin )
+            blob_runningTimes = bucket_source.get_blob(runningTimes)
+            new_runningTimes = maxquant_output + os.path.basename(runningTimes)
+
+            libraryMatch = remove_gsbucket( metadata['calls']['proteomics_maxquant.maxquant'][x]['outputs']['libraryMatch'], bucket_origin )
+            blob_libraryMatch = bucket_source.get_blob(libraryMatch)
+            new_libraryMatch = maxquant_output + os.path.basename(libraryMatch)
+
+            msmsScans = remove_gsbucket( metadata['calls']['proteomics_maxquant.maxquant'][x]['outputs']['msmsScans'], bucket_origin )
+            blob_msmsScans = bucket_source.get_blob(msmsScans)
+            new_msmsScans = maxquant_output + os.path.basename(msmsScans)
+
+            parameters = remove_gsbucket( metadata['calls']['proteomics_maxquant.maxquant'][x]['outputs']['parameters'], bucket_origin )
+            blob_parameters = bucket_source.get_blob(parameters)
+            new_parameters = maxquant_output + os.path.basename(parameters)
+
+            summary = remove_gsbucket( metadata['calls']['proteomics_maxquant.maxquant'][x]['outputs']['summary'], bucket_origin )
+            blob_summary = bucket_source.get_blob(summary)
+            new_summary = maxquant_output + os.path.basename(summary)
+
+            if 'sites' in metadata['calls']['proteomics_maxquant.maxquant'][x]['outputs']:
+                for files in metadata['calls']['proteomics_maxquant.maxquant'][x]['outputs']['sites']:
+                    s_file = remove_gsbucket( files, bucket_origin )
+                    blob_f_sites = bucket_source.get_blob(s_file)
+                    new_f_sites = maxquant_output + os.path.basename(s_file)
+                    print('- File to:', new_f_sites)
+                    bucket_source.copy_blob(blob_f_sites, bucket_destination, new_f_sites)
+
+            print('- File to:', new_summary)
+            bucket_source.copy_blob(blob_summary, bucket_destination, new_summary)
+
+            print('- File to:', new_parameters)
+            bucket_source.copy_blob(blob_parameters, bucket_destination, new_parameters)
+            
+            print('- File to:', new_msmsScans)
+            bucket_source.copy_blob(blob_msmsScans, bucket_destination, new_msmsScans)
+            
+            print('- File to:', new_libraryMatch)
+            bucket_source.copy_blob(blob_libraryMatch, bucket_destination, new_libraryMatch)
+            
+            print('- File to:', new_runningTimes)
+            bucket_source.copy_blob(blob_runningTimes, bucket_destination, new_runningTimes)
+            
+            print('- File to:', new_msms)
+            bucket_source.copy_blob(blob_msms, bucket_destination, new_msms)
+            
+            print('- File to:', new_proteinGroups)
+            bucket_source.copy_blob(blob_proteinGroups, bucket_destination, new_proteinGroups)
+            
+            print('- File to:', new_ms3Scans)
+            bucket_source.copy_blob(blob_ms3Scans, bucket_destination, new_ms3Scans)
+            
+            print('- File to:', new_matchedFeatures)
+            bucket_source.copy_blob(blob_matchedFeatures, bucket_destination, new_matchedFeatures)
+            
+            print('- File to:', new_mzRange)
+            bucket_source.copy_blob(blob_mzRange, bucket_destination, new_mzRange)
+            
+            print('- File to:', new_peptides)
+            bucket_source.copy_blob(blob_peptides, bucket_destination, new_peptides)
+
+            print('- File to:', new_allPeptides)
+            bucket_source.copy_blob(blob_allPeptides, bucket_destination, new_allPeptides)
+            
+            print('- File to:', new_modificationSpecificPeptides)
+            bucket_source.copy_blob(blob_modificationSpecificPeptides, bucket_destination, new_modificationSpecificPeptides)
+            
+            print('- File to:', new_evidence)
+            bucket_source.copy_blob(blob_evidence, bucket_destination, new_evidence)
+        else:
+            print(' (-) Execution Status: ', executionStatus)
+            print(' (-) Data cannot be copied')
+
 def arg_parser():
     parser = argparse.ArgumentParser(description='Copy proteomics pipeline output files to a desire location')
     parser.add_argument('-p', '--project', required=True, type=str, help='GCP project name. Required.')
     parser.add_argument('-b', '--bucket_origin', required=True, type=str, help='Bucket with output files. Required.')
     parser.add_argument('-d', '--bucket_destination_name', required=False, type=str, help='Bucket to copy file. Not Required. Default: same as bucket_origin).')
+    parser.add_argument('-m', '--method_proteomics', required=True, type=str, help='Proteomics Method. Currently supported: msgfplus or maxquant.')
     parser.add_argument('-r', '--results_location_path', required=True, type=str, help='Path to the pipeline results. Required (e.g. results/proteomics_msgfplus/9c6ff6fe-ce7d-4d23-ac18-9935614d6f9b)')
     parser.add_argument('-o', '--dest_root_folder', required=True, help='Folder path to copy the files. Required (e.g. test/results/input_test_gcp_s6-global-2files-8/)')
     return parser
@@ -698,11 +844,9 @@ def arg_parser():
 def main():
     parser = arg_parser()
     args = parser.parse_args()
-    
-    print('')
 
     project_name = args.project.rstrip('/')
-    print('GCP project:', project_name)
+    print('\nGCP project:', project_name)
 
     bucket_origin = args.bucket_origin.rstrip('/')
     print('Bucket origin:', bucket_origin)
@@ -714,7 +858,10 @@ def main():
     else:
         print('Bucket destination: ', bucket_destination_name)
 
-    print('\nOPTIONS:\n')
+    print('\nOPTIONS:')
+
+    method_proteomics = args.method_proteomics
+    print('+ Proteomics Pipeline METHOD: ', method_proteomics)
 
     results_location_path = args.results_location_path.rstrip('/')
     print('+ Copy files from:',results_location_path)
@@ -746,48 +893,55 @@ def main():
     start_time = dateparser.parse(metadata['start'])
     end_time = dateparser.parse(metadata['end'])
 
-    print('\nPipeline Running Time: ',end_time - start_time)
+    print('Pipeline Running Time: ', end_time - start_time, '\n')
 
-    if 'inputs' in metadata:
-        is_ptm = metadata['inputs']['proteomics_msgfplus.isPTM']
-        if is_ptm:
-            print('\n######## PTM PROTEOMICS EXPERIMENT ########\n')
-        else:
-            print('\n######## GLOBAL PROTEIN ABUNDANCE EXPERIMENT ########\n')
+    if method_proteomics == 'maxquant':
+        print('PROTEOMICS METHOD: maxquant')
+        print('+ Copy MAXQUANT outputs-----------------------------\n')
+        copy_maxquant( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+    else:
+        print('PROTEOMICS METHOD: msgfplus')
 
-    if 'proteomics_msgfplus.ascore' in metadata['calls']:
-        print('\nASCORE OUTPUTS--------------------------------------\n')
-        copy_ascore( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+        if 'inputs' in metadata:
+            is_ptm = metadata['inputs']['proteomics_msgfplus.isPTM']
+            if is_ptm:
+                print('\n######## PTM PROTEOMICS EXPERIMENT ########\n')
+            else:
+                print('\n######## GLOBAL PROTEIN ABUNDANCE EXPERIMENT ########\n')
 
-    print('\nMSCONVERT_MZREFINER OUTPUTS-----------------------------\n')
-    copy_msconvert_mzrefiner( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+        if 'proteomics_msgfplus.ascore' in metadata['calls']:
+            print('\nASCORE OUTPUTS--------------------------------------\n')
+            copy_ascore( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
 
-    print('\nPPMErrorCharter (ppm_errorcharter)------------------------\n')
-    copy_ppm_errorcharter( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+        print('\nMSCONVERT_MZREFINER OUTPUTS-----------------------------\n')
+        copy_msconvert_mzrefiner( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
 
-    print('\nMASIC OUTPUTS-------------------------------------------\n')
-    copy_masic( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+        print('\nPPMErrorCharter (ppm_errorcharter)------------------------\n')
+        copy_ppm_errorcharter( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
 
-    print('\nMSCONVERT OUTPUTS---------------------------------------\n')
-    copy_msconvert( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+        print('\nMASIC OUTPUTS-------------------------------------------\n')
+        copy_masic( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
 
-    print('\nMSGF_IDENTIFICATION OUTPUTS-----------------------------\n')
-    copy_msgf_identification( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+        print('\nMSCONVERT OUTPUTS---------------------------------------\n')
+        copy_msconvert( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
 
-    print('\nMSGF_SEQUENCES OUTPUTS----------------------------------\n')
-    copy_msgf_sequences( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+        print('\nMSGF_IDENTIFICATION OUTPUTS-----------------------------\n')
+        copy_msgf_identification( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
 
-    print('\nMSGF_TRYPTIC OUTPUTS------------------------------------\n')
-    copy_msgf_tryptic( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+        print('\nMSGF_SEQUENCES OUTPUTS----------------------------------\n')
+        copy_msgf_sequences( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
 
-    print('\nPHRP OUTPUTS--------------------------------------------\n')
-    copy_phrp( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+        print('\nMSGF_TRYPTIC OUTPUTS------------------------------------\n')
+        copy_msgf_tryptic( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
 
-    print('\nMZID to TSV CONVERTER OUTPUTS---------------------------\n')
-    copy_mzidtotsvconverter( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+        print('\nPHRP OUTPUTS--------------------------------------------\n')
+        copy_phrp( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
 
-    print('\nWRAPPER: PlexedPiper output-------------------------------\n')
-    copy_wrapper_pp( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+        print('\nMZID to TSV CONVERTER OUTPUTS---------------------------\n')
+        copy_mzidtotsvconverter( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+
+        print('\nWRAPPER: PlexedPiper output-------------------------------\n')
+        copy_wrapper_pp( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
 
     print('\n')
 

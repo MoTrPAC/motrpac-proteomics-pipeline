@@ -24,7 +24,7 @@ def main():
     args = parser.parse_args()
 
     project_name = args.project.rstrip('/')
-    print('GCP project:', project_name)
+    print('\nGCP project:', project_name)
 
     bucket_origin = args.bucket_origin.rstrip('/')
     print('Bucket origin:', bucket_origin)
@@ -52,11 +52,9 @@ def main():
     if metadata.get('start'):
         start_time = dateparser.parse(metadata['start'])
         end_time = dateparser.parse(metadata['end'])
-        print('\nPipeline Running Time: ',end_time - start_time)
+        print('Pipeline Running Time: ',end_time - start_time)
     else:
         print('\nStart time not available!!!\n')
-
-    print('\n')
 
     if metadata.get('failures'):
         failures_length = len(metadata['failures'])
@@ -67,7 +65,7 @@ def main():
                 output = metadata['failures'][x]['causedBy'][y]['message']
                 print('\t- MESSAGE ', y+1,': ', output,"\n")
     else:
-        print('No errors detected (congratulations)!')
+        print('+ No errors detected (congratulations)!\n')
 
 
 if __name__ == "__main__":
