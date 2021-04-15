@@ -32,7 +32,7 @@
   "proteomics_msgfplus.sd_references": "gcp-study-design/fractions.txt",
   "proteomics_msgfplus.sd_samples": "gcp-study-design/fractions.txt",
   "proteomics_msgfplus.wrapper_disk": "local-disk 80 HDD",
-  "proteomics_msgfplus.wrapper_docker": "docker-msgf/prot-plexedpiper:v0.1.20201125",
+  "proteomics_msgfplus.wrapper_docker": "docker-msgf/prot-plexedpiper:v0.1.7",
   "proteomics_msgfplus.wrapper_ncpu": 8,
-  "proteomics_msgfplus.wrapper_ramGB": 30
+  "proteomics_msgfplus.wrapper_ramGB": 60
 }
