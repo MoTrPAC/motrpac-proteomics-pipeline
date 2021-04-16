@@ -1,5 +1,6 @@
 {
   "proteomics_msgfplus.ascore_ncpu": "Int? (optional)",
+  "proteomics_msgfplus.pr_ratio": "File? (optional)",
   "proteomics_msgfplus.masic_disk": "String? (optional)",
   "proteomics_msgfplus.masic_docker": "String",
   "proteomics_msgfplus.phrp_ramGB": "Int",
@@ -16,6 +17,7 @@
   "proteomics_msgfplus.msconvert_ramGB": "Int",
   "proteomics_msgfplus.msgf_ncpu": "Int",
   "proteomics_msgfplus.ascore_disk": "String? (optional)",
+  "proteomics_msgfplus.results_prefix": "String",
   "proteomics_msgfplus.msgf_docker": "String",
   "proteomics_msgfplus.msgf_ramGB": "Int",
   "proteomics_msgfplus.mzidtotsvconverter_docker": "String",
