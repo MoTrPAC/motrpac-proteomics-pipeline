@@ -837,7 +837,7 @@ def arg_parser():
     parser.add_argument('-d', '--bucket_destination_name', required=False, type=str, help='Bucket to copy file. Not Required. Default: same as bucket_origin).')
     parser.add_argument('-m', '--method_proteomics', required=True, type=str, help='Proteomics Method. Currently supported: msgfplus or maxquant.')
     parser.add_argument('-r', '--results_location_path', required=True, type=str, help='Path to the pipeline results. Required (e.g. results/proteomics_msgfplus/9c6ff6fe-ce7d-4d23-ac18-9935614d6f9b)')
-    parser.add_argument('-o', '--dest_root_folder', required=True, help='Folder path to copy the files. Required (e.g. test/results/input_test_gcp_s6-global-2files-8/)')
+    parser.add_argument('-o', '--dest_root_folder', required=True, type=str, help='Folder path to copy the files. Required (e.g. test/results/input_test_gcp_s6-global-2files-8/)')
     return parser
 
 
