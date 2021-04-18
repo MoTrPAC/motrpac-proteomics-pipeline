@@ -836,14 +836,20 @@ task wrapper_pp_ptm_inference {
         -o output_plexedpiper \
         -g ${pr_ratio} \
         -n ${results_prefix}
+
+        echo "-------------------"
+        echo "End of PlexedPiper"
+        echo "List files"
+        ls
+        ls output_plexedpiper
     }
 
     output {
         File final_output_masic_tar = "final_output_masic.tar.gz"
         File final_output_phrp_tar = "final_output_phrp.tar.gz"
         File final_output_ascore = "final_output_ascore.tar.gz"
-        File results_rii = glob("*RII-peptide.txt")[0]
-        File results_ratio = glob("*ratio.txt")[0]
+        File results_rii = glob("output_plexedpiper/*RII-peptide.txt")[0]
+        File results_ratio = glob("output_plexedpiper/*ratio.txt")[0]
     }
 
     runtime {
@@ -909,13 +915,19 @@ task wrapper_pp {
         -s study_design \
         -o output_plexedpiper \
         -n ${results_prefix}
+
+        echo "-------------------"
+        echo "End of PlexedPiper"
+        echo "List files"
+        ls
+        ls output_plexedpiper
     }
 
     output {
         File final_output_masic_tar = "final_output_masic.tar.gz"
         File final_output_phrp_tar = "final_output_phrp.tar.gz"
-        File results_rii = glob("*RII-peptide.txt")[0]
-        File results_ratio = glob("*ratio.txt")[0]
+        File results_rii = glob("output_plexedpiper/*RII-peptide.txt")[0]
+        File results_ratio = glob("output_plexedpiper/*ratio.txt")[0]
     }
 
     runtime {
