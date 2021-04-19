@@ -565,7 +565,6 @@ task phrp {
     String? disks
 
     Boolean isPTM
-    File? null
     
     File input_tsv
     String sample_id = basename(input_tsv, ".tsv")
@@ -599,13 +598,11 @@ task phrp {
     }
 
     output {
-        #File? PepToProtMapMTS = if (isPTM == false) then "output_phrp/${sample_id}_PepToProtMapMTS.txt" else null
         File PepToProtMapMTS = "output_phrp/${sample_id}_PepToProtMapMTS.txt"
         File fht = "output_phrp/${sample_id}_fht.txt"
         File syn = "output_phrp/${sample_id}_syn.txt"
         File syn_ModDetails = "output_phrp/${sample_id}_syn_ModDetails.txt"
         File syn_ModSummary = "output_phrp/${sample_id}_syn_ModSummary.txt"
-        #File? syn_ProteinMods = if (isPTM == false) then "output_phrp/${sample_id}_syn_ProteinMods.txt" else null
         File syn_ProteinMods = "output_phrp/${sample_id}_syn_ProteinMods.txt"
         File syn_ResultToSeqMap = "output_phrp/${sample_id}_syn_ResultToSeqMap.txt"
         File syn_SeqInfo = "output_phrp/${sample_id}_syn_SeqInfo.txt"
@@ -617,7 +614,7 @@ task phrp {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks : select_first([disks, "local-disk 100 SSD"])
     }
 }
 
