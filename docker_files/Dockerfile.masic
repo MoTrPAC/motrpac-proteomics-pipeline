@@ -1,0 +1,15 @@
+# Dockerfile MASIC
+FROM mono:6.12.0
+LABEL org.opencontainers.image.authors="biodavidjm@gmail.com"
+
+# hadolint ignore=DL3008
+RUN apt-get update \
+    && apt-get -y install wget unzip --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app/masic/
+RUN wget -nv https://github.com/PNNL-Comp-Mass-Spec/MASIC/releases/download/v3.2.7465/MASIC_Console_Program.zip \
+    && unzip MASIC_Console_Program.zip \
+    && rm -rf MASIC_Console_Program.zip
+
+

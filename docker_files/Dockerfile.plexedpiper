@@ -1,0 +1,12 @@
+# Dockerfile PlexedPiper
+FROM rocker/tidyverse:4.0.2
+
+# hadolint ignore=DL3008
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends unixodbc unixodbc-dev freetds-dev \
+       freetds-bin tdsodbc libcurl4-openssl-dev libxml2-dev libnetcdf-dev libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# hadolint ignore=DL3059
+RUN R -e 'remotes::install_github("vladpetyuk/PlexedPiper@0.1.7", build_vignettes = FALSE)' \
+    && R -e 'install.packages("optparse")'
