@@ -631,6 +631,9 @@ def copy_wrapper_pp( metadata, dest_root_folder, bucket_source, bucket_origin, b
         ptm_type = metadata['inputs']['proteomics_msgfplus.isPTM']
         print("+ PTM proteomics experiment: ", ptm_type)
         wrapper_method = "proteomics_msgfplus.wrapper_pp_ptm"
+        if not wrapper_method in metadata['calls']:
+            wrapper_method = "proteomics_msgfplus.wrapper_pp_ptm_inference"
+
     else:
         print("+ Global proteomics experiment results")
         wrapper_method = "proteomics_msgfplus.wrapper_pp"
@@ -838,6 +841,7 @@ def arg_parser():
     parser.add_argument('-m', '--method_proteomics', required=True, type=str, help='Proteomics Method. Currently supported: msgfplus or maxquant.')
     parser.add_argument('-r', '--results_location_path', required=True, type=str, help='Path to the pipeline results. Required (e.g. results/proteomics_msgfplus/9c6ff6fe-ce7d-4d23-ac18-9935614d6f9b)')
     parser.add_argument('-o', '--dest_root_folder', required=True, type=str, help='Folder path to copy the files. Required (e.g. test/results/input_test_gcp_s6-global-2files-8/)')
+    parser.add_argument('-c', '--copy_what', required=True, default='results', type=str, help='What would you like to copy: <full>: all msgfplus outputs <results>: plexedpiper results only')
     return parser
 
 
@@ -900,48 +904,66 @@ def main():
         print('+ Copy MAXQUANT outputs-----------------------------\n')
         copy_maxquant( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
     else:
-        print('PROTEOMICS METHOD: msgfplus')
 
-        if 'inputs' in metadata:
-            is_ptm = metadata['inputs']['proteomics_msgfplus.isPTM']
-            if is_ptm:
-                print('\n######## PTM PROTEOMICS EXPERIMENT ########\n')
-            else:
-                print('\n######## GLOBAL PROTEIN ABUNDANCE EXPERIMENT ########\n')
+        if args.copy_what == 'full':
+            print('PROTEOMICS METHOD: msgfplus')
 
-        if 'proteomics_msgfplus.ascore' in metadata['calls']:
-            print('\nASCORE OUTPUTS--------------------------------------\n')
-            copy_ascore( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+            if 'inputs' in metadata:
+                is_ptm = metadata['inputs']['proteomics_msgfplus.isPTM']
+                if is_ptm:
+                    print('\n######## PTM PROTEOMICS EXPERIMENT ########\n')
+                else:
+                    print('\n######## GLOBAL PROTEIN ABUNDANCE EXPERIMENT ########\n')
+                print('Ready to copy ALL MSGFplus outputs')
 
-        print('\nMSCONVERT_MZREFINER OUTPUTS-----------------------------\n')
-        copy_msconvert_mzrefiner( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+            if 'proteomics_msgfplus.ascore' in metadata['calls']:
+                print('\nASCORE OUTPUTS--------------------------------------\n')
+                copy_ascore( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
 
-        print('\nPPMErrorCharter (ppm_errorcharter)------------------------\n')
-        copy_ppm_errorcharter( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+            print('\nMSCONVERT_MZREFINER OUTPUTS-----------------------------\n')
+            copy_msconvert_mzrefiner( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
 
-        print('\nMASIC OUTPUTS-------------------------------------------\n')
-        copy_masic( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+            print('\nPPMErrorCharter (ppm_errorcharter)------------------------\n')
+            copy_ppm_errorcharter( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
 
-        print('\nMSCONVERT OUTPUTS---------------------------------------\n')
-        copy_msconvert( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+            print('\nMASIC OUTPUTS-------------------------------------------\n')
+            copy_masic( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
 
-        print('\nMSGF_IDENTIFICATION OUTPUTS-----------------------------\n')
-        copy_msgf_identification( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+            print('\nMSCONVERT OUTPUTS---------------------------------------\n')
+            copy_msconvert( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
 
-        print('\nMSGF_SEQUENCES OUTPUTS----------------------------------\n')
-        copy_msgf_sequences( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+            print('\nMSGF_IDENTIFICATION OUTPUTS-----------------------------\n')
+            copy_msgf_identification( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
 
-        print('\nMSGF_TRYPTIC OUTPUTS------------------------------------\n')
-        copy_msgf_tryptic( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+            print('\nMSGF_SEQUENCES OUTPUTS----------------------------------\n')
+            copy_msgf_sequences( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
 
-        print('\nPHRP OUTPUTS--------------------------------------------\n')
-        copy_phrp( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+            print('\nMSGF_TRYPTIC OUTPUTS------------------------------------\n')
+            copy_msgf_tryptic( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
 
-        print('\nMZID to TSV CONVERTER OUTPUTS---------------------------\n')
-        copy_mzidtotsvconverter( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+            print('\nPHRP OUTPUTS--------------------------------------------\n')
+            copy_phrp( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
 
-        print('\nWRAPPER: PlexedPiper output-------------------------------\n')
-        copy_wrapper_pp( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+            print('\nMZID to TSV CONVERTER OUTPUTS---------------------------\n')
+            copy_mzidtotsvconverter( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+
+            print('\nWRAPPER: PlexedPiper output-------------------------------\n')
+            copy_wrapper_pp( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+
+        elif args.copy_what == 'results':
+            if 'inputs' in metadata:
+                is_ptm = metadata['inputs']['proteomics_msgfplus.isPTM']
+                if is_ptm:
+                    print('\n######## PTM PROTEOMICS EXPERIMENT ########\n')
+                else:
+                    print('\n######## GLOBAL PROTEIN ABUNDANCE EXPERIMENT ########\n')
+                print('Ready to copy ONLY PlexedPiper (RII + Ratio) results')
+            print('\nWRAPPER: PlexedPiper output-------------------------------\n')
+            copy_wrapper_pp( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination)
+
+        else:
+            print ('ERROR: wrong option for argument -c. PLease, check the available options with -h')
+            
 
     print('\n')
 
