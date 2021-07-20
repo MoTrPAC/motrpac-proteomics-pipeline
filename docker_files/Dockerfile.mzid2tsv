@@ -1,7 +1,8 @@
-# Dockerfile mzid2tsv
-FROM mono:latest
+# Dockerfile Mzid2Tsv
+FROM mono:6.12.0
 LABEL org.opencontainers.image.authors="biodavidjm@gmail.com"
 
+# hadolint ignore=DL3008
 RUN apt-get update \
  && apt-get -y install wget unzip --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
