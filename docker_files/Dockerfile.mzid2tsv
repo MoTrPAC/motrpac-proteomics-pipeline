@@ -1,0 +1,12 @@
+# Dockerfile mzid2tsv
+FROM mono:latest
+MAINTAINER DavidJM <biodavidjm@gmail.com>
+
+RUN apt-get update \
+ && apt-get -y install wget unzip \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app/mzid2tsv/
+RUN wget https://github.com/PNNL-Comp-Mass-Spec/Mzid-To-Tsv-Converter/releases/download/v1.4.3/MzidToTsvConverter.zip \
+    && unzip MzidToTsvConverter.zip \
+    && rm -rf MzidToTsvConverter.zip

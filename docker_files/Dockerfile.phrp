@@ -1,0 +1,24 @@
+# ascore: mzid2tsv, phrp
+FROM mono:latest
+MAINTAINER DavidJM <biodavidjm@gmail.com>
+
+RUN apt-get update \
+    && apt-get -y install wget unzip gcc libc6-dev --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app/sqlite/
+
+RUN wget https://github.com/AshleyLab/motrpac-proteomics-pnnl-prototype/raw/master/step06/sqlite-netFx-full-source-1.0.111.0.zip \
+    && unzip sqlite-netFx-full-source-1.0.111.0.zip \
+    && rm -rf sqlite-netFx-full-source-1.0.111.0.zip
+
+WORKDIR /
+RUN  chmod +x /app/sqlite/Setup/compile-interop-assembly-release.sh
+RUN  /app/sqlite/Setup/compile-interop-assembly-release.sh
+
+WORKDIR /app/phrp/
+RUN wget https://github.com/PNNL-Comp-Mass-Spec/PHRP/releases/download/v1.5.7458/PeptideHitResultsProcessor_Debian.zip
+RUN unzip PeptideHitResultsProcessor*.zip
+
+RUN cp /app/sqlite/bin/2013/Release/bin/libSQLite.Interop.so ./libSQLite.Interop.so \
+    && chmod -x /app/phrp/libSQLite.Interop.so

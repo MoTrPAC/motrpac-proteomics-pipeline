@@ -1,0 +1,14 @@
+# Dockerfile MASIC
+FROM mono:latest
+MAINTAINER DavidJM <biodavidjm@gmail.com>
+
+RUN apt-get update \
+    && apt-get -y install wget unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR/app/masic/
+RUN wget https://github.com/PNNL-Comp-Mass-Spec/MASIC/releases/download/v3.2.7465/MASIC_Console_Program.zip \
+    && unzip MASIC_Console_Program.zip \
+    && rm -rf MASIC_Console_Program.zip
+
+
