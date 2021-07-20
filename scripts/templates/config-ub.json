@@ -32,13 +32,15 @@
   "proteomics_msgfplus.phrp_synprob": 0.05,
   "proteomics_msgfplus.phrp_synpvalue": 0.02,
   "proteomics_msgfplus.ppm_errorcharter_docker": "docker-msgf/prot-ppmerror:v1.2.7632",
+  "proteomics_msgfplus.pr_ratio": "File",
   "proteomics_msgfplus.ptm_type": "ub",
   "proteomics_msgfplus.raw_file": ["gcp-raw/file1.raw", "gcp-raw/file2.raw"],
+  "proteomics_msgfplus.results_prefix": "String",
   "proteomics_msgfplus.sd_fractions": "gcp-study-design/fractions.txt",
   "proteomics_msgfplus.sd_references": "gcp-study-design/fractions.txt",
   "proteomics_msgfplus.sd_samples": "gcp-study-design/fractions.txt",
   "proteomics_msgfplus.wrapper_disk": "local-disk 80 HDD",
-  "proteomics_msgfplus.wrapper_docker": "docker-msgf/prot-plexedpiper:v0.1.7",
+  "proteomics_msgfplus.wrapper_docker": "docker-msgf/prot-plexedpiper:v0.1.8",
   "proteomics_msgfplus.wrapper_ncpu": 8,
   "proteomics_msgfplus.wrapper_ramGB": 60
 }
