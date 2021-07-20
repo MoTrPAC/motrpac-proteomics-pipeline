@@ -836,8 +836,10 @@ task wrapper_pp_ptm_inference {
 
         echo "-------------------"
         echo "End of PlexedPiper"
-        echo "List files"
-        ls
+        echo "List files--------"
+        echo "- Study design -----"
+        ls study_design
+        echo "- output_plexedpiper -----"
         ls output_plexedpiper
     }
 
