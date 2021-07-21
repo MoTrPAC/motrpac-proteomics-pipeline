@@ -1,0 +1,28 @@
+# Dockerfile PHRP
+FROM mono:6.12.0
+LABEL org.opencontainers.image.authors="biodavidjm@gmail.com"
+
+# hadolint ignore=DL3008
+RUN apt-get update \
+    && apt-get -y install wget unzip gcc libc6-dev --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+# Setup Sqlite in Mono
+WORKDIR /app/sqlite/
+RUN wget -nv https://github.com/MoTrPAC/motrpac-proteomics-pnnl-prototype/raw/master/step06/sqlite-netFx-full-source-1.0.111.0.zip \
+    && unzip sqlite-netFx-full-source-1.0.111.0.zip \
+    && rm -rf ./sqlite-netFx-full-source-1.0.111.0.zip
+
+# Change to the root directory to ensure the setup script works properly
+WORKDIR /
+# hadolint ignore=DL3059
+RUN chmod +x /app/sqlite/Setup/compile-interop-assembly-release.sh \
+    && /app/sqlite/Setup/compile-interop-assembly-release.sh
+
+# Set up the application
+WORKDIR /app/phrp/
+RUN wget -nv https://github.com/PNNL-Comp-Mass-Spec/PHRP/releases/download/v1.5.7458/PeptideHitResultsProcessor_Debian.zip \
+    && unzip PeptideHitResultsProcessor_Debian.zip \
+    && rm -rf PeptideHitResultsProcessor_Debian.zip \
+    && cp /app/sqlite/bin/2013/Release/bin/libSQLite.Interop.so ./libSQLite.Interop.so \
+    && chmod -x /app/phrp/libSQLite.Interop.so
