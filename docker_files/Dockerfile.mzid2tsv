@@ -1,0 +1,13 @@
+# Dockerfile Mzid2Tsv
+FROM mono:6.12.0
+LABEL org.opencontainers.image.authors="biodavidjm@gmail.com"
+
+# hadolint ignore=DL3008
+RUN apt-get update \
+ && apt-get -y install wget unzip --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app/mzid2tsv/
+RUN wget -nv https://github.com/PNNL-Comp-Mass-Spec/Mzid-To-Tsv-Converter/releases/download/v1.4.3/MzidToTsvConverter.zip \
+    && unzip MzidToTsvConverter.zip \
+    && rm -rf MzidToTsvConverter.zip
