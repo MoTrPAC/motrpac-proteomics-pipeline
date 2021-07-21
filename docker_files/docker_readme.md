@@ -4,12 +4,13 @@
 
 Dockerfiles available at the `docker_files/` folder:
 
-- Dockerfile_ascore
-- Dockerfile_masic
-- Dockerfile_msgfplus
-- Dockerfile_mzid2tsv
-- Dockerfile_phrp
-- Dockerfile_ppmerror
+- Dockerfile.ascore
+- Dockerfile.masic
+- Dockerfile.msgfplus
+- Dockerfile.mzid2tsv
+- Dockerfile.phrp
+- Dockerfile.ppmerror
+- Dockerfile.plexedpiper
 
 ## How to
 
