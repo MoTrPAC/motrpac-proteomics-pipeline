@@ -87,8 +87,10 @@ class MSGFConfigurationGenerator:
 
         print("+ Proteomics experiment: ", self.experiment_prot)
         template = os.path.join(os.getcwd(), dirname, f'templates/config-{self.experiment_prot}.json')
+        print('+ Template json path: ', template)
 
         try:
+            # READ TEMPLATE CONFIG FILE
             with open(template) as json_file:
                 text = json_file.read()
                 json_data = json.loads(text)
@@ -109,36 +111,36 @@ class MSGFConfigurationGenerator:
         with open(output_path, 'w') as outfile:
             json.dump(json_data, outfile, indent=4)
 
+    def load_and_process_raw_files(self):
+        # Load and process raw files' blobs
+        storage_client = storage.Client(self.gcp_project)
+        all_blobs = storage_client.list_blobs(self.bucket_name_raw, prefix=self.folder_raw)
+
+        print("+ Loading raw files from GCP")
+        raw_files = []
+
+        for (i, blob) in enumerate(all_blobs):
+            if blob.name.endswith('.raw'):
+                filename = blob.name
+                a = 'gs://' + self.bucket_name_raw + '/' + filename
+                raw_files.append(a)
+
+        # CHECK POINT IF RAW FILES ARE NOT FOUND
+        if len(raw_files) == 0:
+            raise FileNotFoundError("\n\tERROR: No raw files found in location <", self.bucket_full_path, ">")
+        else:
+            print("+ Total number of raw files found: ", len(raw_files))
+
+        return raw_files
+
+
 def main():
     # PROCESS ARGUMENTS
     opts = MSGFConfigurationGenerator()
     opts.sanitize_options()
     opts.argument_validation_output()
     json_data = opts.load_template()
-
-    # READ TEMPLATE CONFIG FILE
-    print('+ Template json: ', opts.template)
-
-    # Load and process raw files' blobs
-    storage_client = storage.Client(opts.gcp_project)
-    all_blobs = storage_client.list_blobs(opts.bucket_name_raw, prefix=opts.folder_raw)
-
-    print("+ Load raw files from GCP")
-
-    raw_files = []
-
-    for (i, blob) in enumerate(all_blobs):
-        if blob.name.endswith('.raw'):
-            filename = blob.name
-            a = 'gs://' + opts.bucket_name_raw + '/' + filename
-            raw_files.append(a)
-
-    # CHECK POINT IF RAW FILES ARE NOT FOUND
-    if len(raw_files) == 0:
-        print("\n\tERROR: No raw files found in location <", opts.bucket_full_path, ">")
-        exit()
-    else:
-        print("+ Total number of raw files found: ", i)
+    raw_files = opts.load_and_process_raw_files()
 
     # WRITE JSON FILE
     # RAW-FILES
