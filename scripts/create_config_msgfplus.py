@@ -1,8 +1,6 @@
 import argparse
 import json
 import os
-import re
-import sys
 import warnings
 from pathlib import Path
 
@@ -40,149 +38,135 @@ def create_arguments():
                         help='Global proteomics ratio.txt results file (for infered PTM searches)')
     return parser
 
+
+class MSGFConfigurationGenerator:
+    def __init__(self):
+        parser = create_arguments()
+        self.parser = parser
+        self.args = parser.parse_args()
+        for key, val in self.args.__dict__.items():
+            setattr(self, key, val)
+        self.template = None
+
+    def sanitize_options(self):
+        bucket_name_config = self.args.bucket_name_config.rstrip('/')
+
+        parameters_msgf = self.args.parameters_msgf.rstrip('/')
+        self.parameters_msgf = 'gs://' + bucket_name_config + '/' + parameters_msgf
+
+        study_design_location = self.args.study_design_location.rstrip('/')
+        self.study_design_location = 'gs://' + bucket_name_config + '/' + study_design_location
+
+        sequence_db = self.args.sequence_db.rstrip('/')
+        self.sequence_db = 'gs://' + bucket_name_config + '/' + sequence_db
+
+        self.bucket_name_raw = self.args.bucket_name_raw.rstrip('/')
+        folder_raw = self.args.folder_raw.rstrip('/')
+        self.folder_raw = 'gs://' + self.bucket_name_raw + '/' + folder_raw
+
+        self.docker_msgf = self.args.docker_msgf.rstrip('/')
+
+        self.output_folder_local = self.args.output_folder_local.rstrip('/')
+        self.output_config_yaml = self.args.output_config_yaml
+
+    def argument_validation_output(self):
+        # Summary to the user
+        print("\nWRITE JSON CONFIG FILE FOR PROTEOMICS PIPELINE")
+        print("----------------------------------------------")
+        print("+ GCP gcp_project:", self.gcp_project)
+        print("+ Raw file location: ", self.folder_raw)
+        print("+ Study design location: ", self.study_design_location)
+        print("+ MSGFplus parameter FOLDER location: ", self.parameters_msgf)
+        print("+ Docker registry for MSGF containers: ", self.docker_msgf)
+        if self.pr_ratio is not None:
+            print('+ Global proteomics file (prioritized inference): ', self.pr_ratio)
+
+    def load_template(self):
+        # Relative path to script from directory
+        dirname = os.path.dirname(__file__)
+
+        print("+ Proteomics experiment: ", self.experiment_prot)
+        template = os.path.join(os.getcwd(), dirname, f'templates/config-{self.experiment_prot}.json')
+
+        try:
+            with open(template) as json_file:
+                text = json_file.read()
+                json_data = json.loads(text)
+        except FileNotFoundError:
+            raise ValueError(f'The value {self.experiment_prot} passed in for the <experiment_prot> argument is not '
+                             f'supported. Only one of the following are excepted: pr, ph, ub, ac.')
+
+        self.template = template
+        return json_data
+
+    def save_configuration(self, json_data):
+        # save files out to output directories
+        output_path = os.path.join(self.output_folder_local, self.output_config_yaml)
+        print('+ Full path for the config-yaml file: ', output_path)
+
+        Path(self.output_folder_local).mkdir(parents=True, exist_ok=True)
+
+        with open(output_path, 'w') as outfile:
+            json.dump(json_data, outfile, indent=4)
+
 def main():
     # PROCESS ARGUMENTS
-    parser = arg_parser()
-    args = parser.parse_args()
+    opts = MSGFConfigurationGenerator()
+    opts.sanitize_options()
+    opts.argument_validation_output()
+    json_data = opts.load_template()
 
-    gcp_project = args.gcp_project
-    bucket_name_config = args.bucket_name_config.rstrip('/')
-
-    parameters_msgf = args.parameters_msgf.rstrip('/')
-    parameters_msgf_full = 'gs://' + bucket_name_config + '/' + parameters_msgf
-
-    study_design_location = args.study_design_location.rstrip('/')
-    full_study_design = 'gs://' + bucket_name_config + '/' + study_design_location
-
-    sequence_db = args.sequence_db.rstrip('/')
-    sequence_db_full = 'gs://' + bucket_name_config + '/' + sequence_db
-
-    bucket_name_raw = args.bucket_name_raw.rstrip('/')
-    folder_raw = args.folder_raw.rstrip('/')
-    full_folder_raw = 'gs://' + bucket_name_raw + '/' + folder_raw
-
-    docker_msgf = args.docker_msgf.rstrip('/')
-
-    output_folder_local = args.output_folder_local.rstrip('/')
-    output_config_yaml = args.output_config_yaml
-
-    experiment_prot = args.experiment_prot
-
-    results_prefix = args.results_prefix
-
-    # Summary to the user
-    print("\nWRITE JSON CONFIG FILE FOR PROTEOMICS PIPELINE")
-    print("----------------------------------------------")
-    print("+ GCP gcp_project:", gcp_project)
-    print("+ Raw file location: ", full_folder_raw)
-    print("+ Study design location: ", full_study_design)
-    print("+ MSGFplus parameter FOLDER location: ", parameters_msgf_full)
-    print("+ Docker registry for MSGF containers: ", docker_msgf)
-    if args.pr_ratio is not None:
-        print('+ Global proteomics file (prioritized inference): ', args.pr_ratio)
-
-    # Provide relative to the script
-    dirname = os.path.dirname(__file__)
-
-    # Validate proteomics experiment
-    print("+ Proteomics experiment: ", experiment_prot)
-    if experiment_prot == 'pr':
-        template = os.path.join(os.getcwd(), dirname, 'templates/config-pr.json')
-    elif experiment_prot == 'ph':
-        template = os.path.join(os.getcwd(), dirname, 'templates/config-ph.json')
-    elif experiment_prot == 'ub':
-        template = os.path.join(os.getcwd(), dirname, 'templates/config-ub.json')
-    elif experiment_prot == 'ac':
-        template = os.path.join(os.getcwd(), dirname, 'templates/config-ac.json')
-    else:
-        print('The <experiment_prot> argument is not supported: one of the following: pr, ph, ub, ac')
-        exit()
-    
     # READ TEMPLATE CONFIG FILE
-    print('+ Template json: ', template)
-
-    with open(template) as json_file:
-        text = json_file.read()
-        json_data = json.loads(text)
-        # print(json_data)
-        # print(json.dumps(json_data, indent=4, sort_keys=True))
+    print('+ Template json: ', opts.template)
 
     # Load and process raw files' blobs
-    storage_client = storage.Client(gcp_project)
-    all_blobs = storage_client.list_blobs(bucket_name_raw, prefix=folder_raw)
+    storage_client = storage.Client(opts.gcp_project)
+    all_blobs = storage_client.list_blobs(opts.bucket_name_raw, prefix=opts.folder_raw)
 
     print("+ Load raw files from GCP")
 
-    i = 0
     raw_files = []
 
-    for blob in all_blobs:
+    for (i, blob) in enumerate(all_blobs):
         if blob.name.endswith('.raw'):
             filename = blob.name
-            # print('\t- Raw file location: ', filename)
-            a = 'gs://' + bucket_name_raw + '/' + filename
-            # print("the file name: ", a)
+            a = 'gs://' + opts.bucket_name_raw + '/' + filename
             raw_files.append(a)
-            i += 1
 
     # CHECK POINT IF RAW FILES ARE NOT FOUND
-    if i == 0:
-        print("\n\tERROR: No raw files found in location <",bucket_full_path,">")
+    if len(raw_files) == 0:
+        print("\n\tERROR: No raw files found in location <", opts.bucket_full_path, ">")
         exit()
     else:
         print("+ Total number of raw files found: ", i)
-    
-    # WRITE JSON FILE
 
+    # WRITE JSON FILE
     # RAW-FILES
     json_data['proteomics_msgfplus.raw_file'] = raw_files
-
     # SEQUENCE DB
-    json_data['proteomics_msgfplus.fasta_sequence_db'] = sequence_db_full
-
+    json_data['proteomics_msgfplus.fasta_sequence_db'] = opts.sequence_db
     # STUDY DESIGN
-    json_data['proteomics_msgfplus.sd_fractions'] = full_study_design + '/fractions.txt'
-    json_data['proteomics_msgfplus.sd_references'] = full_study_design +  '/references.txt'
-    json_data['proteomics_msgfplus.sd_samples'] = full_study_design + '/samples.txt'
-
+    json_data['proteomics_msgfplus.sd_fractions'] = opts.study_design_location + '/fractions.txt'
+    json_data['proteomics_msgfplus.sd_references'] = opts.study_design_location + '/references.txt'
+    json_data['proteomics_msgfplus.sd_samples'] = opts.study_design_location + '/samples.txt'
     # GCP-PARAMETERS
     for (k, v) in json_data.items():
         if 'gcp-parameters' in str(v):
             # print("\tKey: " + k + ", Value: " + str(v))
-            json_data[k] = json_data[k].replace('gcp-parameters', parameters_msgf_full)
+            json_data[k] = json_data[k].replace('gcp-parameters', opts.parameters_msgf)
         elif 'docker-msgf' in str(v):
             # print("\tKey: " + k + ", Value: " + str(v))
-            json_data[k] = json_data[k].replace('docker-msgf', docker_msgf)
-    
+            json_data[k] = json_data[k].replace('docker-msgf', opts.docker_msgf)
     # RESULTS FILE NAME:
-    json_data['proteomics_msgfplus.results_prefix'] = results_prefix
-
+    json_data['proteomics_msgfplus.results_prefix'] = opts.results_prefix
     # PTM ONLY: Prioritized inference
-    if args.pr_ratio is not None:
-        json_data['proteomics_msgfplus.pr_ratio'] = args.pr_ratio
-    
+    if opts.pr_ratio is not None:
+        json_data['proteomics_msgfplus.pr_ratio'] = opts.pr_ratio
 
-    # print("\nCHECK new PARAMETER VALUE")
-    # for (k, v) in json_data.items():
-    #     if 'parameters' in str(v):
-    #         print("Key: " + k + ", Value: " + str(v))
-
-    # print("\nCHECK NEW DOCKER REGISTRY VALUE:")
-    # for (k, v) in json_data.items():
-    #     if 'gcr' in str(v):
-    #         print("Key: " + k + ", Value: " + str(v))
-
-    full_path_filename = os.path.join(output_folder_local, output_config_yaml)
-    print('+ Full path for the config-yaml file: ', full_path_filename)
-
-    from pathlib import Path
-    Path(output_folder_local).mkdir(parents=True, exist_ok=True)
-
-    with open(full_path_filename, 'w') as outfile:
-        json.dump(json_data, outfile, indent=4)
+    opts.save_configuration(json_data)
 
     print('+ ALL DONE!')
 
+
 if __name__ == "__main__":
     main()
-
