@@ -10,3 +10,6 @@
 
 .idea
 venv/
+venv39
+.vscode
+pyenv372
