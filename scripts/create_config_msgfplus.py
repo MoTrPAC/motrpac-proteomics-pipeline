@@ -156,7 +156,7 @@ class MSGFConfigurationGenerator:
         """
         # Load and process raw files' blobs
         storage_client = storage.Client(self.gcp_project)
-        all_blobs = storage_client.list_blobs(self.bucket_name_raw, prefix=self.folder_raw)
+        all_blobs = storage_client.list_blobs(self.bucket_name_raw, prefix=self.args.folder_raw)
 
         print("+ Loading raw files from GCP")
         raw_files = []
@@ -169,7 +169,7 @@ class MSGFConfigurationGenerator:
 
         # CHECK POINT IF RAW FILES ARE NOT FOUND
         if len(raw_files) == 0:
-            raise FileNotFoundError("\n\tERROR: No raw files found in location <", self.bucket_full_path, ">")
+            raise FileNotFoundError(f"ERROR: No raw files found in location {self.bucket_full_path}")
         else:
             print("+ Total number of raw files found: ", len(raw_files))
 
