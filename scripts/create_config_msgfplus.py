@@ -10,6 +10,12 @@ warnings.filterwarnings("ignore", "Your application has authenticated using end 
 
 
 def create_arguments():
+    """
+    Creates argument parser instance with all the valid commands for the CloudProteo CLI
+
+    :return: ArgumentParser object with valid options
+    :rtype: argparse.ArgumentParser
+    """
     parser = argparse.ArgumentParser(
         description='Script to generate a proteomics configuration file from raw files in buckets')
     parser.add_argument('-g', '--gcp_project', required=True, type=str, help='GCP project name')
@@ -40,25 +46,38 @@ def create_arguments():
 
 
 class MSGFConfigurationGenerator:
+    """
+    This class contains the configuration options and post-processing methods
+    """
     def __init__(self):
+        """
+        Creates a new MSGFConfigurationGenerator class
+
+        Sets the parser and raw args as individual attributes of the class, then iterates over all passed in args and
+        sets them as attributes of the class
+        """
         parser = create_arguments()
-        self.parser = parser
+        self._parser = parser
         self.args = parser.parse_args()
         for key, val in self.args.__dict__.items():
             setattr(self, key, val)
         self.template = None
 
     def sanitize_options(self):
-        bucket_name_config = self.args.bucket_name_config.rstrip('/')
+        """
+        Strips any slashes, adds any necessary prefixes, and sets them back to the attributes of the class
+        """
+
+        self.bucket_name_config = self.args.bucket_name_config.rstrip('/')
 
         parameters_msgf = self.args.parameters_msgf.rstrip('/')
-        self.parameters_msgf = 'gs://' + bucket_name_config + '/' + parameters_msgf
+        self.parameters_msgf = 'gs://' + self.bucket_name_config + '/' + parameters_msgf
 
         study_design_location = self.args.study_design_location.rstrip('/')
-        self.study_design_location = 'gs://' + bucket_name_config + '/' + study_design_location
+        self.study_design_location = 'gs://' + self.bucket_name_config + '/' + study_design_location
 
         sequence_db = self.args.sequence_db.rstrip('/')
-        self.sequence_db = 'gs://' + bucket_name_config + '/' + sequence_db
+        self.sequence_db = 'gs://' + self.bucket_name_config + '/' + sequence_db
 
         self.bucket_name_raw = self.args.bucket_name_raw.rstrip('/')
         folder_raw = self.args.folder_raw.rstrip('/')
@@ -70,7 +89,10 @@ class MSGFConfigurationGenerator:
         self.output_config_yaml = self.args.output_config_yaml
 
     def argument_validation_output(self):
-        # Summary to the user
+        """
+        Prints a summary of the passed-in args to the user
+        """
+
         print("\nWRITE JSON CONFIG FILE FOR PROTEOMICS PIPELINE")
         print("----------------------------------------------")
         print("+ GCP gcp_project:", self.gcp_project)
@@ -82,6 +104,15 @@ class MSGFConfigurationGenerator:
             print('+ Global proteomics file (prioritized inference): ', self.pr_ratio)
 
     def load_template(self):
+        """
+        Loads the JSON template of the selected assay, raises a ValueError if the assay that the user passed in
+        is not a valid option/does not have a template JSON
+
+        :return: The loaded JSON template as a dict
+        :rtype: dict
+        :raise: ValueError
+        """
+
         # Relative path to script from directory
         dirname = os.path.dirname(__file__)
 
@@ -102,6 +133,11 @@ class MSGFConfigurationGenerator:
         return json_data
 
     def save_configuration(self, json_data):
+        """
+        Saves the configured json template to the user-passed in output directory
+
+        :param json_data: The edited template JSON dict
+        """
         # save files out to output directories
         output_path = os.path.join(self.output_folder_local, self.output_config_yaml)
         print('+ Full path for the config-yaml file: ', output_path)
@@ -112,6 +148,12 @@ class MSGFConfigurationGenerator:
             json.dump(json_data, outfile, indent=4)
 
     def load_and_process_raw_files(self):
+        """
+        Searches for the raw files that the pipeline will process and returns a string of the addresses in GCS
+
+        :return: A list of strings with the raw files formatted
+        :rtype: list[str]
+        """
         # Load and process raw files' blobs
         storage_client = storage.Client(self.gcp_project)
         all_blobs = storage_client.list_blobs(self.bucket_name_raw, prefix=self.folder_raw)
