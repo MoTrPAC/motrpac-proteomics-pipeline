@@ -8,6 +8,6 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # hadolint ignore=DL3059
-RUN R -e 'remotes::install_github("vladpetyuk/PlexedPiper@0.1.7", build_vignettes = FALSE)' \
-    && R -e 'remotes::install_github("vladpetyuk/MSnID@github_1.25.1", build_vignettes = FALSE)' \
+RUN R -e 'remotes::install_github("vladpetyuk/MSnID@github_1.25.1", build_vignettes = FALSE)' \
+    && R -e 'remotes::install_github("vladpetyuk/PlexedPiper@0.1.8", build_vignettes = FALSE)' \
     && R -e 'install.packages("optparse")'
