@@ -301,7 +301,7 @@ task masic {
     }
 
     output {
-        File? ReporterIons_output_file = if (quant_method == "label-free") then "output_masic/${sample_id}_ReporterIons.txt" else null
+        File? ReporterIons_output_file = if (quant_method == "tmt") then "output_masic/${sample_id}_ReporterIons.txt" else null
         File DatasetInfo_output_file = "output_masic/${sample_id}_DatasetInfo.xml"
         File ScanStats_output_file = "output_masic/${sample_id}_ScanStats.txt"
         File MS_scans_output_file = "output_masic/${sample_id}_MS_scans.csv"
