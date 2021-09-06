@@ -280,6 +280,8 @@ task msgf_sequences {
 }
 
 task masic {
+
+    File? null
     Int ncpu
     Int ramGB
     String docker
@@ -287,7 +289,6 @@ task masic {
     File raw_file
     File masic_parameter
     String quant_method
-
     String sample_id = basename(raw_file, ".raw")
 
     command {
