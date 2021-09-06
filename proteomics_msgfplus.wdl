@@ -295,7 +295,7 @@ task masic {
     }
 
     output {
-        File ReporterIons_output_file = "output_masic/${sample_id}_ReporterIons.txt"
+        File? ReporterIons_output_file = "output_masic/${sample_id}_ReporterIons.txt"
         File DatasetInfo_output_file = "output_masic/${sample_id}_DatasetInfo.xml"
         File ScanStats_output_file = "output_masic/${sample_id}_ScanStats.txt"
         File MS_scans_output_file = "output_masic/${sample_id}_MS_scans.csv"
