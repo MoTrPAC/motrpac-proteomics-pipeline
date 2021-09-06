@@ -5,6 +5,9 @@ workflow proteomics_msgfplus {
         version: "v0.3.1"
     }
 
+    # Quantification method
+    String quant_method
+
     # RAW INPUT FILES
     Array[File] raw_file = []
     String results_prefix
@@ -88,7 +91,8 @@ workflow proteomics_msgfplus {
             docker = masic_docker,
             disks = masic_disk,
             raw_file = raw_file[i],
-            masic_parameter = masic_parameter
+            masic_parameter = masic_parameter,
+            quant_method = quant_method
         }
 
         call msconvert { input:
@@ -282,6 +286,7 @@ task masic {
     String? disks
     File raw_file
     File masic_parameter
+    String quant_method
 
     String sample_id = basename(raw_file, ".raw")
 
@@ -295,7 +300,7 @@ task masic {
     }
 
     output {
-        File? ReporterIons_output_file = "output_masic/${sample_id}_ReporterIons.txt"
+        File? ReporterIons_output_file = if (quant_method == "label-free") then "output_masic/${sample_id}_ReporterIons.txt" else null
         File DatasetInfo_output_file = "output_masic/${sample_id}_DatasetInfo.xml"
         File ScanStats_output_file = "output_masic/${sample_id}_ScanStats.txt"
         File MS_scans_output_file = "output_masic/${sample_id}_MS_scans.csv"
