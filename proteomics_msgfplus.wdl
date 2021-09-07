@@ -67,13 +67,13 @@ workflow proteomics_msgfplus {
     File? ascore_parameter_p
 
     # WRAPPER (PlexedPiper)
-    Int wrapper_ncpu
-    Int wrapper_ramGB
-    String wrapper_docker
+    Int? wrapper_ncpu
+    Int? wrapper_ramGB
+    String? wrapper_docker
     String? wrapper_disk
-    File sd_fractions
-    File sd_references
-    File sd_samples
+    File? sd_fractions
+    File? sd_references
+    File? sd_samples
     File? pr_ratio #prioritized inference
 
     call msgf_sequences { input:
