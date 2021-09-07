@@ -6,8 +6,8 @@ RUN yum install -y git wget unzip \
     && yum clean all
 
 WORKDIR /app
-RUN wget -nv https://github.com/MSGFPlus/msgfplus/releases/download/v2021.01.08/MSGFPlus_v20210108.zip \
-    && unzip MSGFPlus_v20210108.zip \
-    && rm -rf ./MSGFPlus_v20210108.zip
+RUN wget -nv https://github.com/MSGFPlus/msgfplus/releases/download/v2021.09.06/MSGFPlus_v20210906.zip \
+    && unzip MSGFPlus_v20210906.zip \
+    && rm -rf ./MSGFPlus_v20210906.zip
 
 #RUN java -Xmx4000M -jar MSGFPlus.jar -s /data/MoTrPAC_Pilot_TMT_W_S1_01_12Oct17_Elm_AQ-17-09-02.mzML -o /data/MoTrPAC_Pilot_TMT_W_S1_01_12Oct17_Elm_AQ-17-09-02.mzid -d /data/ID_007275_FB1B42E8.fasta -conf /parameters/MzRef_StatCysAlk_TMT_6plex.txt
