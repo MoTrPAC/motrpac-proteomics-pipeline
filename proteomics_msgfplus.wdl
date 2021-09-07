@@ -182,62 +182,66 @@ workflow proteomics_msgfplus {
     }
 
     if(isPTM){
-
-        if(defined(pr_ratio)){
-            call wrapper_pp_ptm_inference { input:
-                ncpu = wrapper_ncpu,
-                ramGB = wrapper_ramGB,
-                docker = wrapper_docker,
-                disks = wrapper_disk,
-                fractions =  sd_fractions,
-                references = sd_references,
-                samples = sd_samples,
-                fasta_sequence_db = fasta_sequence_db,
-                ptm_type = ptm_type,
-                ReporterIons_output_file = masic.ReporterIons_output_file,
-                SICstats_output_file = masic.SICstats_output_file,
-                syn = phrp.syn,
-                syn_ascore = ascore.syn_ascore,
-                results_prefix = results_prefix,
-                pr_ratio = pr_ratio
+        if(quant_method == "tmt"){
+            if(defined(pr_ratio)){
+                call wrapper_pp_ptm_inference { input:
+                    ncpu = wrapper_ncpu,
+                    ramGB = wrapper_ramGB,
+                    docker = wrapper_docker,
+                    disks = wrapper_disk,
+                    fractions =  sd_fractions,
+                    references = sd_references,
+                    samples = sd_samples,
+                    fasta_sequence_db = fasta_sequence_db,
+                    ptm_type = ptm_type,
+                    ReporterIons_output_file = masic.ReporterIons_output_file,
+                    SICstats_output_file = masic.SICstats_output_file,
+                    syn = phrp.syn,
+                    syn_ascore = ascore.syn_ascore,
+                    results_prefix = results_prefix,
+                    pr_ratio = pr_ratio
+                }
             }
-        }
 
-        if(!defined(pr_ratio)){
-            call wrapper_pp_ptm { input:
-                ncpu = wrapper_ncpu,
-                ramGB = wrapper_ramGB,
-                docker = wrapper_docker,
-                disks = wrapper_disk,
-                fractions =  sd_fractions,
-                references = sd_references,
-                samples = sd_samples,
-                fasta_sequence_db = fasta_sequence_db,
-                ptm_type = ptm_type,
-                ReporterIons_output_file = masic.ReporterIons_output_file,
-                SICstats_output_file = masic.SICstats_output_file,
-                syn = phrp.syn,
-                syn_ascore = ascore.syn_ascore,
-                results_prefix = results_prefix
+            if(!defined(pr_ratio)){
+                call wrapper_pp_ptm { input:
+                    ncpu = wrapper_ncpu,
+                    ramGB = wrapper_ramGB,
+                    docker = wrapper_docker,
+                    disks = wrapper_disk,
+                    fractions =  sd_fractions,
+                    references = sd_references,
+                    samples = sd_samples,
+                    fasta_sequence_db = fasta_sequence_db,
+                    ptm_type = ptm_type,
+                    ReporterIons_output_file = masic.ReporterIons_output_file,
+                    SICstats_output_file = masic.SICstats_output_file,
+                    syn = phrp.syn,
+                    syn_ascore = ascore.syn_ascore,
+                    results_prefix = results_prefix
+                }
             }
         }
     }
 
     if(!isPTM){
-        call wrapper_pp { input:
-            ncpu = wrapper_ncpu,
-            ramGB = wrapper_ramGB,
-            docker = wrapper_docker,
-            disks = wrapper_disk,
-            fractions =  sd_fractions,
-            references = sd_references,
-            samples = sd_samples,
-            fasta_sequence_db = fasta_sequence_db,
-            ReporterIons_output_file = masic.ReporterIons_output_file,
-            SICstats_output_file = masic.SICstats_output_file,
-            syn = phrp.syn,
-            results_prefix = results_prefix
+        if(quant_method == "tmt"){
+            call wrapper_pp { input:
+                ncpu = wrapper_ncpu,
+                ramGB = wrapper_ramGB,
+                docker = wrapper_docker,
+                disks = wrapper_disk,
+                fractions =  sd_fractions,
+                references = sd_references,
+                samples = sd_samples,
+                fasta_sequence_db = fasta_sequence_db,
+                ReporterIons_output_file = masic.ReporterIons_output_file,
+                SICstats_output_file = masic.SICstats_output_file,
+                syn = phrp.syn,
+                results_prefix = results_prefix
+            }
         }
+
     }
 }
 
