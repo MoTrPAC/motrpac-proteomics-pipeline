@@ -306,6 +306,14 @@ task masic {
 
     output {
         File? ReporterIons_output_file = if (quant_method == "tmt") then "output_masic/${sample_id}_ReporterIons.txt" else null
+        File? RepIonObsRate_output_png_file = if (quant_method == "tmt") then "output_masid/${sample_id}_RepIonObsRate.png" else null
+        File? RepIonObsRate_output_txt_file = if (quant_method == "tmt") then "output_masid/${sample_id}_RepIonObsRate.txt" else null
+        File? RepIonObsRateHighAbundance_output_file = if (quant_method == "tmt") then "output_masid/${sample_id}_RepIonObsRateHighAbundance.png" else null
+        File? RepIonStats_output_file = if (quant_method == "tmt") then "output_masid/${sample_id}_RepIonStats.txt" else null
+        File? RepIonStatsHighAbundance_output_file = if (quant_method == "tmt") then "output_masid/${sample_id}_RepIonStatsHighAbundance.png" else null
+
+        File PeakAreaHistogram_output_file = "output/masic/${sample_id}_PeakAreaHistogram.png"
+        File PeakWidthHistogram_output_file = "output/masic/${sample_id}_PeakWidthHistogram.png"
         File DatasetInfo_output_file = "output_masic/${sample_id}_DatasetInfo.xml"
         File ScanStats_output_file = "output_masic/${sample_id}_ScanStats.txt"
         File MS_scans_output_file = "output_masic/${sample_id}_MS_scans.csv"
