@@ -7,9 +7,19 @@ RUN apt-get update \
     && apt-get -y install wget unzip --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
+RUN apt -y update \
+    && apt -y upgrade
+
+RUN apt install -y libmagic-mgc libmagic1 libmpdec2 libpython3-stdlib libpython3.7-minimal libpython3.7-stdlib libreadline7 mime-support \
+    && apt install -y python3-minimal python3.7 python3.7-minimal readline-common python3-doc python3-tk python3-venv python3.7-venv python3.7-doc readline-doc \
+    && apt install -y python3-pip
+
+RUN python3 -m pip install -U numpy matplotlib pandas
+
 WORKDIR /app/masic/
 RUN wget -nv https://github.com/PNNL-Comp-Mass-Spec/MASIC/releases/download/v3.2.7901/MASIC_Console_Program.zip \
     && unzip MASIC_Console_Program.zip \
     && rm -rf MASIC_Console_Program.zip
+
 
 
