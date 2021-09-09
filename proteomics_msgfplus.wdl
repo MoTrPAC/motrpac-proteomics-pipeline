@@ -255,7 +255,7 @@ task msgf_sequences {
     File fasta_sequence_db
 
     String seq_file_id = basename(fasta_sequence_db, ".fasta")
-    # String output_full = output_msgf_tryptic + "/" + ouput_name
+    # String output_full = output_msgf_tryptic + "/" + output_name
     
     command {
         echo "PRE-STEP: MSGF+ READY TO PROCES SEQUENCE DB"
@@ -306,11 +306,11 @@ task masic {
 
     output {
         File? ReporterIons_output_file = if (quant_method == "tmt") then "output_masic/${sample_id}_ReporterIons.txt" else null
-        File? RepIonObsRate_output_png_file = if (quant_method == "tmt") then "output_masid/${sample_id}_RepIonObsRate.png" else null
-        File? RepIonObsRate_output_txt_file = if (quant_method == "tmt") then "output_masid/${sample_id}_RepIonObsRate.txt" else null
-        File? RepIonObsRateHighAbundance_output_file = if (quant_method == "tmt") then "output_masid/${sample_id}_RepIonObsRateHighAbundance.png" else null
-        File? RepIonStats_output_file = if (quant_method == "tmt") then "output_masid/${sample_id}_RepIonStats.txt" else null
-        File? RepIonStatsHighAbundance_output_file = if (quant_method == "tmt") then "output_masid/${sample_id}_RepIonStatsHighAbundance.png" else null
+        File? RepIonObsRate_output_png_file = if (quant_method == "tmt") then "output_masic/${sample_id}_RepIonObsRate.png" else null
+        File? RepIonObsRate_output_txt_file = if (quant_method == "tmt") then "output_masic/${sample_id}_RepIonObsRate.txt" else null
+        File? RepIonObsRateHighAbundance_output_file = if (quant_method == "tmt") then "output_masic/${sample_id}_RepIonObsRateHighAbundance.png" else null
+        File? RepIonStats_output_file = if (quant_method == "tmt") then "output_masic/${sample_id}_RepIonStats.txt" else null
+        File? RepIonStatsHighAbundance_output_file = if (quant_method == "tmt") then "output_masic/${sample_id}_RepIonStatsHighAbundance.png" else null
 
         File PeakAreaHistogram_output_file = "output/masic/${sample_id}_PeakAreaHistogram.png"
         File PeakWidthHistogram_output_file = "output/masic/${sample_id}_PeakWidthHistogram.png"
@@ -373,7 +373,7 @@ task msgf_tryptic {
     File sequencedb_files
     File msgf_tryptic_parameter
 
-    # Create new ouput destination
+    # Create new output destination
     String sample_id = basename(input_mzml, ".mzML")
     String seq_file_id = basename(fasta_sequence_db, ".fasta")
     
@@ -420,23 +420,23 @@ task msconvert_mzrefiner {
     File input_mzml
     File input_mzid
 
-    # Create new ouput destination
+    # Create new output destination
     String sample_id = basename(input_mzml, ".mzML")
-    String ouput_name = sample_id + "_FIXED.mzML"
-    #String output_full = output_msconvert_mzrefiner + "/" + ouput_name
+    String output_name = sample_id + "_FIXED.mzML"
+    #String output_full = output_msconvert_mzrefiner + "/" + output_name
     
     command {
         echo "STEP 3A: MSCONVERT-MZREFINE"
 
         wine msconvert ${input_mzml} \
         -o output_msconvert_mzrefiner \
-        --outfile output_msconvert_mzrefiner/${ouput_name} \
+        --outfile output_msconvert_mzrefiner/${output_name} \
         --filter "mzRefiner ${input_mzid} thresholdValue=-1e-10 thresholdStep=10 maxSteps=2" \
         --zlib
     }
 
     output {
-        File mzml_fixed = "output_msconvert_mzrefiner/${ouput_name}"
+        File mzml_fixed = "output_msconvert_mzrefiner/${output_name}"
     }
 
     runtime {
@@ -494,7 +494,7 @@ task msgf_identification {
     File sequencedb_files
     File msgf_identification_parameter
 
-    # Create new ouput destination
+    # Create new output destination
     String sample_id = basename(input_fixed_mzml, "_FIXED.mzML")
     String seq_file_id = basename(fasta_sequence_db, ".fasta")
     
@@ -550,17 +550,17 @@ task mzidtotsvconverter {
     String? disks
     File input_mzid_final
 
-    # Create new ouput destination
+    # Create new output destination
     String sample_id = basename(input_mzid_final, "_final.mzid")
-    String ouput_name = sample_id + ".tsv"
-    #String output_full = output_mzidtotsvconverter + "/" + ouput_name
+    String output_name = sample_id + ".tsv"
+    #String output_full = output_mzidtotsvconverter + "/" + output_name
     
     command {
         echo "STEP 5:: MzidToTSVConverter"
 
         mono /app/mzid2tsv/net462/MzidToTsvConverter.exe \
 		-mzid:${input_mzid_final} \
-		-tsv:output_mzidtotsvconverter/${ouput_name} \
+		-tsv:output_mzidtotsvconverter/${output_name} \
 		-unroll -showDecoy
     }
 
@@ -593,7 +593,7 @@ task phrp {
     Float phrp_synpvalue
     Float phrp_synprob
     
-    # Create new ouput destination
+    # Create new output destination
     String phrp_logfile = sample_id + "_PHRP_LogFile.txt"
     #String output_logfile = output_phrp + "/" + phrp_logfile
 
@@ -651,7 +651,7 @@ task ascore {
 
     File syn_ModSummary
     
-    # Create new ouput destination
+    # Create new output destination
     String seq_file_id = basename(input_syn, "_syn.txt")
     String ascore_logfile = "${seq_file_id}_ascore_LogFile.txt"
     
