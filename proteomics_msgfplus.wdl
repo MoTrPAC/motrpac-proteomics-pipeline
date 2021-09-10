@@ -701,7 +701,7 @@ task wrapper_pp_ptm {
     String results_prefix
 
     # MASIC
-    Array[File] ReporterIons_output_file = []
+    Array[File?] ReporterIons_output_file = []
     Array[File] SICstats_output_file = []
 
     # #PHRP
@@ -796,7 +796,7 @@ task wrapper_pp_ptm_inference {
     File pr_ratio
 
     # MASIC
-    Array[File] ReporterIons_output_file = []
+    Array[File?] ReporterIons_output_file = []
     Array[File] SICstats_output_file = []
 
     # #PHRP
@@ -891,7 +891,7 @@ task wrapper_pp {
     File fasta_sequence_db
 
     # MASIC
-    Array[File] ReporterIons_output_file = []
+    Array[File?] ReporterIons_output_file = []
     Array[File] SICstats_output_file = []
 
     # #PHRP
