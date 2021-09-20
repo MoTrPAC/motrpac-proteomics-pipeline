@@ -793,7 +793,7 @@ task wrapper_pp_ptm_inference {
 
     String ptm_type
     String results_prefix
-    File pr_ratio
+    File? pr_ratio
 
     # MASIC
     Array[File?] ReporterIons_output_file = []
