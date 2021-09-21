@@ -8,16 +8,11 @@
 
 Cloud-based proteomics data analysis pipeline including two proteomics methods, MS-GF+ & MaxQuant, based 
 on the pipeline language [WDL](https://openwdl.org/) and tools to orchestrate the execution (`caper`/`crownwell`).
+It currently supports two quantification methods: TMT & Label-Free.
 
-**MSGF+ schema**
+**MSGF+ workflow schema**
 
-![Schema](proteomics_msgfplus_schema.png)
-
-# Installation
-
-[Follow this link](docs/readme_installations.md) for detailed instructions on the installations required to run and test the pipeline:
-
-- GCP (launch locally)
+![MSGFPLUS Schema](schema_msgfplus.png)
 
 
 # Utilities
@@ -133,7 +128,7 @@ python3 scripts/pipeline_details.py \
 
 ### `copy_pipeline_results.py`
 
-Copy pipeline output from 
+Copy relevant pipeline outputs from cromwell folder to user's define folder
 
 ```
 usage: copy_pipeline_results.py [-h] -p PROJECT -b BUCKET_ORIGIN
