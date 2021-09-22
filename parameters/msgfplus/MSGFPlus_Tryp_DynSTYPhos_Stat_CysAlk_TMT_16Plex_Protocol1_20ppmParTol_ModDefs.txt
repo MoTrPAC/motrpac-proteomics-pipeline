@@ -1,0 +1,6 @@
+-	57.021465	C	S	IodoAcet
+-	304.207146	K	S	TMT16Tag
+-	304.207146	<	T	TMT16Tag
+*	79.966331	S	D	Phosph  
+*	79.966331	T	D	Phosph  
+*	79.966331	Y	D	Phosph  

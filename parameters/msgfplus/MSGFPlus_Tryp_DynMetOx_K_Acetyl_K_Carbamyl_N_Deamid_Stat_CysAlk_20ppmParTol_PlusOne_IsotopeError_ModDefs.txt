@@ -1,0 +1,5 @@
+-	57.021465	C	S	IodoAcet
+*	15.994915	M	D	Plus1Oxy
+#	42.010567	K	D	Acetyl  
+@	43.005814	K	D	Carbamyl
+$	0.984016	N	D	Deamide 

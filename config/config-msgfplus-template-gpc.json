@@ -6,6 +6,7 @@
   "proteomics_msgfplus.ascore_ramGB": "Int? (optional)",
   "proteomics_msgfplus.fasta_sequence_db": "File",
   "proteomics_msgfplus.isPTM": "Boolean",
+  "proteomics_msgfplus.masic.null": "File? (optional)",
   "proteomics_msgfplus.masic_disk": "String? (optional)",
   "proteomics_msgfplus.masic_docker": "String",
   "proteomics_msgfplus.masic_ncpu": "Int",
@@ -34,14 +35,15 @@
   "proteomics_msgfplus.ppm_errorcharter_docker": "String",
   "proteomics_msgfplus.pr_ratio": "File? (optional)",
   "proteomics_msgfplus.ptm_type": "String? (optional)",
+  "proteomics_msgfplus.quant_method": "String",
   "proteomics_msgfplus.raw_file": "Array[File] (optional, default = [])",
   "proteomics_msgfplus.results_prefix": "String",
-  "proteomics_msgfplus.sd_fractions": "File",
-  "proteomics_msgfplus.sd_references": "File",
-  "proteomics_msgfplus.sd_samples": "File",
+  "proteomics_msgfplus.sd_fractions": "File? (optional)",
+  "proteomics_msgfplus.sd_references": "File? (optional)",
+  "proteomics_msgfplus.sd_samples": "File? (optional)",
   "proteomics_msgfplus.wrapper_disk": "String? (optional)",
-  "proteomics_msgfplus.wrapper_docker": "String",
-  "proteomics_msgfplus.wrapper_ncpu": "Int",
-  "proteomics_msgfplus.wrapper_ramGB": "Int"
+  "proteomics_msgfplus.wrapper_docker": "String? (optional)",
+  "proteomics_msgfplus.wrapper_ncpu": "Int? (optional)",
+  "proteomics_msgfplus.wrapper_ramGB": "Int? (optional)"
 }
 
