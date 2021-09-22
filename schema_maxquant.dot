@@ -1,0 +1,10 @@
+digraph proteomics_maxquant {
+  #rankdir=LR;
+  compound=true;
+
+  # Links
+  
+
+  # Nodes
+  CALL_maxquant [label="call maxquant"]
+}

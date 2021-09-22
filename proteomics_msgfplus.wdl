@@ -5,6 +5,9 @@ workflow proteomics_msgfplus {
         version: "v0.3.1"
     }
 
+    # Quantification method
+    String quant_method
+
     # RAW INPUT FILES
     Array[File] raw_file = []
     String results_prefix
@@ -64,13 +67,13 @@ workflow proteomics_msgfplus {
     File? ascore_parameter_p
 
     # WRAPPER (PlexedPiper)
-    Int wrapper_ncpu
-    Int wrapper_ramGB
-    String wrapper_docker
+    Int? wrapper_ncpu
+    Int? wrapper_ramGB
+    String? wrapper_docker
     String? wrapper_disk
-    File sd_fractions
-    File sd_references
-    File sd_samples
+    File? sd_fractions
+    File? sd_references
+    File? sd_samples
     File? pr_ratio #prioritized inference
 
     call msgf_sequences { input:
@@ -88,7 +91,8 @@ workflow proteomics_msgfplus {
             docker = masic_docker,
             disks = masic_disk,
             raw_file = raw_file[i],
-            masic_parameter = masic_parameter
+            masic_parameter = masic_parameter,
+            quant_method = quant_method
         }
 
         call msconvert { input:
@@ -178,62 +182,66 @@ workflow proteomics_msgfplus {
     }
 
     if(isPTM){
-
-        if(defined(pr_ratio)){
-            call wrapper_pp_ptm_inference { input:
-                ncpu = wrapper_ncpu,
-                ramGB = wrapper_ramGB,
-                docker = wrapper_docker,
-                disks = wrapper_disk,
-                fractions =  sd_fractions,
-                references = sd_references,
-                samples = sd_samples,
-                fasta_sequence_db = fasta_sequence_db,
-                ptm_type = ptm_type,
-                ReporterIons_output_file = masic.ReporterIons_output_file,
-                SICstats_output_file = masic.SICstats_output_file,
-                syn = phrp.syn,
-                syn_ascore = ascore.syn_ascore,
-                results_prefix = results_prefix,
-                pr_ratio = pr_ratio
+        if(quant_method == "tmt"){
+            if(defined(pr_ratio)){
+                call wrapper_pp_ptm_inference { input:
+                    ncpu = wrapper_ncpu,
+                    ramGB = wrapper_ramGB,
+                    docker = wrapper_docker,
+                    disks = wrapper_disk,
+                    fractions =  sd_fractions,
+                    references = sd_references,
+                    samples = sd_samples,
+                    fasta_sequence_db = fasta_sequence_db,
+                    ptm_type = ptm_type,
+                    ReporterIons_output_file = masic.ReporterIons_output_file,
+                    SICstats_output_file = masic.SICstats_output_file,
+                    syn = phrp.syn,
+                    syn_ascore = ascore.syn_ascore,
+                    results_prefix = results_prefix,
+                    pr_ratio = pr_ratio
+                }
             }
-        }
 
-        if(!defined(pr_ratio)){
-            call wrapper_pp_ptm { input:
-                ncpu = wrapper_ncpu,
-                ramGB = wrapper_ramGB,
-                docker = wrapper_docker,
-                disks = wrapper_disk,
-                fractions =  sd_fractions,
-                references = sd_references,
-                samples = sd_samples,
-                fasta_sequence_db = fasta_sequence_db,
-                ptm_type = ptm_type,
-                ReporterIons_output_file = masic.ReporterIons_output_file,
-                SICstats_output_file = masic.SICstats_output_file,
-                syn = phrp.syn,
-                syn_ascore = ascore.syn_ascore,
-                results_prefix = results_prefix
+            if(!defined(pr_ratio)){
+                call wrapper_pp_ptm { input:
+                    ncpu = wrapper_ncpu,
+                    ramGB = wrapper_ramGB,
+                    docker = wrapper_docker,
+                    disks = wrapper_disk,
+                    fractions =  sd_fractions,
+                    references = sd_references,
+                    samples = sd_samples,
+                    fasta_sequence_db = fasta_sequence_db,
+                    ptm_type = ptm_type,
+                    ReporterIons_output_file = masic.ReporterIons_output_file,
+                    SICstats_output_file = masic.SICstats_output_file,
+                    syn = phrp.syn,
+                    syn_ascore = ascore.syn_ascore,
+                    results_prefix = results_prefix
+                }
             }
         }
     }
 
     if(!isPTM){
-        call wrapper_pp { input:
-            ncpu = wrapper_ncpu,
-            ramGB = wrapper_ramGB,
-            docker = wrapper_docker,
-            disks = wrapper_disk,
-            fractions =  sd_fractions,
-            references = sd_references,
-            samples = sd_samples,
-            fasta_sequence_db = fasta_sequence_db,
-            ReporterIons_output_file = masic.ReporterIons_output_file,
-            SICstats_output_file = masic.SICstats_output_file,
-            syn = phrp.syn,
-            results_prefix = results_prefix
+        if(quant_method == "tmt"){
+            call wrapper_pp { input:
+                ncpu = wrapper_ncpu,
+                ramGB = wrapper_ramGB,
+                docker = wrapper_docker,
+                disks = wrapper_disk,
+                fractions =  sd_fractions,
+                references = sd_references,
+                samples = sd_samples,
+                fasta_sequence_db = fasta_sequence_db,
+                ReporterIons_output_file = masic.ReporterIons_output_file,
+                SICstats_output_file = masic.SICstats_output_file,
+                syn = phrp.syn,
+                results_prefix = results_prefix
+            }
         }
+
     }
 }
 
@@ -247,7 +255,7 @@ task msgf_sequences {
     File fasta_sequence_db
 
     String seq_file_id = basename(fasta_sequence_db, ".fasta")
-    # String output_full = output_msgf_tryptic + "/" + ouput_name
+    # String output_full = output_msgf_tryptic + "/" + output_name
     
     command {
         echo "PRE-STEP: MSGF+ READY TO PROCES SEQUENCE DB"
@@ -276,13 +284,15 @@ task msgf_sequences {
 }
 
 task masic {
+
+    File? null
     Int ncpu
     Int ramGB
     String docker
     String? disks
     File raw_file
     File masic_parameter
-
+    String quant_method
     String sample_id = basename(raw_file, ".raw")
 
     command {
@@ -295,7 +305,15 @@ task masic {
     }
 
     output {
-        File ReporterIons_output_file = "output_masic/${sample_id}_ReporterIons.txt"
+        File? ReporterIons_output_file = if (quant_method == "tmt") then "output_masic/${sample_id}_ReporterIons.txt" else null
+        File? RepIonObsRate_output_png_file = if (quant_method == "tmt") then "output_masic/${sample_id}_RepIonObsRate.png" else null
+        File? RepIonObsRate_output_txt_file = if (quant_method == "tmt") then "output_masic/${sample_id}_RepIonObsRate.txt" else null
+        File? RepIonObsRateHighAbundance_output_file = if (quant_method == "tmt") then "output_masic/${sample_id}_RepIonObsRateHighAbundance.png" else null
+        File? RepIonStats_output_file = if (quant_method == "tmt") then "output_masic/${sample_id}_RepIonStats.txt" else null
+        File? RepIonStatsHighAbundance_output_file = if (quant_method == "tmt") then "output_masic/${sample_id}_RepIonStatsHighAbundance.png" else null
+
+        File PeakAreaHistogram_output_file = "output_masic/${sample_id}_PeakAreaHistogram.png"
+        File PeakWidthHistogram_output_file = "output_masic/${sample_id}_PeakWidthHistogram.png"
         File DatasetInfo_output_file = "output_masic/${sample_id}_DatasetInfo.xml"
         File ScanStats_output_file = "output_masic/${sample_id}_ScanStats.txt"
         File MS_scans_output_file = "output_masic/${sample_id}_MS_scans.csv"
@@ -355,7 +373,7 @@ task msgf_tryptic {
     File sequencedb_files
     File msgf_tryptic_parameter
 
-    # Create new ouput destination
+    # Create new output destination
     String sample_id = basename(input_mzml, ".mzML")
     String seq_file_id = basename(fasta_sequence_db, ".fasta")
     
@@ -402,23 +420,23 @@ task msconvert_mzrefiner {
     File input_mzml
     File input_mzid
 
-    # Create new ouput destination
+    # Create new output destination
     String sample_id = basename(input_mzml, ".mzML")
-    String ouput_name = sample_id + "_FIXED.mzML"
-    #String output_full = output_msconvert_mzrefiner + "/" + ouput_name
+    String output_name = sample_id + "_FIXED.mzML"
+    #String output_full = output_msconvert_mzrefiner + "/" + output_name
     
     command {
         echo "STEP 3A: MSCONVERT-MZREFINE"
 
         wine msconvert ${input_mzml} \
         -o output_msconvert_mzrefiner \
-        --outfile output_msconvert_mzrefiner/${ouput_name} \
+        --outfile output_msconvert_mzrefiner/${output_name} \
         --filter "mzRefiner ${input_mzid} thresholdValue=-1e-10 thresholdStep=10 maxSteps=2" \
         --zlib
     }
 
     output {
-        File mzml_fixed = "output_msconvert_mzrefiner/${ouput_name}"
+        File mzml_fixed = "output_msconvert_mzrefiner/${output_name}"
     }
 
     runtime {
@@ -476,7 +494,7 @@ task msgf_identification {
     File sequencedb_files
     File msgf_identification_parameter
 
-    # Create new ouput destination
+    # Create new output destination
     String sample_id = basename(input_fixed_mzml, "_FIXED.mzML")
     String seq_file_id = basename(fasta_sequence_db, ".fasta")
     
@@ -532,17 +550,17 @@ task mzidtotsvconverter {
     String? disks
     File input_mzid_final
 
-    # Create new ouput destination
+    # Create new output destination
     String sample_id = basename(input_mzid_final, "_final.mzid")
-    String ouput_name = sample_id + ".tsv"
-    #String output_full = output_mzidtotsvconverter + "/" + ouput_name
+    String output_name = sample_id + ".tsv"
+    #String output_full = output_mzidtotsvconverter + "/" + output_name
     
     command {
         echo "STEP 5:: MzidToTSVConverter"
 
         mono /app/mzid2tsv/net462/MzidToTsvConverter.exe \
 		-mzid:${input_mzid_final} \
-		-tsv:output_mzidtotsvconverter/${ouput_name} \
+		-tsv:output_mzidtotsvconverter/${output_name} \
 		-unroll -showDecoy
     }
 
@@ -575,7 +593,7 @@ task phrp {
     Float phrp_synpvalue
     Float phrp_synprob
     
-    # Create new ouput destination
+    # Create new output destination
     String phrp_logfile = sample_id + "_PHRP_LogFile.txt"
     #String output_logfile = output_phrp + "/" + phrp_logfile
 
@@ -633,7 +651,7 @@ task ascore {
 
     File syn_ModSummary
     
-    # Create new ouput destination
+    # Create new output destination
     String seq_file_id = basename(input_syn, "_syn.txt")
     String ascore_logfile = "${seq_file_id}_ascore_LogFile.txt"
     
@@ -683,7 +701,7 @@ task wrapper_pp_ptm {
     String results_prefix
 
     # MASIC
-    Array[File] ReporterIons_output_file = []
+    Array[File?] ReporterIons_output_file = []
     Array[File] SICstats_output_file = []
 
     # #PHRP
@@ -775,10 +793,10 @@ task wrapper_pp_ptm_inference {
 
     String ptm_type
     String results_prefix
-    File pr_ratio
+    File? pr_ratio
 
     # MASIC
-    Array[File] ReporterIons_output_file = []
+    Array[File?] ReporterIons_output_file = []
     Array[File] SICstats_output_file = []
 
     # #PHRP
@@ -873,7 +891,7 @@ task wrapper_pp {
     File fasta_sequence_db
 
     # MASIC
-    Array[File] ReporterIons_output_file = []
+    Array[File?] ReporterIons_output_file = []
     Array[File] SICstats_output_file = []
 
     # #PHRP
