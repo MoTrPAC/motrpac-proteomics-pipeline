@@ -227,7 +227,8 @@ def main():
     if opts.pr_ratio is not None:
         json_data['proteomics_msgfplus.pr_ratio'] = opts.pr_ratio
     else:
-        del json_data['proteomics_msgfplus.pr_ratio']
+        if "pr_ratio" in json_data:
+            del json_data['proteomics_msgfplus.pr_ratio']
 
     # QUANTIFICATION METHODS: check supported options
     supported_quant_methods = ['label-free', 'tmt']
