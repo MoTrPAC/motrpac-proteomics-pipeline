@@ -8,8 +8,8 @@ PrecursorMassTolerance=50ppm
 NumMods=3
 
 # Modifications (see below for examples)
-StaticMod=229.1629,    *,  fix, N-term,    TMT6plex
-StaticMod=229.1629,    K,  fix, any,       TMT6plex
+StaticMod=304.207146,  *,  fix, N-term,    TMTpro                # 16-plex TMT
+StaticMod=304.207146,  K,  fix, any,       TMTpro                # 16-plex TMT
 StaticMod=C2H3N1O1,    C,  fix, any,       Carbamidomethyl       # Fixed Carbamidomethyl C (alkylation, +57.0215)
 
 DynamicMod=None
