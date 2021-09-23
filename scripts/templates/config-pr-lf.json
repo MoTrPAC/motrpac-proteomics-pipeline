@@ -2,7 +2,7 @@
   "proteomics_msgfplus.fasta_sequence_db": "gcp-sequencedb/ID_007275_FB1B42E8.fasta",
   "proteomics_msgfplus.isPTM": false,
   "proteomics_msgfplus.masic_disk": "local-disk 20 HDD",
-  "proteomics_msgfplus.masic_docker": "docker-msgf/prot-masic:v3.2.7465",
+  "proteomics_msgfplus.masic_docker": "docker-msgf/prot-masic:v3.2.7901",
   "proteomics_msgfplus.masic_ncpu": 4,
   "proteomics_msgfplus.masic_parameter": "gcp-parameters/LTQ-FT_10ppm_2014-08-06.xml",
   "proteomics_msgfplus.masic_ramGB": 15,
