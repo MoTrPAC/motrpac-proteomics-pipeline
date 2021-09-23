@@ -11,8 +11,9 @@ NumMods=3
 StaticMod=304.207146,  *,  fix, N-term,    TMTpro                # 16-plex TMT
 StaticMod=304.207146,  K,  fix, any,       TMTpro                # 16-plex TMT
 StaticMod=C2H3N1O1,    C,  fix, any,       Carbamidomethyl       # Fixed Carbamidomethyl C (alkylation, +57.0215)
+StaticMod=HO3P,        S,  fix, any,       Phospho               # Phosphorylation S
 
-DynamicMod=None
+DynamicMod=HO3P,       TY, opt, any,       Phospho               # Phosphorylation TY
 
 # Fragmentation Method
 #  0 means as written in the spectrum or CID if no info (Default)
