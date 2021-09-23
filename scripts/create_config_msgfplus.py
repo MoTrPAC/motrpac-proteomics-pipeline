@@ -40,7 +40,7 @@ def create_arguments():
     parser.add_argument('-v', '--bucket_name_raw', required=False, type=str,
                         help='Optional: Bucket name with raw files. Required only if it is different from <bucket_name_config>')
     parser.add_argument('-f', '--folder_raw', required=True, type=str,
-                        help='Full path to the proteomics raw files on GCP, without including bucket name')
+                        help='Full path to the proteomics raw files on GCP, without including bucket name relative to bucket_name_raw (if it is different from bucket_name_config)')
     parser.add_argument('-d', '--docker_msgf', required=True, type=str,
                         help='Docker repository for MSGF+ applications')
     parser.add_argument('-r', '--results_prefix', required=False, type=str,
@@ -85,10 +85,10 @@ class MSGFConfigurationGenerator:
         sequence_db = self.args.sequence_db.rstrip('/')
         self.sequence_db = 'gs://' + self.bucket_name_config + '/' + sequence_db
 
-        if self.bucket_name_config is not None:
+        if self.bucket_name_raw is not None:
             self.bucket_name_raw = self.args.bucket_name_raw.rstrip('/')
         else:
-            bucket_name_raw = bucket_name_config
+            self.bucket_name_raw = self.bucket_name_config
 
         folder_raw = self.args.folder_raw.rstrip('/')
         self.folder_raw = 'gs://' + self.bucket_name_raw + '/' + folder_raw
@@ -107,10 +107,10 @@ class MSGFConfigurationGenerator:
         print("----------------------------------------------")
         print("+ GCP gcp_project:", self.gcp_project)
         print("+ Quantification method:", self.quant_method)
-        if self.bucket_name_raw is None:
-            print("+ Raw file location (same as bucket_name_config) ", self.folder_raw)
-        else:
-            print("+ Raw file location (different from <bucket_name_config>) ", self.folder_raw)
+        # if self.bucket_name_raw is None:
+        #     print("+ Raw file location (same as <bucket_name_config>) ", self.bucket_name_config)
+        # else:
+        print("+ Raw file location: ", self.folder_raw)
         print("+ Study design location: ", self.study_design_location)
         print("+ MSGFplus parameter FOLDER location: ", self.parameters_msgf)
         print("+ Docker registry for MSGF containers: ", self.docker_msgf)
@@ -197,6 +197,12 @@ def main():
     opts.sanitize_options()
     opts.argument_validation_output()
     json_data = opts.load_template()
+
+    if opts.results_prefix is not None:
+        json_data['proteomics_msgfplus.results_prefix'] = opts.results_prefix
+    else:
+        json_data['proteomics_msgfplus.results_prefix'] = "cloudproteo-results"
+
     raw_files = opts.load_and_process_raw_files()
 
     # WRITE JSON FILE
