@@ -220,9 +220,9 @@ def main():
         if 'gcp-parameters' in str(v):
             # print("\tKey: " + k + ", Value: " + str(v))
             json_data[k] = json_data[k].replace('gcp-parameters', opts.parameters_msgf)
-        elif 'docker-msgf' in str(v):
+        elif 'docker-repository' in str(v):
             # print("\tKey: " + k + ", Value: " + str(v))
-            json_data[k] = json_data[k].replace('docker-msgf', opts.docker_msgf)
+            json_data[k] = json_data[k].replace('docker-repository', opts.docker_msgf)
     # RESULTS FILE NAME:
     if opts.results_prefix is not None:
         json_data['proteomics_msgfplus.results_prefix'] = opts.results_prefix
