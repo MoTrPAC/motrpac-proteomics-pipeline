@@ -3,7 +3,7 @@
   "proteomics_maxquant.fasta_sequence_db": "gs://proteomics-pipeline/sequences_db/ID_007275_FB1B42E8.fasta",
   "proteomics_maxquant.raw_file": ["gcp-raw/file1.raw", "gcp-raw/file2.raw"],
   "proteomics_maxquant.mq_disk": "local-disk 500 HDD",
-  "proteomics_maxquant.mq_docker": "docker-maxquant/maxquant:v1660",
+  "proteomics_maxquant.mq_docker": "docker-repository/maxquant:v1660",
   "proteomics_maxquant.mq_parameters": "gcp-parameters",
   "proteomics_maxquant.mq_ramGB": 380
 }

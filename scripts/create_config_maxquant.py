@@ -135,9 +135,9 @@ def main():
     # json_data['proteomics_maxquant.sd_samples'] = full_study_design + '/samples.txt'
 
     for (k, v) in json_data.items():
-        if 'docker-maxquant' in str(v):
+        if 'docker-repository' in str(v):
             # print("\tKey: " + k + ", Value: " + str(v))
-            json_data[k] = json_data[k].replace('docker-maxquant', docker_respository)
+            json_data[k] = json_data[k].replace('docker-repository', docker_respository)
 
     # print("\nCHECK new PARAMETER VALUE")
     # for (k, v) in json_data.items():
