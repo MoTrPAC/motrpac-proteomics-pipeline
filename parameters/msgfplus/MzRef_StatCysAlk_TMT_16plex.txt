@@ -84,15 +84,15 @@ NumMatchesPerSpec=1
 #  Exclude peptides with more than this number of missed cleavages from the search, Default: -1 (no limit)
 #MaxMissedCleavages=-1
 
-# Minimum number of ions a spectrum must have to be examined
-#MinNumPeaksPerSpectrum=10
+## Minimum number of ions a spectrum must have to be examined
+MinNumPeaksPerSpectrum=10
 
 # Number of isoforms to consider per peptide
 #  Default: 128
 #NumIsoforms=128
 
-# Include additional features in the output (enable this to post-process results with Percolator)
-#AddFeatures=1
+## Include additional features in the output (enable this to post-process results with Percolator)
+AddFeatures=0
 
 # Amino Acid Modification Examples
 # Specify static modifications using one or more StaticMod= entries
