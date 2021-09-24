@@ -40,7 +40,7 @@ def create_arguments():
     parser.add_argument('-v', '--bucket_name_raw', required=False, type=str,
                         help='Optional: Bucket name with raw files. Required only if it is different from <bucket_name_config>')
     parser.add_argument('-f', '--folder_raw', required=True, type=str,
-                        help='Full path to the proteomics raw files on GCP, without including bucket name')
+                        help='Full path to the proteomics raw files on GCP, without including bucket name relative to bucket_name_raw (if it is different from bucket_name_config)')
     parser.add_argument('-d', '--docker_msgf', required=True, type=str,
                         help='Docker repository for MSGF+ applications')
     parser.add_argument('-r', '--results_prefix', required=False, type=str,
@@ -67,6 +67,7 @@ class MSGFConfigurationGenerator:
         for key, val in self.args.__dict__.items():
             setattr(self, key, val)
         self.template = None
+        self.json_data = None
 
     def sanitize_options(self):
         """
@@ -85,10 +86,10 @@ class MSGFConfigurationGenerator:
         sequence_db = self.args.sequence_db.rstrip('/')
         self.sequence_db = 'gs://' + self.bucket_name_config + '/' + sequence_db
 
-        if self.bucket_name_config is not None:
+        if self.bucket_name_raw is not None:
             self.bucket_name_raw = self.args.bucket_name_raw.rstrip('/')
         else:
-            bucket_name_raw = bucket_name_config
+            self.bucket_name_raw = self.bucket_name_config
 
         folder_raw = self.args.folder_raw.rstrip('/')
         self.folder_raw = 'gs://' + self.bucket_name_raw + '/' + folder_raw
@@ -107,10 +108,7 @@ class MSGFConfigurationGenerator:
         print("----------------------------------------------")
         print("+ GCP gcp_project:", self.gcp_project)
         print("+ Quantification method:", self.quant_method)
-        if self.bucket_name_raw is None:
-            print("+ Raw file location (same as bucket_name_config) ", self.folder_raw)
-        else:
-            print("+ Raw file location (different from <bucket_name_config>) ", self.folder_raw)
+        print("+ Raw file location: ", self.folder_raw)
         print("+ Study design location: ", self.study_design_location)
         print("+ MSGFplus parameter FOLDER location: ", self.parameters_msgf)
         print("+ Docker registry for MSGF containers: ", self.docker_msgf)
@@ -131,21 +129,19 @@ class MSGFConfigurationGenerator:
         dirname = os.path.dirname(__file__)
 
         print("+ Proteomics experiment: ", self.experiment_prot)
-        template = os.path.join(os.getcwd(), dirname, f'templates/config-{self.experiment_prot}.json')
-        print('+ Template json path: ', template)
+        self.template = os.path.join(os.getcwd(), dirname, f'templates/config-{self.experiment_prot}.json')
+        print('+ Template json path: ', self.template)
 
         try:
             # READ TEMPLATE CONFIG FILE
-            with open(template) as json_file:
+            with open(self.template) as json_file:
                 text = json_file.read()
                 json_data = json.loads(text)
         except FileNotFoundError:
             raise ValueError(f'The value {self.experiment_prot} passed in for the <experiment_prot> argument is not '
                              f'supported. Only one of the following are expected: pr-tmt, pr-lf, ph-tmt, ph-lf, ub-tmt, ub-lf, ac-tmt, ac-lf')
 
-        self.template = template
-
-        return json_data
+        self.json_data = json_data
 
     def save_configuration(self, json_data):
         """
@@ -190,54 +186,63 @@ class MSGFConfigurationGenerator:
 
         return raw_files
 
+    def fill_json(self):
+        if self.results_prefix is not None:
+            self.json_data['proteomics_msgfplus.results_prefix'] = self.results_prefix
+        else:
+            self.json_data['proteomics_msgfplus.results_prefix'] = "cloudproteo-results"
+
+        raw_files = self.load_and_process_raw_files()
+
+        # WRITE JSON FILE
+        # RAW-FILES
+        self.json_data['proteomics_msgfplus.raw_file'] = raw_files
+        # SEQUENCE DB
+        self.json_data['proteomics_msgfplus.fasta_sequence_db'] = self.sequence_db
+        # STUDY DESIGN
+        if self.study_design_location is not None:
+            self.json_data['proteomics_msgfplus.sd_fractions'] = self.study_design_location + '/fractions.txt'
+            self.json_data['proteomics_msgfplus.sd_references'] = self.study_design_location + '/references.txt'
+            self.json_data['proteomics_msgfplus.sd_samples'] = self.study_design_location + '/samples.txt'
+        # GCP-PARAMETERS
+        for (k, v) in self.json_data.items():
+            if 'gcp-parameters' in str(v):
+                # print("\tKey: " + k + ", Value: " + str(v))
+                self.json_data[k] = self.json_data[k].replace('gcp-parameters', self.parameters_msgf)
+            elif 'docker-repository' in str(v):
+                # print("\tKey: " + k + ", Value: " + str(v))
+                self.json_data[k] = self.json_data[k].replace('docker-repository', self.docker_msgf)
+        # RESULTS FILE NAME:
+        if self.results_prefix is not None:
+            self.json_data['proteomics_msgfplus.results_prefix'] = self.results_prefix
+        else:
+            self.json_data['proteomics_msgfplus.results_prefix'] = "cloudproteo-results"
+
+        # PTM ONLY: Prioritized inference
+        if self.pr_ratio is not None:
+            self.json_data['proteomics_msgfplus.pr_ratio'] = self.pr_ratio
+        else:
+            if "pr_ratio" in self.json_data:
+                del self.json_data['proteomics_msgfplus.pr_ratio']
+
+        # QUANTIFICATION METHODS: check supported options
+        supported_quant_methods = ['label-free', 'tmt']
+        if self.quant_method in supported_quant_methods:
+            self.json_data['proteomics_msgfplus.quant_method'] = self.quant_method
+        else:
+            raise ValueError(f'The value {self.quant_method} is not supported. '
+                            f'Current supported methods: label-free, tmt')
+
+        return self.json_data
+
 
 def main():
     # PROCESS ARGUMENTS
     opts = MSGFConfigurationGenerator()
     opts.sanitize_options()
     opts.argument_validation_output()
-    json_data = opts.load_template()
-    raw_files = opts.load_and_process_raw_files()
-
-    # WRITE JSON FILE
-    # RAW-FILES
-    json_data['proteomics_msgfplus.raw_file'] = raw_files
-    # SEQUENCE DB
-    json_data['proteomics_msgfplus.fasta_sequence_db'] = opts.sequence_db
-    # STUDY DESIGN
-    if opts.study_design_location is not None:
-        json_data['proteomics_msgfplus.sd_fractions'] = opts.study_design_location + '/fractions.txt'
-        json_data['proteomics_msgfplus.sd_references'] = opts.study_design_location + '/references.txt'
-        json_data['proteomics_msgfplus.sd_samples'] = opts.study_design_location + '/samples.txt'
-    # GCP-PARAMETERS
-    for (k, v) in json_data.items():
-        if 'gcp-parameters' in str(v):
-            # print("\tKey: " + k + ", Value: " + str(v))
-            json_data[k] = json_data[k].replace('gcp-parameters', opts.parameters_msgf)
-        elif 'docker-msgf' in str(v):
-            # print("\tKey: " + k + ", Value: " + str(v))
-            json_data[k] = json_data[k].replace('docker-msgf', opts.docker_msgf)
-    # RESULTS FILE NAME:
-    if opts.results_prefix is not None:
-        json_data['proteomics_msgfplus.results_prefix'] = opts.results_prefix
-    else:
-        json_data['proteomics_msgfplus.results_prefix'] = "cloudproteo-results"
-
-    # PTM ONLY: Prioritized inference
-    if opts.pr_ratio is not None:
-        json_data['proteomics_msgfplus.pr_ratio'] = opts.pr_ratio
-    else:
-        if "pr_ratio" in json_data:
-            del json_data['proteomics_msgfplus.pr_ratio']
-
-    # QUANTIFICATION METHODS: check supported options
-    supported_quant_methods = ['label-free', 'tmt']
-    if opts.quant_method in supported_quant_methods:
-        json_data['proteomics_msgfplus.quant_method'] = opts.quant_method
-    else:
-        raise ValueError(f'The value {opts.quant_method} is not supported. '
-                         f'Current supported methods: label-free, tmt')
-
+    opts.load_template()
+    json_data = opts.fill_json()
     opts.save_configuration(json_data)
 
     print('+ ALL DONE!')

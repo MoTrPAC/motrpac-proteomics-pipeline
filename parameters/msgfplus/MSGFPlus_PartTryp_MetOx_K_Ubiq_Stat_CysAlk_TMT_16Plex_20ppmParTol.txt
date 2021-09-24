@@ -1,18 +1,20 @@
 # Precursor mass tolerance
 #  Examples: 2.5Da or 30ppm
 #  Use comma to set asymmetric values, for example "0.5Da,2.5Da" will set 0.5Da to the left (expMass<theoMass) and 2.5Da to the right (expMass>theoMass)
-PrecursorMassTolerance=50ppm
+PrecursorMassTolerance=20ppm
 
 # Max Number of Dynamic (Variable) Modifications per peptide
 # If this value is large, the search will be slow
 NumMods=3
 
 # Modifications (see below for examples)
-StaticMod=304.207146,  *,  fix, N-term,    TMTpro                # 16-plex TMT
-StaticMod=304.207146,  K,  fix, any,       TMTpro                # 16-plex TMT
-StaticMod=C2H3N1O1,    C,  fix, any,       Carbamidomethyl       # Fixed Carbamidomethyl C (alkylation, +57.0215)
+StaticMod=C2H3N1O1,     C,  fix, any,       Carbamidomethyl    # Fixed Carbamidomethyl C (alkylation, +57.0215)
+StaticMod=304.207146,   *,  fix, N-term,    TMTpro             # 16-plex TMT
+StaticMod=304.207146,   K,  fix, any,       TMTpro             # 16-plex TMT
 
-DynamicMod=None
+DynamicMod=O1,          M, opt, any, Oxidation                 # Oxidized methionine
+DynamicMod=C4H6N2O2,    K, opt, any, GlyGly                    # Ubiquitinylation of Lysine (+114.0429)
+DynamicMod=418.25008,   K, opt, any, TMT16Gly2                 # Combination of TMT16plex and GlyGly from ubiquitinylation
 
 # Fragmentation Method
 #  0 means as written in the spectrum or CID if no info (Default)
@@ -45,7 +47,7 @@ IsotopeErrorRange=-1,2
 # Number of tolerable termini
 #  The number of peptide termini that must have been cleaved by the enzyme (default 1)
 #  For trypsin, 2 means fully tryptic only, 1 means partially tryptic, and 0 means no-enzyme search
-NTT=2
+NTT=1
 
 # Control N-terminal methionine cleavage
 #  0 means to consider protein N-term Met cleavage (Default)
@@ -84,15 +86,15 @@ NumMatchesPerSpec=1
 #  Exclude peptides with more than this number of missed cleavages from the search, Default: -1 (no limit)
 #MaxMissedCleavages=-1
 
-## Minimum number of ions a spectrum must have to be examined
-MinNumPeaksPerSpectrum=10
+# Minimum number of ions a spectrum must have to be examined
+#MinNumPeaksPerSpectrum=10
 
 # Number of isoforms to consider per peptide
 #  Default: 128
 #NumIsoforms=128
 
-## Include additional features in the output (enable this to post-process results with Percolator)
-AddFeatures=0
+# Include additional features in the output (enable this to post-process results with Percolator)
+#AddFeatures=1
 
 # Amino Acid Modification Examples
 # Specify static modifications using one or more StaticMod= entries

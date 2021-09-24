@@ -11,8 +11,9 @@ NumMods=3
 StaticMod=304.207146,  *,  fix, N-term,    TMTpro                # 16-plex TMT
 StaticMod=304.207146,  K,  fix, any,       TMTpro                # 16-plex TMT
 StaticMod=C2H3N1O1,    C,  fix, any,       Carbamidomethyl       # Fixed Carbamidomethyl C (alkylation, +57.0215)
+StaticMod=HO3P,        S,  fix, any,       Phospho               # Phosphorylation S
 
-DynamicMod=None
+DynamicMod=HO3P,       TY, opt, any,       Phospho               # Phosphorylation TY
 
 # Fragmentation Method
 #  0 means as written in the spectrum or CID if no info (Default)
@@ -84,15 +85,15 @@ NumMatchesPerSpec=1
 #  Exclude peptides with more than this number of missed cleavages from the search, Default: -1 (no limit)
 #MaxMissedCleavages=-1
 
-## Minimum number of ions a spectrum must have to be examined
-MinNumPeaksPerSpectrum=10
+# Minimum number of ions a spectrum must have to be examined
+#MinNumPeaksPerSpectrum=10
 
 # Number of isoforms to consider per peptide
 #  Default: 128
 #NumIsoforms=128
 
-## Include additional features in the output (enable this to post-process results with Percolator)
-AddFeatures=0
+# Include additional features in the output (enable this to post-process results with Percolator)
+#AddFeatures=1
 
 # Amino Acid Modification Examples
 # Specify static modifications using one or more StaticMod= entries
