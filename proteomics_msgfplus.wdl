@@ -34,7 +34,7 @@ workflow proteomics_msgfplus {
     File fasta_sequence_db
 
     # MS-GF+ TRYPTIC
-    File msgf_tryptic_mzrefinery
+    File msgf_tryptic_mzrefinery_parameter
 
     # MS-GF+ IDENTIFICATION
     File msgf_identification_parameter
@@ -111,7 +111,7 @@ workflow proteomics_msgfplus {
             input_mzml = msconvert.mzml,
             fasta_sequence_db = fasta_sequence_db,
             sequencedb_files = msgf_sequences.sequencedb_files,
-            msgf_tryptic_mzrefinery = msgf_tryptic_mzrefinery
+            msgf_tryptic_mzrefinery_parameter = msgf_tryptic_mzrefinery_parameter
         }
 
         call msconvert_mzrefiner { input:
@@ -371,7 +371,7 @@ task msgf_tryptic {
     File input_mzml
     File fasta_sequence_db
     File sequencedb_files
-    File msgf_tryptic_mzrefinery
+    File msgf_tryptic_mzrefinery_parameter
 
     # Create new output destination
     String sample_id = basename(input_mzml, ".mzML")
@@ -393,7 +393,7 @@ task msgf_tryptic {
         -s ${input_mzml} \
         -o output_msgf_tryptic/${sample_id}.mzid \
         -d ${seq_file_id}.fasta \
-        -conf ${msgf_tryptic_mzrefinery}
+        -conf ${msgf_tryptic_mzrefinery_parameter}
         
         echo "LIST RESULTS - - - - - - - - - -"
         ls
