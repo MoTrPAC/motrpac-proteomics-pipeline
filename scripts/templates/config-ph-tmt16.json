@@ -20,7 +20,7 @@
   "proteomics_msgfplus.msgf_identification_parameter": "gcp-parameters/MSGFPlus_Tryp_DynSTYPhos_Stat_CysAlk_TMT_16Plex_Protocol1_20ppmParTol.txt",
   "proteomics_msgfplus.msgf_ncpu": 4,
   "proteomics_msgfplus.msgf_ramGB": 15,
-  "proteomics_msgfplus.msgf_tryptic_mzrefinery": "gcp-parameters/MzRef_StatCysAlk_S_Phospho_Dyn_TY_Phospho_TMT_16plex.txt",
+  "proteomics_msgfplus.msgf_tryptic_mzrefinery_parameter": "gcp-parameters/MzRef_StatCysAlk_S_Phospho_Dyn_TY_Phospho_TMT_16plex.txt",
   "proteomics_msgfplus.mzidtotsvconverter_docker": "docker-repository/prot-mzid2tsv:v1.4.3",
   "proteomics_msgfplus.phrp_disk": "local-disk 20 HDD",
   "proteomics_msgfplus.phrp_docker": "docker-repository/prot-phrp:v1.5.7458",
