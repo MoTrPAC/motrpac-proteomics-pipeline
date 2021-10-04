@@ -759,7 +759,7 @@ task wrapper_pp_ptm {
         -s study_design \
         -o output_plexedpiper \
         -n ${results_prefix} \
-        -c ${species}
+        -c "${species}"
 
         echo "-------------------"
         echo "End of PlexedPiper"
@@ -857,7 +857,7 @@ task wrapper_pp_ptm_inference {
         -o output_plexedpiper \
         -g ${pr_ratio} \
         -n ${results_prefix} \
-        -c ${species}
+        -c "${species}"
 
         echo "-------------------"
         echo "End of PlexedPiper"
@@ -940,7 +940,7 @@ task wrapper_pp {
         -s study_design \
         -o output_plexedpiper \
         -n ${results_prefix} \
-        -c ${species}
+        -c "${species}"
 
         echo "-------------------"
         echo "End of PlexedPiper"
