@@ -30,11 +30,12 @@
   "proteomics_msgfplus.quant_method": "label-free|tmt",
   "proteomics_msgfplus.raw_file": ["gcp-raw/file1.raw", "gcp-raw/file2.raw"],
   "proteomics_msgfplus.results_prefix": "String",
+  "proteomics_msgfplus.species": "String",
   "proteomics_msgfplus.sd_fractions": "gcp-study-design/fractions.txt",
   "proteomics_msgfplus.sd_references": "gcp-study-design/references.txt",
   "proteomics_msgfplus.sd_samples": "gcp-study-design/samples.txt",
   "proteomics_msgfplus.wrapper_disk": "local-disk 80 HDD",
-  "proteomics_msgfplus.wrapper_docker": "docker-repository/prot-plexedpiper:v0.1.8",
+  "proteomics_msgfplus.wrapper_docker": "docker-repository/prot-plexedpiper",
   "proteomics_msgfplus.wrapper_ncpu": 8,
   "proteomics_msgfplus.wrapper_ramGB": 60
 }
