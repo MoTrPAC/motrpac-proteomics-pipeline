@@ -5,17 +5,16 @@ workflow proteomics_maxquant {
         version: "v0.0.1"
     }
 
-    # RAW INPUT FILES
+    # MaxQuant input files and parameters
     Array[File] raw_file = []
+    File mq_parameters
+    File fasta_sequence_db
 
-    # MAXQUANT
+    # Docker details
     Int mq_ncpu
     Int mq_ramGB
     String mq_docker
     String? mq_disk
-    
-    File mq_parameters
-    File fasta_sequence_db
 
     call maxquant { input:
         ncpu = mq_ncpu,
@@ -53,13 +52,6 @@ task maxquant {
         echo "-----List file content----"
 
         ls -lhtr mqdata
-
-        echo "-----PWD----"
-        pwd mqdata
-
-        echo "-----FIND----"
-
-        find ~+ -name "MoTrPAC_Pilot_TMT_W_S1_01_12Oct17_Elm_AQ-17-09-02.raw"
 
         echo "STEP 3: CHANGE THE FULL PATH OF FILES IN XML FILE"
 
