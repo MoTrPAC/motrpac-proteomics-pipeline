@@ -21,7 +21,7 @@
   "proteomics_msgfplus.msgf_identification_parameter": "File",
   "proteomics_msgfplus.msgf_ncpu": "Int",
   "proteomics_msgfplus.msgf_ramGB": "Int",
-  "proteomics_msgfplus.msgf_tryptic_parameter": "File",
+  "proteomics_msgfplus.msgf_tryptic_mzrefinery_parameter": "File",
   "proteomics_msgfplus.mzidtotsvconverter_docker": "String",
   "proteomics_msgfplus.phrp_disk": "String? (optional)",
   "proteomics_msgfplus.phrp_docker": "String",
@@ -41,9 +41,10 @@
   "proteomics_msgfplus.sd_fractions": "File? (optional)",
   "proteomics_msgfplus.sd_references": "File? (optional)",
   "proteomics_msgfplus.sd_samples": "File? (optional)",
+  "proteomics_msgfplus.species": "String",
   "proteomics_msgfplus.wrapper_disk": "String? (optional)",
   "proteomics_msgfplus.wrapper_docker": "String? (optional)",
   "proteomics_msgfplus.wrapper_ncpu": "Int? (optional)",
-  "proteomics_msgfplus.wrapper_ramGB": "Int? (optional)"
+  "proteomics_msgfplus.wrapper_ramGB": "Int? (optional)",
 }
 

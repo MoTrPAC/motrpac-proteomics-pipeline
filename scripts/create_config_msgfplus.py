@@ -46,7 +46,9 @@ def create_arguments():
     parser.add_argument('-r', '--results_prefix', required=False, type=str,
                         help='Results files name prefix (which will end in _ratio.txt and _RII-peptides.txt')
     parser.add_argument('-x', '--pr_ratio', required=False, type=str,
-                        help='Optional: Global proteomics <ratio.txt> results file (for inferred PTM searches)')
+                        help='Optional: Global proteomics <ratio.txt> results file (for inferred PTM searches)'),
+    parser.add_argument('-c', '--species', required=True, type=str,
+                        help='Species: scientific name for the specie to which the samples belong')
     return parser
 
 
@@ -112,6 +114,7 @@ class MSGFConfigurationGenerator:
         print("+ Study design location: ", self.study_design_location)
         print("+ MSGFplus parameter FOLDER location: ", self.parameters_msgf)
         print("+ Docker registry for MSGF containers: ", self.docker_msgf)
+        print("+ Species: ", self.species)
         if self.pr_ratio is not None:
             print('+ Global proteomics file (for prioritized inference): ', self.pr_ratio)
 
@@ -232,6 +235,8 @@ class MSGFConfigurationGenerator:
         else:
             raise ValueError(f'The value {self.quant_method} is not supported. '
                             f'Current supported methods: label-free, tmt')
+
+        self.json_data['proteomics_msgfplus.species'] = self.species
 
         return self.json_data
 
