@@ -11,6 +11,7 @@ workflow proteomics_msgfplus {
     # RAW INPUT FILES
     Array[File] raw_file = []
     String results_prefix
+    String species
 
     # MASIC
     Int masic_ncpu
@@ -199,7 +200,8 @@ workflow proteomics_msgfplus {
                     syn = phrp.syn,
                     syn_ascore = ascore.syn_ascore,
                     results_prefix = results_prefix,
-                    pr_ratio = pr_ratio
+                    pr_ratio = pr_ratio,
+                    species = species
                 }
             }
 
@@ -218,7 +220,8 @@ workflow proteomics_msgfplus {
                     SICstats_output_file = masic.SICstats_output_file,
                     syn = phrp.syn,
                     syn_ascore = ascore.syn_ascore,
-                    results_prefix = results_prefix
+                    results_prefix = results_prefix,
+                    species = species
                 }
             }
         }
@@ -238,10 +241,10 @@ workflow proteomics_msgfplus {
                 ReporterIons_output_file = masic.ReporterIons_output_file,
                 SICstats_output_file = masic.SICstats_output_file,
                 syn = phrp.syn,
-                results_prefix = results_prefix
+                results_prefix = results_prefix,
+                species = species
             }
         }
-
     }
 }
 
@@ -699,6 +702,7 @@ task wrapper_pp_ptm {
 
     String ptm_type
     String results_prefix
+    String species
 
     # MASIC
     Array[File?] ReporterIons_output_file = []
@@ -754,7 +758,8 @@ task wrapper_pp_ptm {
         -f ${fasta_sequence_db} \
         -s study_design \
         -o output_plexedpiper \
-        -n ${results_prefix}
+        -n ${results_prefix} \
+        -c "${species}"
 
         echo "-------------------"
         echo "End of PlexedPiper"
@@ -794,6 +799,7 @@ task wrapper_pp_ptm_inference {
     String ptm_type
     String results_prefix
     File? pr_ratio
+    String species
 
     # MASIC
     Array[File?] ReporterIons_output_file = []
@@ -850,7 +856,8 @@ task wrapper_pp_ptm_inference {
         -s study_design \
         -o output_plexedpiper \
         -g ${pr_ratio} \
-        -n ${results_prefix}
+        -n ${results_prefix} \
+        -c "${species}"
 
         echo "-------------------"
         echo "End of PlexedPiper"
@@ -883,6 +890,7 @@ task wrapper_pp {
     String docker
     String? disks
     String results_prefix
+    String species
 
     File samples
     File fractions
@@ -931,7 +939,8 @@ task wrapper_pp {
         -f ${fasta_sequence_db} \
         -s study_design \
         -o output_plexedpiper \
-        -n ${results_prefix}
+        -n ${results_prefix} \
+        -c "${species}"
 
         echo "-------------------"
         echo "End of PlexedPiper"
