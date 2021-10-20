@@ -36,6 +36,30 @@ def upload_string(bucket_destination, str_content, destination_blob_name):
     b = bucket_destination.blob(destination_blob_name)
     b.upload_from_string(str_content)
 
+def write_command_to_file(metadata, x, method, results_output, bucket_destination, file_name):
+    """
+    The command executed on each call is available as text in the
+    metadata.json file. This function extracts the command and saves it
+    in the bucket as a file.
+
+    x: index
+    metadata: the metadata object
+    method: the call method name
+    results_output: the prefix name for the file
+    bucket_destination: bucket destination name
+    file_name: the file name
+    """
+
+    if 'commandLine' in metadata['calls'][method][x]:
+        cmd_txt = metadata['calls'][method][x]["commandLine"]
+        if cmd_txt is not None:
+            cmd_txt_name = results_output + file_name
+            print('- Command to file:', cmd_txt_name)
+            new_blob_command = bucket_destination.blob(cmd_txt_name)
+            new_blob_command.upload_from_string(cmd_txt, content_type="text/plain")
+    else:
+        print('----> Unable to copy commandLine')
+
 # Copy ascore results to the same or different bucket
 def copy_ascore( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_destination ):
 
@@ -56,19 +80,17 @@ def copy_ascore( metadata, dest_root_folder, bucket_source, bucket_origin, bucke
             if blob_stdout is not None:
                 bucket_source.copy_blob(blob_stdout, bucket_destination, ascore_stdout_rename)
             else:
-                print('- Unable to copy stdout')
+                print('----> Unable to copy stdout')
         
         # ascore_output_length = len(metadata['calls']['proteomics_msgfplus.ascore'][x]['outputs'])
         # print('(Number of outputs:', ascore_output_length, ')')
 
-        # # Get and upload the command
-        if 'commandLine' in metadata['calls']['proteomics_msgfplus.ascore'][x]:
-            ascore_cmd = metadata['calls']['proteomics_msgfplus.ascore'][x]["commandLine"]
-            # print('The Command line:\n', ascore_cmd)
-            cmd_local_file_name = 'command-ascore.txt'
-            cmd_blob_filename = ascore_output + cmd_local_file_name
-            print('- Command: ', cmd_blob_filename)
-            upload_string(bucket_destination, ascore_cmd, cmd_blob_filename)
+        write_command_to_file(metadata = metadata,
+                              x = x,
+                              method = "proteomics_msgfplus.ascore",
+                              results_output = ascore_output,
+                              bucket_destination = bucket_destination,
+                              file_name = "ascore-command.log")
 
         executionStatus = remove_gsbucket( metadata['calls']['proteomics_msgfplus.ascore'][x]['executionStatus'], bucket_origin )
         if executionStatus == 'Done':
@@ -122,16 +144,14 @@ def copy_msconvert_mzrefiner( metadata, dest_root_folder, bucket_source, bucket_
             if blob_stdout is not None:
                 bucket_source.copy_blob(blob_stdout, bucket_destination, msconvert_mzrefiner_stdout_rename)
             else:
-                print('- Unable to copy stdout')
-        
-        if 'commandLine' in metadata['calls']['proteomics_msgfplus.msconvert_mzrefiner'][x]:
-            # Get and upload the command
-            msconvert_mzrefiner_cmd = metadata['calls']['proteomics_msgfplus.msconvert_mzrefiner'][x]["commandLine"]
-            # print('The Command line:\n', msconvert_mzrefiner_cmd)
-            cmd_local_file_name = 'command-msconvert_mzrefiner.txt'
-            cmd_blob_filename = msconvert_mzrefiner_output + cmd_local_file_name
-            upload_string(bucket_destination, msconvert_mzrefiner_cmd, cmd_blob_filename)
-            # print('- Command: ', cmd_blob_filename)
+                print('----> Unable to copy stdout')
+
+        write_command_to_file(metadata = metadata,
+                              x = x,
+                              method = "proteomics_msgfplus.msconvert_mzrefiner",
+                              results_output = msconvert_mzrefiner_output,
+                              bucket_destination = bucket_destination,
+                              file_name = "msconvert_mzrefiner-command.log")
 
         # msconvert_mzrefiner_output_length = len(metadata['calls']['proteomics_msgfplus.msconvert_mzrefiner'][x]['outputs'])
         # print(' (number of outputs:', msconvert_mzrefiner_output_length, ')')
@@ -167,16 +187,14 @@ def copy_ppm_errorcharter( metadata, dest_root_folder, bucket_source, bucket_ori
             if blob_stdout is not None:
                 bucket_source.copy_blob(blob_stdout, bucket_destination, ppm_errorcharter_stdout_rename)
             else:
-                print('- Unable to copy stdout')
+                print('----> Unable to copy stdout')
 
-        # # Get and upload the command
-        if 'commandLine' in metadata['calls']['proteomics_msgfplus.ppm_errorcharter'][x]:
-            ppm_errorcharter_cmd = metadata['calls']['proteomics_msgfplus.ppm_errorcharter'][x]["commandLine"]
-            # print('The Command line:\n', ppm_errorcharter_cmd)
-            cmd_local_file_name = 'command-ppm_errorcharter.txt'
-            cmd_blob_filename = ppm_errorcharter_output + cmd_local_file_name
-            print('- Command: ', cmd_blob_filename)
-            upload_string(bucket_destination, ppm_errorcharter_cmd, cmd_blob_filename)
+        write_command_to_file(metadata = metadata,
+                              x = x,
+                              method = "proteomics_msgfplus.ppm_errorcharter",
+                              results_output = ppm_errorcharter_output,
+                              bucket_destination = bucket_destination,
+                              file_name = "ppm_errorcharter-command.log")
 
         executionStatus = remove_gsbucket( metadata['calls']['proteomics_msgfplus.ppm_errorcharter'][x]['executionStatus'], bucket_origin )
         if executionStatus == 'Done':
@@ -217,72 +235,105 @@ def copy_masic( metadata, dest_root_folder, bucket_source, bucket_origin, bucket
             if blob_stdout is not None:
                 bucket_source.copy_blob(blob_stdout, bucket_destination, masic_stdout_rename)
             else:
-                print('- Unable to copy stdout')
+                print('----> Unable to copy stdout')
 
-        # Get and upload the command
-        if 'commandLine' in metadata['calls']['proteomics_msgfplus.masic'][x]:
-            masic_cmd = metadata['calls']['proteomics_msgfplus.masic'][x]["commandLine"]
-            # print('The Command line:\n', masic_cmd)
-            cmd_local_file_name = 'command-masic.txt'
-            cmd_blob_filename = masic_output + cmd_local_file_name
-            print('- Command: ', cmd_blob_filename)
-            upload_string(bucket_destination, masic_cmd, cmd_blob_filename)
+        write_command_to_file(metadata = metadata,
+                              x = x,
+                              method = "proteomics_msgfplus.masic",
+                              results_output = masic_output,
+                              bucket_destination = bucket_destination,
+                              file_name = "masic-command.log")
 
         # masic_output_length = len(metadata['calls']['proteomics_msgfplus.masic'][x]['outputs'])
         # print('(Number of outputs:', masic_output_length, ')')
 
         executionStatus = remove_gsbucket( metadata['calls']['proteomics_msgfplus.masic'][x]['executionStatus'], bucket_origin )
         if executionStatus == 'Done':
-            ReporterIons_output_file = remove_gsbucket( metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['ReporterIons_output_file'], bucket_origin )
-            MSMS_scans_output_file = remove_gsbucket( metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['MSMS_scans_output_file'], bucket_origin )
-            SICs_output_file = remove_gsbucket( metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['SICs_output_file'], bucket_origin )
-            MS_scans_output_file = remove_gsbucket( metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['MS_scans_output_file'], bucket_origin )
-            SICstats_output_file = remove_gsbucket( metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['SICstats_output_file'], bucket_origin )
-            ScanStatsConstant_output_file = remove_gsbucket( metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['ScanStatsConstant_output_file'], bucket_origin )
-            ScanStatsEx_output_file = remove_gsbucket( metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['ScanStatsEx_output_file'], bucket_origin )
-            ScanStats_output_file = remove_gsbucket( metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['ScanStats_output_file'], bucket_origin )
-            DatasetInfo_output_file = remove_gsbucket( metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['DatasetInfo_output_file'], bucket_origin )
+            ReporterIons_output_file = remove_gsbucket(metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['ReporterIons_output_file'], bucket_origin)
+            PeakAreaHistogram_output_file = remove_gsbucket(metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['PeakAreaHistogram_output_file'], bucket_origin)
+            RepIonObsRateHighAbundance_output_file = remove_gsbucket(metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['RepIonObsRateHighAbundance_output_file'], bucket_origin)
+            RepIonObsRate_output_txt_file = remove_gsbucket(metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['RepIonObsRate_output_txt_file'], bucket_origin)
+            MSMS_scans_output_file = remove_gsbucket(metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['MSMS_scans_output_file'], bucket_origin)
+            SICs_output_file = remove_gsbucket(metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['SICs_output_file'], bucket_origin)
+            MS_scans_output_file = remove_gsbucket(metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['MS_scans_output_file'], bucket_origin)
+            SICstats_output_file = remove_gsbucket(metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['SICstats_output_file'], bucket_origin)
+            ScanStatsConstant_output_file = remove_gsbucket(metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['ScanStatsConstant_output_file'], bucket_origin)
+            RepIonStatsHighAbundance_output_file = remove_gsbucket(metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['RepIonStatsHighAbundance_output_file'], bucket_origin)
+            ScanStatsEx_output_file = remove_gsbucket(metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['ScanStatsEx_output_file'], bucket_origin)
+            ScanStats_output_file = remove_gsbucket(metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['ScanStats_output_file'], bucket_origin)
+            PeakWidthHistogram_output_file = remove_gsbucket(metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['PeakWidthHistogram_output_file'], bucket_origin)
+            RepIonStats_output_file = remove_gsbucket(metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['RepIonStats_output_file'], bucket_origin)
+            DatasetInfo_output_file = remove_gsbucket(metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['DatasetInfo_output_file'], bucket_origin)
+            RepIonObsRate_output_png_file = remove_gsbucket(metadata['calls']['proteomics_msgfplus.masic'][x]['outputs']['RepIonObsRate_output_png_file'], bucket_origin)
 
             blob_ReporterIons_output_file = bucket_source.get_blob(ReporterIons_output_file)
+            blob_PeakAreaHistogram_output_file = bucket_source.get_blob(PeakAreaHistogram_output_file)
+            blob_RepIonObsRateHighAbundance_output_file = bucket_source.get_blob(RepIonObsRateHighAbundance_output_file)
+            blob_RepIonObsRate_output_txt_file = bucket_source.get_blob(RepIonObsRate_output_txt_file)
             blob_MSMS_scans_output_file = bucket_source.get_blob(MSMS_scans_output_file)
             blob_SICs_output_file = bucket_source.get_blob(SICs_output_file)
             blob_MS_scans_output_file = bucket_source.get_blob(MS_scans_output_file)
             blob_SICstats_output_file = bucket_source.get_blob(SICstats_output_file)
             blob_ScanStatsConstant_output_file = bucket_source.get_blob(ScanStatsConstant_output_file)
+            blob_RepIonStatsHighAbundance_output_file = bucket_source.get_blob(RepIonStatsHighAbundance_output_file)
             blob_ScanStatsEx_output_file = bucket_source.get_blob(ScanStatsEx_output_file)
             blob_ScanStats_output_file = bucket_source.get_blob(ScanStats_output_file)
+            blob_PeakWidthHistogram_output_file = bucket_source.get_blob(PeakWidthHistogram_output_file)
+            blob_RepIonStats_output_file = bucket_source.get_blob(RepIonStats_output_file)
             blob_DatasetInfo_output_file = bucket_source.get_blob(DatasetInfo_output_file)
+            blob_RepIonObsRate_output_png_file = bucket_source.get_blob(RepIonObsRate_output_png_file)
 
             new_ReporterIons_output_file = masic_output + os.path.basename(ReporterIons_output_file)
+            new_PeakAreaHistogram_output_file = masic_output + os.path.basename(PeakAreaHistogram_output_file)
+            new_RepIonObsRateHighAbundance_output_file = masic_output + os.path.basename(RepIonObsRateHighAbundance_output_file)
+            new_RepIonObsRate_output_txt_file = masic_output + os.path.basename(RepIonObsRate_output_txt_file)
             new_MSMS_scans_output_file = masic_output + os.path.basename(MSMS_scans_output_file)
             new_SICs_output_file = masic_output + os.path.basename(SICs_output_file)
             new_MS_scans_output_file = masic_output + os.path.basename(MS_scans_output_file)
             new_SICstats_output_file = masic_output + os.path.basename(SICstats_output_file)
             new_ScanStatsConstant_output_file = masic_output + os.path.basename(ScanStatsConstant_output_file)
+            new_RepIonStatsHighAbundance_output_file = masic_output + os.path.basename(RepIonStatsHighAbundance_output_file)
             new_ScanStatsEx_output_file = masic_output + os.path.basename(ScanStatsEx_output_file)
             new_ScanStats_output_file = masic_output + os.path.basename(ScanStats_output_file)
+            new_PeakWidthHistogram_output_file = masic_output + os.path.basename(PeakWidthHistogram_output_file)
+            new_RepIonStats_output_file = masic_output + os.path.basename(RepIonStats_output_file)
             new_DatasetInfo_output_file = masic_output + os.path.basename(DatasetInfo_output_file)
+            new_RepIonObsRate_output_png_file = masic_output + os.path.basename(RepIonObsRate_output_png_file)
 
             # COPY FILES TO NEW LOCATION
-            print('- File to:', new_ReporterIons_output_file)
-            print('- File to:', new_MSMS_scans_output_file)
-            print('- File to:', new_SICs_output_file)
-            print('- File to:', new_MS_scans_output_file)
-            print('- File to:', new_SICstats_output_file)
-            print('- File to:', new_ScanStatsConstant_output_file)
-            print('- File to:', new_ScanStatsEx_output_file)
-            print('- File to:', new_ScanStats_output_file)
-            print('- File to:', new_DatasetInfo_output_file)
+            print('- File to: ', new_ReporterIons_output_file)
+            print('- File to: ', new_PeakAreaHistogram_output_file)
+            print('- File to: ', new_RepIonObsRateHighAbundance_output_file)
+            print('- File to: ', new_RepIonObsRate_output_txt_file)
+            print('- File to: ', new_MSMS_scans_output_file)
+            print('- File to: ', new_SICs_output_file)
+            print('- File to: ', new_MS_scans_output_file)
+            print('- File to: ', new_SICstats_output_file)
+            print('- File to: ', new_ScanStatsConstant_output_file)
+            print('- File to: ', new_RepIonStatsHighAbundance_output_file)
+            print('- File to: ', new_ScanStatsEx_output_file)
+            print('- File to: ', new_ScanStats_output_file)
+            print('- File to: ', new_PeakWidthHistogram_output_file)
+            print('- File to: ', new_RepIonStats_output_file)
+            print('- File to: ', new_DatasetInfo_output_file)
+            print('- File to: ', new_RepIonObsRate_output_png_file)
 
             bucket_source.copy_blob(blob_ReporterIons_output_file, bucket_destination, new_ReporterIons_output_file)
+            bucket_source.copy_blob(blob_PeakAreaHistogram_output_file, bucket_destination, new_PeakAreaHistogram_output_file)
+            bucket_source.copy_blob(blob_RepIonObsRateHighAbundance_output_file, bucket_destination, new_RepIonObsRateHighAbundance_output_file)
+            bucket_source.copy_blob(blob_RepIonObsRate_output_txt_file, bucket_destination, new_RepIonObsRate_output_txt_file)
             bucket_source.copy_blob(blob_MSMS_scans_output_file, bucket_destination, new_MSMS_scans_output_file)
             bucket_source.copy_blob(blob_SICs_output_file, bucket_destination, new_SICs_output_file)
             bucket_source.copy_blob(blob_MS_scans_output_file, bucket_destination, new_MS_scans_output_file)
             bucket_source.copy_blob(blob_SICstats_output_file, bucket_destination, new_SICstats_output_file)
             bucket_source.copy_blob(blob_ScanStatsConstant_output_file, bucket_destination, new_ScanStatsConstant_output_file)
+            bucket_source.copy_blob(blob_RepIonStatsHighAbundance_output_file, bucket_destination, new_RepIonStatsHighAbundance_output_file)
             bucket_source.copy_blob(blob_ScanStatsEx_output_file, bucket_destination, new_ScanStatsEx_output_file)
             bucket_source.copy_blob(blob_ScanStats_output_file, bucket_destination, new_ScanStats_output_file)
+            bucket_source.copy_blob(blob_PeakWidthHistogram_output_file, bucket_destination, new_PeakWidthHistogram_output_file)
+            bucket_source.copy_blob(blob_RepIonStats_output_file, bucket_destination, new_RepIonStats_output_file)
             bucket_source.copy_blob(blob_DatasetInfo_output_file, bucket_destination, new_DatasetInfo_output_file)
+            bucket_source.copy_blob(blob_RepIonObsRate_output_png_file, bucket_destination, new_RepIonObsRate_output_png_file)
         else:
             print(' (-) Execution Status: ', executionStatus)
             print(' (-) Data cannot be copied')
@@ -313,14 +364,12 @@ def copy_msconvert( metadata, dest_root_folder, bucket_source, bucket_origin, bu
             else:
                 print('WARNING: stdout blob available in metadata file, but not available in bucket')
 
-        # Get and upload the command
-        if 'commandLine' in metadata['calls']['proteomics_msgfplus.msconvert'][x]:
-            msconvert_cmd = metadata['calls']['proteomics_msgfplus.msconvert'][x]["commandLine"]
-            # print('The Command line:\n', msconvert_cmd)
-            cmd_local_file_name = 'command-msconvert.txt'
-            cmd_blob_filename = msconvert_output + cmd_local_file_name
-            print('- Command: ', cmd_blob_filename)
-            upload_string(bucket_destination, msconvert_cmd, cmd_blob_filename)
+        write_command_to_file(metadata = metadata,
+                              x = x,
+                              method = "proteomics_msgfplus.msconvert",
+                              results_output = msconvert_output,
+                              bucket_destination = bucket_destination,
+                              file_name = "msconvert-command.log")
 
         # msconvert_output_length = len(metadata['calls']['proteomics_msgfplus.msconvert'][x]['outputs'])
         # print(' (number of outputs:', msconvert_output_length, ')')
@@ -357,16 +406,14 @@ def copy_msgf_identification( metadata, dest_root_folder, bucket_source, bucket_
             if blob_stdout is not None:
                 bucket_source.copy_blob(blob_stdout, bucket_destination, msgf_identification_stdout_rename)
             else:
-                print('- Unable to copy stdout')
+                print('----> Unable to copy stdout')
 
-        # # Get and upload the command
-        if 'commandLine' in metadata['calls']['proteomics_msgfplus.msgf_identification'][x]:
-            msgf_identification_cmd = metadata['calls']['proteomics_msgfplus.msgf_identification'][x]["commandLine"]
-            # print('The Command line:\n', msgf_identification_cmd)
-            cmd_local_file_name = 'command-msgf_identification.txt'
-            cmd_blob_filename = msgf_identification_output + cmd_local_file_name
-            print('- Command: ', cmd_blob_filename)
-            upload_string(bucket_destination, msgf_identification_cmd, cmd_blob_filename)
+        write_command_to_file(metadata = metadata,
+                              x = x,
+                              method = "proteomics_msgfplus.msgf_identification",
+                              results_output = msgf_identification_output,
+                              bucket_destination = bucket_destination,
+                              file_name = "msgf_identification-command.log")
 
         executionStatus = remove_gsbucket( metadata['calls']['proteomics_msgfplus.msgf_identification'][x]['executionStatus'], bucket_origin )
         if executionStatus == 'Done':
@@ -397,7 +444,7 @@ def copy_msgf_sequences( metadata, dest_root_folder, bucket_source, bucket_origi
         # print('\nBlob-', x, ' ', end = '')
         # # UNFORTUNATELY THE STDOUT HERE IS WRONG! It is listed as available but then the file is not available on GCP
         # if 'stdout' in metadata['calls']['proteomics_msgfplus.msgf_sequences'][x]:
-        #     seq_id = os.path.basename(metadata['calls']['proteomics_msgfplus.msgf_sequences'][x]["inputs"]['seq_file_id']) 
+        #     seq_id = os.path.basename(metadata['calls']['proteomics_msgfplus.msgf_sequences'][x]["inputs"]['seq_file_id'])
         #     msgf_sequences_stdout = metadata['calls']['proteomics_msgfplus.msgf_sequences'][x]["stdout"]
         #     msgf_sequences_stdout_clean = remove_gsbucket( msgf_sequences_stdout, bucket_origin)
         #     msgf_sequences_stdout_rename =  msgf_sequences_output  + seq_id + '-msgf_sequences-stdout.log'
@@ -413,6 +460,13 @@ def copy_msgf_sequences( metadata, dest_root_folder, bucket_source, bucket_origi
             cmd_blob_filename = msgf_sequences_output + cmd_local_file_name
             print('- Command: ', cmd_blob_filename)
             upload_string(bucket_destination, msgf_sequences_cmd, cmd_blob_filename)
+
+        write_command_to_file(metadata = metadata,
+                              x = x,
+                              method = "proteomics_msgfplus.msgf_sequences",
+                              results_output = msgf_sequences_output,
+                              bucket_destination = bucket_destination,
+                              file_name = "msgf_sequences-command.log")
 
         executionStatus = remove_gsbucket( metadata['calls']['proteomics_msgfplus.msgf_sequences'][x]['executionStatus'], bucket_origin )
         if executionStatus == 'Done':
@@ -453,16 +507,14 @@ def copy_msgf_tryptic( metadata, dest_root_folder, bucket_source, bucket_origin,
             if blob_stdout is not None:
                 bucket_source.copy_blob(blob_stdout, bucket_destination, msgf_tryptic_stdout_rename)
             else:
-                print('- Unable to copy stdout')
+                print('----> Unable to copy stdout')
 
-        # # Get and upload the command
-        if 'commandLine' in metadata['calls']['proteomics_msgfplus.msgf_tryptic'][x]:
-            msgf_tryptic_cmd = metadata['calls']['proteomics_msgfplus.msgf_tryptic'][x]["commandLine"]
-            # print('The Command line:\n', msgf_tryptic_cmd)
-            cmd_local_file_name = 'command-msgf_tryptic.txt'
-            cmd_blob_filename = msgf_tryptic_output + cmd_local_file_name
-            print('- Command: ', cmd_blob_filename)
-            upload_string(bucket_destination, msgf_tryptic_cmd, cmd_blob_filename)
+        write_command_to_file(metadata = metadata,
+                              x = x,
+                              method = "proteomics_msgfplus.msgf_tryptic",
+                              results_output = msgf_tryptic_output,
+                              bucket_destination = bucket_destination,
+                              file_name = "msgf_tryptic-command.log")
 
         # msgf_tryptic_output_length = len(metadata['calls']['proteomics_msgfplus.msgf_tryptic'][x]['outputs'])
         # print(' (number of outputs:', msgf_tryptic_output_length, ')')
@@ -502,16 +554,14 @@ def copy_phrp( metadata, dest_root_folder, bucket_source, bucket_origin, bucket_
             if blob_stdout is not None:
                 bucket_source.copy_blob(blob_stdout, bucket_destination, phrp_stdout_rename)
             else:
-                print('- Unable to copy stdout')
+                print('----> Unable to copy stdout')
 
-        # Get and upload the command
-        if 'commandLine' in metadata['calls']['proteomics_msgfplus.phrp'][x]:
-            phrp_cmd = metadata['calls']['proteomics_msgfplus.phrp'][x]["commandLine"]
-            # print('The Command line:\n', phrp_cmd)
-            cmd_local_file_name = 'command-phrp.txt'
-            cmd_blob_filename = phrp_output + cmd_local_file_name
-            print('- Command: ', cmd_blob_filename)
-            upload_string(bucket_destination, phrp_cmd, cmd_blob_filename)
+        write_command_to_file(metadata = metadata,
+                              x = x,
+                              method = "proteomics_msgfplus.phrp",
+                              results_output = phrp_output,
+                              bucket_destination = bucket_destination,
+                              file_name = "phrp-command.log")
 
         # phrp_output_length = len(metadata['calls']['proteomics_msgfplus.phrp'][x]['outputs'])
         # print('(Number of outputs:', phrp_output_length, ')')
@@ -591,19 +641,17 @@ def copy_mzidtotsvconverter( metadata, dest_root_folder, bucket_source, bucket_o
             if blob_stdout is not None:
                 bucket_source.copy_blob(blob_stdout, bucket_destination, mzidtotsvconverter_stdout_rename)
             else:
-                print('- Unable to copy stdout')
+                print('----> Unable to copy stdout')
         
         # mzidtotsvconverter_output_length = len(metadata['calls']['proteomics_msgfplus.mzidtotsvconverter'][x]['outputs'])
         # print(' (number of outputs:', mzidtotsvconverter_output_length, ')')
 
-        if 'commandLine' in metadata['calls']['proteomics_msgfplus.mzidtotsvconverter'][x]:
-            # Get and upload the command
-            mzidtotsvconverter_cmd = metadata['calls']['proteomics_msgfplus.mzidtotsvconverter'][x]["commandLine"]
-            # print('The Command line:\n', mzidtotsvconverter_cmd)
-            cmd_local_file_name = 'command-mzidtotsvconverter.txt'
-            cmd_blob_filename = mzidtotsvconverter_output + cmd_local_file_name
-            print('- Command: ', cmd_blob_filename)
-            upload_string(bucket_destination, mzidtotsvconverter_cmd, cmd_blob_filename)
+        write_command_to_file(metadata = metadata,
+                              x = x,
+                              method = "proteomics_msgfplus.mzidtotsvconverter",
+                              results_output = mzidtotsvconverter_output,
+                              bucket_destination = bucket_destination,
+                              file_name = "mzidtotsvconverter-command.log")
 
         executionStatus = remove_gsbucket( metadata['calls']['proteomics_msgfplus.mzidtotsvconverter'][x]['executionStatus'], bucket_origin )
         if executionStatus == 'Done':
@@ -633,7 +681,6 @@ def copy_wrapper_pp( metadata, dest_root_folder, bucket_source, bucket_origin, b
         wrapper_method = "proteomics_msgfplus.wrapper_pp_ptm"
         if not wrapper_method in metadata['calls']:
             wrapper_method = "proteomics_msgfplus.wrapper_pp_ptm_inference"
-
     else:
         print("+ Global proteomics experiment results")
         wrapper_method = "proteomics_msgfplus.wrapper_pp"
@@ -656,18 +703,17 @@ def copy_wrapper_pp( metadata, dest_root_folder, bucket_source, bucket_origin, b
             if blob_stdout is not None:
                 bucket_source.copy_blob(blob_stdout, bucket_destination, wrapper_results_stdout_rename)
             else:
-                print('- Unable to copy stdout')
+                print('----> Unable to copy stdout')
         
         # wrapper_results_output_length = len(metadata['calls'][wrapper_method][x]['outputs'])
         # print('(Number of outputs:', wrapper_results_output_length, ')')
-        
-        if 'commandLine' in metadata['calls'][wrapper_method][x]:
-            wrapper_results_cmd = metadata['calls'][wrapper_method][x]["commandLine"]
-            # print('The Command line:\n', wrapper_results_cmd)
-            cmd_local_file_name = 'command-wrapper_results.txt'
-            cmd_blob_filename = wrapper_results_output + cmd_local_file_name
-            print('- Command: ', cmd_blob_filename)
-            upload_string(bucket_destination, wrapper_results_cmd, cmd_blob_filename)
+
+        write_command_to_file(metadata = metadata,
+                              x = x,
+                              method = wrapper_method,
+                              results_output = wrapper_results_output,
+                              bucket_destination = bucket_destination,
+                              file_name = "wrapper_results-command.log")
 
         executionStatus = remove_gsbucket( metadata['calls'][wrapper_method][x]['executionStatus'], bucket_origin )
         if executionStatus == 'Done':
@@ -708,19 +754,17 @@ def copy_maxquant( metadata, dest_root_folder, bucket_source, bucket_origin, buc
             if blob_stdout is not None:
                 bucket_source.copy_blob(blob_stdout, bucket_destination, maxquant_stdout_rename)
             else:
-                print('- Unable to copy stdout')
+                print('----> Unable to copy stdout')
         
         # maxquant_output_length = len(metadata['calls']['proteomics_maxquant.maxquant'][x]['outputs'])
         # print(' (number of outputs:', maxquant_output_length, ')')
 
-        if 'commandLine' in metadata['calls']['proteomics_maxquant.maxquant'][x]:
-            # Get and upload the command
-            maxquant_cmd = metadata['calls']['proteomics_maxquant.maxquant'][x]["commandLine"]
-            # print('The Command line:\n', maxquant_cmd)
-            cmd_local_file_name = 'command-maxquant.txt'
-            cmd_blob_filename = maxquant_output + cmd_local_file_name
-            print('- Command: ', cmd_blob_filename, '\n')
-            upload_string(bucket_destination, maxquant_cmd, cmd_blob_filename)
+        write_command_to_file(metadata = metadata,
+                              x = x,
+                              method = "proteomics_maxquant.maxquant",
+                              results_output = maxquant_output,
+                              bucket_destination = bucket_destination,
+                              file_name = "maxquant-command.log")
 
         executionStatus = remove_gsbucket( metadata['calls']['proteomics_maxquant.maxquant'][x]['executionStatus'], bucket_origin )
         if executionStatus == 'Done':
