@@ -61,7 +61,7 @@ task maxquant {
 
         echo "STEP 4: Run Maxquant"
 
-        mono /app/maxquant1660/bin/MaxQuantCmd.exe ${mq_parameters}
+        mono /app/MaxQuant/bin/MaxQuantCmd.exe ${mq_parameters}
     }
 
     output {
