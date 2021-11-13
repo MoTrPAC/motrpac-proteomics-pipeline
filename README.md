@@ -12,7 +12,7 @@ It currently supports two quantification methods: TMT & Label-Free.
 
 **MSGF+ workflow schema**
 
-![MSGFPLUS Schema](schema_msgfplus.png)
+![MSGFPLUS Schema](schemas/schema_msgfplus.png)
 
 
 # Utilities

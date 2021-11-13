@@ -69,7 +69,9 @@ def main():
     print("+ Proteomics experiment: ", experiment_prot)
     
     # Load maxquant template file
-    template = os.path.join(os.getcwd(), dirname, 'templates/config-maxquant.json')
+    template = os.path.join(os.getcwd(), dirname,
+                            '../inputs/templates/config-maxquant.json'
+                            )
     
     # READ TEMPLATE CONFIG FILE
     print('+ Template json: ', template)

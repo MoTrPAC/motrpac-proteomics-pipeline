@@ -1,3 +1,0 @@
-[submodule "config/generator"]
-	path = config/generator
-	url = git@github.com:MoTrPAC/cloudproteo-config-generator.git
