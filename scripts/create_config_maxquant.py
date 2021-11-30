@@ -96,17 +96,15 @@ def main():
     print("+ Docker repository: ", docker_repository)
 
     # Provide relative to the script
-    dirname = os.path.dirname(__file__)
+    dirname = Path(os.path.abspath(os.path.dirname(__file__))).parent
 
     # Validate proteomics experiment
     print("+ Proteomics experiment: ", experiment_prot)
 
     # Load maxquant template file
     template = os.path.join(
-        os.getcwd(), dirname,
-        '../inputs/templates/config-maxquant.json'
+        dirname, f'inputs/templates/maxquant/config-maxquant.json'
     )
-
     # READ TEMPLATE CONFIG FILE
     print('+ Template json: ', template)
 
