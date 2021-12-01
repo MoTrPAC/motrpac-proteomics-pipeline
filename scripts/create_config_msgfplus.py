@@ -52,8 +52,10 @@ def create_arguments():
         '--experiment_prot',
         required=True,
         type=str,
-        help='Proteomics experiment. One of the following: pr-tmt, ph-tmt, '
-        'ub-tmt, ac-tmt, pr-lf, ph-lf, ub-lf, ac-lf  ',
+        help='Proteomics experiment. One of the following: '
+        'pr-tmt11, ph-tmt11, ub-tmt11, ac-tmt11, '
+        'pr-tmt16, ph-tmt16, ub-tmt16, ac-tmt16, '
+        'pr-lf, ph-lf, ub-lf, ac-lf',
     )
     parser.add_argument(
         '-b',
