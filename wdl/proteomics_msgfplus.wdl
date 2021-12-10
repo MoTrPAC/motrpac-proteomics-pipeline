@@ -18,9 +18,9 @@ workflow proteomics_msgfplus {
     Int masic_ramGB
     String masic_docker
     String? masic_disk
-    
+
     File masic_parameter
-    
+
     # MSCONVERT
     Int msconvert_ncpu
     Int msconvert_ramGB
@@ -77,115 +77,172 @@ workflow proteomics_msgfplus {
     File? sd_samples
     File? pr_ratio #prioritized inference
 
-    call msgf_sequences { input:
-        ncpu = msgf_ncpu,
-        ramGB = msgf_ramGB,
-        docker = msgf_docker,
-        disks = msgf_disk,
-        fasta_sequence_db = fasta_sequence_db
+    call msgf_sequences {
+        input:
+            ncpu = msgf_ncpu,
+            ramGB = msgf_ramGB,
+            docker = msgf_docker,
+            disks = msgf_disk,
+            fasta_sequence_db = fasta_sequence_db
     }
 
     scatter (i in range(length(raw_file))) {
-        call masic { input:
-            ncpu = masic_ncpu,
-            ramGB = masic_ramGB,
-            docker = masic_docker,
-            disks = masic_disk,
-            raw_file = raw_file[i],
-            masic_parameter = masic_parameter,
-            quant_method = quant_method
+        call masic {
+            input:
+                ncpu = masic_ncpu,
+                ramGB = masic_ramGB,
+                docker = masic_docker,
+                disks = masic_disk,
+                raw_file = raw_file[i],
+                masic_parameter = masic_parameter,
+                quant_method = quant_method
         }
 
-        call msconvert { input:
-            ncpu = msconvert_ncpu,
-            ramGB = msconvert_ramGB,
-            docker = msconvert_docker,
-            disks = msconvert_disk,
-            raw_file = raw_file[i]
+        call msconvert {
+            input:
+                ncpu = msconvert_ncpu,
+                ramGB = msconvert_ramGB,
+                docker = msconvert_docker,
+                disks = msconvert_disk,
+                raw_file = raw_file[i]
         }
 
-        call msgf_tryptic { input:
-            ncpu = msgf_ncpu,
-            ramGB = msgf_ramGB,
-            docker = msgf_docker,
-            disks = msgf_disk,
-            input_mzml = msconvert.mzml,
-            fasta_sequence_db = fasta_sequence_db,
-            sequencedb_files = msgf_sequences.sequencedb_files,
-            msgf_tryptic_mzrefinery_parameter = msgf_tryptic_mzrefinery_parameter
-        }
-
-        call msconvert_mzrefiner { input:
-            ncpu = msconvert_ncpu,
-            ramGB = msconvert_ramGB,
-            docker = msconvert_docker,
-            disks = msconvert_disk,
-            input_mzml = msconvert.mzml,
-            input_mzid = msgf_tryptic.mzid
-        }
-
-        call ppm_errorcharter { input:
-            ncpu = msconvert_ncpu,
-            ramGB = msconvert_ramGB,
-            docker = ppm_errorcharter_docker,
-            disks = msconvert_disk,
-            input_fixed_mzml = msconvert_mzrefiner.mzml_fixed,
-            input_mzid = msgf_tryptic.mzid
-        }
-
-        call msgf_identification { input:
-            ncpu = msgf_ncpu,
-            ramGB = msgf_ramGB,
-            docker = msgf_docker,
-            disks = msgf_disk,
-            input_fixed_mzml = msconvert_mzrefiner.mzml_fixed,
-            fasta_sequence_db = fasta_sequence_db,
-            sequencedb_files = msgf_sequences.sequencedb_files,
-            msgf_identification_parameter = msgf_identification_parameter
-        }
-
-        call mzidtotsvconverter { input:
-            ncpu = msconvert_ncpu,
-            ramGB = msconvert_ramGB,
-            docker = mzidtotsvconverter_docker,
-            disks = msconvert_disk,
-            input_mzid_final = msgf_identification.mzid_final
-        }
-
-        call phrp { input:
-            ncpu = phrp_ncpu,
-            ramGB = phrp_ramGB,
-            docker = phrp_docker,
-            disks = phrp_disk,
-            isPTM = isPTM,
-            input_tsv = mzidtotsvconverter.tsv,
-            phrp_parameter_m = phrp_parameter_m,
-            phrp_parameter_t = phrp_parameter_t,
-            phrp_parameter_n = phrp_parameter_n,
-            phrp_synpvalue = phrp_synpvalue,
-            phrp_synprob = phrp_synprob,
-            input_revcat_fasta = msgf_sequences.revcat_fasta
-        }
-
-        if(isPTM){
-            call ascore { input:
-                ncpu = ascore_ncpu,
-                ramGB = ascore_ramGB,
-                docker = ascore_docker,
-                disks = ascore_disk,
-                input_syn = phrp.syn,
-                input_fixed_mzml = msgf_identification.rename_mzmlfixed,
-                ascore_parameter_p = ascore_parameter_p,
+        call msgf_tryptic {
+            input:
+                ncpu = msgf_ncpu,
+                ramGB = msgf_ramGB,
+                docker = msgf_docker,
+                disks = msgf_disk,
+                input_mzml = msconvert.mzml,
                 fasta_sequence_db = fasta_sequence_db,
-                syn_ModSummary = phrp.syn_ModSummary
+                sequencedb_files = msgf_sequences.sequencedb_files,
+                msgf_tryptic_mzrefinery_parameter = msgf_tryptic_mzrefinery_parameter
+        }
+
+        call msconvert_mzrefiner {
+            input:
+                ncpu = msconvert_ncpu,
+                ramGB = msconvert_ramGB,
+                docker = msconvert_docker,
+                disks = msconvert_disk,
+                input_mzml = msconvert.mzml,
+                input_mzid = msgf_tryptic.mzid
+        }
+
+        call ppm_errorcharter {
+            input:
+                ncpu = msconvert_ncpu,
+                ramGB = msconvert_ramGB,
+                docker = ppm_errorcharter_docker,
+                disks = msconvert_disk,
+                input_fixed_mzml = msconvert_mzrefiner.mzml_fixed,
+                input_mzid = msgf_tryptic.mzid
+        }
+
+        call msgf_identification {
+            input:
+                ncpu = msgf_ncpu,
+                ramGB = msgf_ramGB,
+                docker = msgf_docker,
+                disks = msgf_disk,
+                input_fixed_mzml = msconvert_mzrefiner.mzml_fixed,
+                fasta_sequence_db = fasta_sequence_db,
+                sequencedb_files = msgf_sequences.sequencedb_files,
+                msgf_identification_parameter = msgf_identification_parameter
+        }
+
+        call mzidtotsvconverter {
+            input:
+                ncpu = msconvert_ncpu,
+                ramGB = msconvert_ramGB,
+                docker = mzidtotsvconverter_docker,
+                disks = msconvert_disk,
+                input_mzid_final = msgf_identification.mzid_final
+        }
+
+        call phrp {
+            input:
+                ncpu = phrp_ncpu,
+                ramGB = phrp_ramGB,
+                docker = phrp_docker,
+                disks = phrp_disk,
+                isPTM = isPTM,
+                input_tsv = mzidtotsvconverter.tsv,
+                phrp_parameter_m = phrp_parameter_m,
+                phrp_parameter_t = phrp_parameter_t,
+                phrp_parameter_n = phrp_parameter_n,
+                phrp_synpvalue = phrp_synpvalue,
+                phrp_synprob = phrp_synprob,
+                input_revcat_fasta = msgf_sequences.revcat_fasta
+        }
+
+        if(isPTM) {
+            call ascore {
+                input:
+                    ncpu = ascore_ncpu,
+                    ramGB = ascore_ramGB,
+                    docker = ascore_docker,
+                    disks = ascore_disk,
+                    input_syn = phrp.syn,
+                    input_fixed_mzml = msgf_identification.rename_mzmlfixed,
+                    ascore_parameter_p = ascore_parameter_p,
+                    fasta_sequence_db = fasta_sequence_db,
+                    syn_ModSummary = phrp.syn_ModSummary
             }
         }
     }
 
-    if(isPTM){
-        if(quant_method == "tmt"){
-            if(defined(pr_ratio)){
-                call wrapper_pp_ptm_inference { input:
+    if(isPTM) {
+        if(quant_method == "tmt") {
+            if(defined(pr_ratio)) {
+                call wrapper_pp_ptm_inference {
+                    input:
+                        ncpu = wrapper_ncpu,
+                        ramGB = wrapper_ramGB,
+                        docker = wrapper_docker,
+                        disks = wrapper_disk,
+                        fractions =  sd_fractions,
+                        references = sd_references,
+                        samples = sd_samples,
+                        fasta_sequence_db = fasta_sequence_db,
+                        ptm_type = ptm_type,
+                        ReporterIons_output_file = masic.ReporterIons_output_file,
+                        SICstats_output_file = masic.SICstats_output_file,
+                        syn = phrp.syn,
+                        syn_ascore = ascore.syn_ascore,
+                        results_prefix = results_prefix,
+                        pr_ratio = pr_ratio,
+                        species = species
+                }
+            }
+
+            if(!defined(pr_ratio)) {
+                call wrapper_pp_ptm {
+                    input:
+                        ncpu = wrapper_ncpu,
+                        ramGB = wrapper_ramGB,
+                        docker = wrapper_docker,
+                        disks = wrapper_disk,
+                        fractions =  sd_fractions,
+                        references = sd_references,
+                        samples = sd_samples,
+                        fasta_sequence_db = fasta_sequence_db,
+                        ptm_type = ptm_type,
+                        ReporterIons_output_file = masic.ReporterIons_output_file,
+                        SICstats_output_file = masic.SICstats_output_file,
+                        syn = phrp.syn,
+                        syn_ascore = ascore.syn_ascore,
+                        results_prefix = results_prefix,
+                        species = species
+                }
+            }
+        }
+    }
+
+    if(!isPTM) {
+        if(quant_method == "tmt") {
+            call wrapper_pp {
+                input:
                     ncpu = wrapper_ncpu,
                     ramGB = wrapper_ramGB,
                     docker = wrapper_docker,
@@ -194,55 +251,11 @@ workflow proteomics_msgfplus {
                     references = sd_references,
                     samples = sd_samples,
                     fasta_sequence_db = fasta_sequence_db,
-                    ptm_type = ptm_type,
                     ReporterIons_output_file = masic.ReporterIons_output_file,
                     SICstats_output_file = masic.SICstats_output_file,
                     syn = phrp.syn,
-                    syn_ascore = ascore.syn_ascore,
-                    results_prefix = results_prefix,
-                    pr_ratio = pr_ratio,
-                    species = species
-                }
-            }
-
-            if(!defined(pr_ratio)){
-                call wrapper_pp_ptm { input:
-                    ncpu = wrapper_ncpu,
-                    ramGB = wrapper_ramGB,
-                    docker = wrapper_docker,
-                    disks = wrapper_disk,
-                    fractions =  sd_fractions,
-                    references = sd_references,
-                    samples = sd_samples,
-                    fasta_sequence_db = fasta_sequence_db,
-                    ptm_type = ptm_type,
-                    ReporterIons_output_file = masic.ReporterIons_output_file,
-                    SICstats_output_file = masic.SICstats_output_file,
-                    syn = phrp.syn,
-                    syn_ascore = ascore.syn_ascore,
                     results_prefix = results_prefix,
                     species = species
-                }
-            }
-        }
-    }
-
-    if(!isPTM){
-        if(quant_method == "tmt"){
-            call wrapper_pp { input:
-                ncpu = wrapper_ncpu,
-                ramGB = wrapper_ramGB,
-                docker = wrapper_docker,
-                disks = wrapper_disk,
-                fractions =  sd_fractions,
-                references = sd_references,
-                samples = sd_samples,
-                fasta_sequence_db = fasta_sequence_db,
-                ReporterIons_output_file = masic.ReporterIons_output_file,
-                SICstats_output_file = masic.SICstats_output_file,
-                syn = phrp.syn,
-                results_prefix = results_prefix,
-                species = species
             }
         }
     }
@@ -259,7 +272,7 @@ task msgf_sequences {
 
     String seq_file_id = basename(fasta_sequence_db, ".fasta")
     # String output_full = output_msgf_tryptic + "/" + output_name
-    
+
     command {
         echo "PRE-STEP: MSGF+ READY TO PROCES SEQUENCE DB"
 
@@ -343,7 +356,7 @@ task msconvert {
     File raw_file
 
     String sample_id = basename(raw_file, ".raw")
-    
+
     command {
         echo "STEP 1: MSCONVERT - - - - - - - -"
 
@@ -379,12 +392,12 @@ task msgf_tryptic {
     # Create new output destination
     String sample_id = basename(input_mzml, ".mzML")
     String seq_file_id = basename(fasta_sequence_db, ".fasta")
-    
+
     command {
         echo "STEP 2: MS-GF+ TRYPTIC SEARCH"
         ls
         echo "COPY FILES - - - - - - - - - -"
-        
+
         cp ${sequencedb_files} .
         ls
         tar xvzf ${sequencedb_files}
@@ -397,7 +410,7 @@ task msgf_tryptic {
         -o output_msgf_tryptic/${sample_id}.mzid \
         -d ${seq_file_id}.fasta \
         -conf ${msgf_tryptic_mzrefinery_parameter}
-        
+
         echo "LIST RESULTS - - - - - - - - - -"
         ls
         echo "ADIOS - - - - - - - - - -"
@@ -427,7 +440,7 @@ task msconvert_mzrefiner {
     String sample_id = basename(input_mzml, ".mzML")
     String output_name = sample_id + "_FIXED.mzML"
     #String output_full = output_msconvert_mzrefiner + "/" + output_name
-    
+
     command {
         echo "STEP 3A: MSCONVERT-MZREFINE"
 
@@ -459,7 +472,7 @@ task ppm_errorcharter {
     File input_mzid
 
     String sample_id = basename(input_mzid, ".mzid")
-    
+
     command {
         echo "STEP 3B: PPMErrorCharter"
 
@@ -500,18 +513,18 @@ task msgf_identification {
     # Create new output destination
     String sample_id = basename(input_fixed_mzml, "_FIXED.mzML")
     String seq_file_id = basename(fasta_sequence_db, ".fasta")
-    
+
     command {
         echo "STEP 4: MS-GF+ IDENTIFICATION SEARCH - - - - - - - - - -"
         ls
         echo "COPY FILES - - - - - - - - - -"
-        
+
         cp ${sequencedb_files} .
         ls
         tar xvzf ${sequencedb_files}
 
         echo "Rename _FIXED.mzML to .mzML"
-    
+
         cp ${input_fixed_mzml} ${sample_id}.mzML
 
         echo "(check that it worked)"
@@ -557,7 +570,7 @@ task mzidtotsvconverter {
     String sample_id = basename(input_mzid_final, "_final.mzid")
     String output_name = sample_id + ".tsv"
     #String output_full = output_mzidtotsvconverter + "/" + output_name
-    
+
     command {
         echo "STEP 5:: MzidToTSVConverter"
 
@@ -586,7 +599,7 @@ task phrp {
     String? disks
 
     Boolean isPTM
-    
+
     File input_tsv
     String sample_id = basename(input_tsv, ".tsv")
 
@@ -595,13 +608,13 @@ task phrp {
     File phrp_parameter_n
     Float phrp_synpvalue
     Float phrp_synprob
-    
+
     # Create new output destination
     String phrp_logfile = sample_id + "_PHRP_LogFile.txt"
     #String output_logfile = output_phrp + "/" + phrp_logfile
 
     File input_revcat_fasta
-    
+
     command {
         echo "STEP 6: PeptideHitResultsProcRunner"
 
@@ -644,7 +657,7 @@ task ascore {
     Int ramGB
     String docker
     String? disks
-    
+
     File input_syn
     File input_fixed_mzml
 
@@ -653,11 +666,11 @@ task ascore {
     File fasta_sequence_db
 
     File syn_ModSummary
-    
+
     # Create new output destination
     String seq_file_id = basename(input_syn, "_syn.txt")
     String ascore_logfile = "${seq_file_id}_ascore_LogFile.txt"
-    
+
     command {
         echo "STEP 7 (PTM): Ascore"
 
@@ -932,7 +945,7 @@ task wrapper_pp {
         cp ${samples} study_design
         cp ${fractions} study_design
         cp ${references} study_design
-        
+
         Rscript /app/pp.R \
         -i final_output_phrp \
         -j final_output_masic \

@@ -16,14 +16,15 @@ workflow proteomics_maxquant {
     String mq_docker
     String? mq_disk
 
-    call maxquant { input:
-        ncpu = mq_ncpu,
-        ramGB = mq_ramGB,
-        docker = mq_docker,
-        disks = mq_disk,
-        mq_parameters = mq_parameters,
-        fasta_sequence_db = fasta_sequence_db,
-        raw_file = raw_file
+    call maxquant {
+        input:
+            ncpu = mq_ncpu,
+            ramGB = mq_ramGB,
+            docker = mq_docker,
+            disks = mq_disk,
+            mq_parameters = mq_parameters,
+            fasta_sequence_db = fasta_sequence_db,
+            raw_file = raw_file
     }
 }
 
