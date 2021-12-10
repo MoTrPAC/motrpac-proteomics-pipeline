@@ -16,22 +16,22 @@ workflow proteomics_msgfplus {
     # MASIC
     Int masic_ncpu
     Int masic_ramGB
+    Int? masic_disk
     String masic_docker
-    String? masic_disk
 
     File masic_parameter
 
     # MSCONVERT
     Int msconvert_ncpu
     Int msconvert_ramGB
+    Int? msconvert_disk
     String msconvert_docker
-    String? msconvert_disk
 
     # MS-GF+ SHARED OPTIONS
     Int msgf_ncpu
     Int msgf_ramGB
+    Int? msgf_disk
     String msgf_docker
-    String? msgf_disk
     File fasta_sequence_db
 
     # MS-GF+ TRYPTIC
@@ -49,8 +49,8 @@ workflow proteomics_msgfplus {
     # PHRP
     Int phrp_ncpu
     Int phrp_ramGB
+    Int? phrp_disk
     String phrp_docker
-    String? phrp_disk
 
     File phrp_parameter_m
     File phrp_parameter_t
@@ -61,17 +61,18 @@ workflow proteomics_msgfplus {
     # ASCORE (ONLY PTMs)
     Boolean isPTM
     String? ptm_type
+
     Int? ascore_ncpu
     Int? ascore_ramGB
-    String? ascore_docker
-    String? ascore_disk
+    Int? ascore_disk
     File? ascore_parameter_p
+    String ascore_docker
 
     # WRAPPER (PlexedPiper)
     Int? wrapper_ncpu
     Int? wrapper_ramGB
-    String? wrapper_docker
-    String? wrapper_disk
+    Int? wrapper_disk
+    String wrapper_docker
     File? sd_fractions
     File? sd_references
     File? sd_samples
@@ -266,7 +267,7 @@ task msgf_sequences {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
 
     File fasta_sequence_db
 
@@ -295,7 +296,7 @@ task msgf_sequences {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }
 
@@ -305,7 +306,7 @@ task masic {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
     File raw_file
     File masic_parameter
     String quant_method
@@ -344,7 +345,7 @@ task masic {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }
 
@@ -352,7 +353,7 @@ task msconvert {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
     File raw_file
 
     String sample_id = basename(raw_file, ".raw")
@@ -374,7 +375,7 @@ task msconvert {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }
 
@@ -382,7 +383,7 @@ task msgf_tryptic {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
 
     File input_mzml
     File fasta_sequence_db
@@ -424,7 +425,7 @@ task msgf_tryptic {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }
 
@@ -432,7 +433,7 @@ task msconvert_mzrefiner {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
     File input_mzml
     File input_mzid
 
@@ -459,7 +460,7 @@ task msconvert_mzrefiner {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }
 
@@ -467,7 +468,7 @@ task ppm_errorcharter {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
     File input_fixed_mzml
     File input_mzid
 
@@ -494,7 +495,7 @@ task ppm_errorcharter {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }
 
@@ -503,7 +504,7 @@ task msgf_identification {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
 
     File input_fixed_mzml
     File fasta_sequence_db
@@ -555,7 +556,7 @@ task msgf_identification {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }
 
@@ -563,7 +564,7 @@ task mzidtotsvconverter {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
     File input_mzid_final
 
     # Create new output destination
@@ -588,7 +589,7 @@ task mzidtotsvconverter {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }
 
@@ -596,7 +597,7 @@ task phrp {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
 
     Boolean isPTM
 
@@ -648,7 +649,7 @@ task phrp {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks, "local-disk 100 SSD"])
+        disks: select_first(["local-disk ${disks} HDD", "local-disk 100 SSD"])
     }
 }
 
@@ -656,7 +657,7 @@ task ascore {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
 
     File input_syn
     File input_fixed_mzml
@@ -697,7 +698,7 @@ task ascore {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }
 
@@ -705,7 +706,7 @@ task wrapper_pp_ptm {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
 
     File samples
     File fractions
@@ -793,7 +794,7 @@ task wrapper_pp_ptm {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }
 
@@ -801,7 +802,7 @@ task wrapper_pp_ptm_inference {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
 
     File samples
     File fractions
@@ -893,7 +894,7 @@ task wrapper_pp_ptm_inference {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }
 
@@ -901,7 +902,7 @@ task wrapper_pp {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
     String results_prefix
     String species
 
@@ -973,6 +974,6 @@ task wrapper_pp {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks: select_first([disks,"local-disk 100 SSD"])
+        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }

@@ -2,7 +2,7 @@
   "proteomics_maxquant.mq_ncpu": "Int",
   "proteomics_maxquant.fasta_sequence_db": "File",
   "proteomics_maxquant.raw_file": "Array[File] (optional, default = [])",
-  "proteomics_maxquant.mq_disk": "String? (optional)",
+  "proteomics_maxquant.mq_disk": "Int? (optional)",
   "proteomics_maxquant.mq_docker": "String",
   "proteomics_maxquant.mq_parameters": "File",
   "proteomics_maxquant.mq_ramGB": "Int"
