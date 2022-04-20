@@ -166,7 +166,7 @@ class MSGFConfigurationGenerator:
         self.bucket_name_config = self.args.bucket_name_config.rstrip('/')
 
         parameters_msgf = self.args.parameters_msgf.rstrip('/')
-        self.parameters_msgf = f'gs://{self.bucket_name_config}/f{parameters_msgf}'
+        self.parameters_msgf = f'gs://{self.bucket_name_config}/{parameters_msgf}'
 
         study_design_location = self.args.study_design_location.rstrip('/')
         self.study_design_location = (
