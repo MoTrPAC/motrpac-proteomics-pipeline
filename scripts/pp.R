@@ -11,7 +11,7 @@ suppressPackageStartupMessages(suppressWarnings(library(dplyr)))
 suppressPackageStartupMessages(suppressWarnings(library(PlexedPiper)))
 
 option_list <- list(
-  make_option(c("-p", "--proteomics"), type="character", default=NULL, 
+  make_option(c("-p", "--proteomics_experiment"), type="character", default=NULL, 
               help="Proteomics experiment: pr/ph/ub/ac", metavar="character"),
   make_option(c("-i", "--msgf_output_folder"), type="character", default=NULL, 
               help="MSGF output folder", metavar="character"),
@@ -37,6 +37,8 @@ option_list <- list(
               That is, the greedy set cover algorithm is only applied to the set 
               of proteins not in the prior. If TRUE, the algorithm is applied 
               to the prior and non-prior sets separately before combining", metavar="logical"),
+  make_option(c("-n", "--results_prefix"), type="character", default=NULL, 
+              help="Prefix for the result output files", metavar="character"),
   make_option(c("-o", "--plexedpiper_output_folder"), type="character", default=NULL, 
               help="PlexedPiper output folder (Crosstabs)", metavar="character"),
   make_option(c("-v", "--save_env"), type="character", default=FALSE, 
@@ -47,7 +49,7 @@ opt_parser <- OptionParser(option_list = option_list)
 opt <- parse_args(opt_parser)
 message("+ PlexedPiper version: ", paste(packageVersion("PlexedPiper")))
 
-if (is.null(opt$proteomics) | 
+if (is.null(opt$proteomics_experiment) | 
     is.null(opt$msgf_output_folder) | 
     is.null(opt$masic_output_folder) | 
     is.null(opt$fasta_file) |
@@ -62,9 +64,9 @@ if (is.null(opt$proteomics) |
 
 
 # Let's make easy debugging
-proteomics <- opt$proteomics
+proteomics_experiment <- opt$proteomics_experiment
 study_design_folder <- opt$study_design_folder
-pp_output_name_prefix <- opt$pp_output_name_prefix
+results_prefix <- opt$results_prefix
 study_design_folder <- opt$study_design_folder
 msgf_output_folder <- opt$msgf_output_folder
 ascore_output_folder <- opt$ascore_output_folder
@@ -93,14 +95,14 @@ get_date <- function(){
 }
 
 date2print <- get_date()
-if(is.null(pp_output_name_prefix)){
-  pp_output_name_prefix <- paste0("MSGFPLUS_", toupper(proteomics),"-", date2print)  
+if(is.null(results_prefix)){
+  results_prefix <- paste0("MSGFPLUS_", toupper(proteomics_experiment),"-", date2print)  
 }else{
-  pp_output_name_prefix <- paste0(pp_output_name_prefix, "-", date2print)
+  results_prefix <- paste0(results_prefix, "-", date2print)
 }
 
 if(!is.null(plexedpiper_global_results_ratio)){
-  pp_output_name_prefix <- paste0(pp_output_name_prefix,"-ip")
+  results_prefix <- paste0(results_prefix,"-ip")
 }
 
 # Pipeline call
@@ -108,7 +110,7 @@ results <- run_plexedpiper(msgf_output_folder = msgf_output_folder,
                            fasta_file  = fasta_file,
                            masic_output_folder = masic_output_folder,
                            ascore_output_folder = ascore_output_folder,
-                           proteomics = tolower(proteomics),
+                           proteomics = tolower(proteomics_experiment),
                            study_design_folder = study_design_folder,
                            species = species,
                            annotation = annotation,
@@ -116,7 +118,7 @@ results <- run_plexedpiper(msgf_output_folder = msgf_output_folder,
                            refine_prior = refine_prior,
                            unique_only = unique_only,
                            output_folder = plexedpiper_output_folder,
-                           file_prefix = pp_output_name_prefix,
+                           file_prefix = results_prefix,
                            write_results_to_file = TRUE,
                            save_env = save_env,
                            return_results = TRUE,
