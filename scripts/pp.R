@@ -101,13 +101,14 @@ if(is.null(results_prefix)){
   results_prefix <- paste0(results_prefix, "-", date2print)
 }
 
-# Check file name of the file
-if(plexedpiper_global_results_ratio == "no-prior"){
-  plexedpiper_global_results_ratio = NULL
-}
 
 if(!is.null(plexedpiper_global_results_ratio)){
-  results_prefix <- paste0(results_prefix,"-ip")
+  # Check file name of the file
+  if(plexedpiper_global_results_ratio == "no-prior"){
+    plexedpiper_global_results_ratio = NULL
+  }else{
+    results_prefix <- paste0(results_prefix,"-ip")
+  }
 }
 
 # Pipeline call
