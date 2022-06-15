@@ -12,7 +12,7 @@
   "proteomics_msgfplus.masic_parameter": "gcp-parameters/TMT11_LTQ-FT_10ppm_ReporterTol0.003Da_2017-03-17.xml",
   "proteomics_msgfplus.masic_ramGB": 15,
   "proteomics_msgfplus.msconvert_disk": "local-disk 20 HDD",
-  "proteomics_msgfplus.msconvert_docker": "docker.io/chambm/pwiz-skyline-i-agree-to-the-vendor-licenses:latest",
+  "proteomics_msgfplus.msconvert_docker": "docker.io/chambm/pwiz-skyline-i-agree-to-the-vendor-licenses:3.0.22132-3ed3ab4",
   "proteomics_msgfplus.msconvert_ncpu": 4,
   "proteomics_msgfplus.msconvert_ramGB": 15,
   "proteomics_msgfplus.msgf_disk": "local-disk 20 HDD",
@@ -33,8 +33,7 @@
   "proteomics_msgfplus.phrp_synpvalue": 0.02,
   "proteomics_msgfplus.ppm_errorcharter_docker": "docker-repository/prot-ppmerror:v1.2.7632", 
   "proteomics_msgfplus.pr_ratio": "File",
-  "proteomics_msgfplus.ptm_type": "ac",
-  "proteomics_msgfplus.quant_method": "label-free|tmt",
+  "proteomics_msgfplus.quant_method": "tmt",
   "proteomics_msgfplus.raw_file": ["gcp-raw/file1.raw", "gcp-raw/file2.raw"],
   "proteomics_msgfplus.results_prefix": "String",
   "proteomics_msgfplus.species": "String",
@@ -42,7 +41,11 @@
   "proteomics_msgfplus.sd_references": "gcp-study-design/references.txt",
   "proteomics_msgfplus.sd_samples": "gcp-study-design/samples.txt",
   "proteomics_msgfplus.wrapper_disk": "local-disk 80 HDD",
-  "proteomics_msgfplus.wrapper_docker": "docker-repository/prot-plexedpiper:v0.3.1",
+  "proteomics_msgfplus.wrapper_docker": "docker-repository/prot-plexedpiper:v0.3.5",
   "proteomics_msgfplus.wrapper_ncpu": 8,
-  "proteomics_msgfplus.wrapper_ramGB": 60
+  "proteomics_msgfplus.wrapper_ramGB": 60,
+  "proteomics_msgfplus.proteomics_experiment": "String",
+  "proteomics_msgfplus.refine_prior": true,
+  "proteomics_msgfplus.sequence_db_name": "String",
+  "proteomics_msgfplus.unique_only": false
 }

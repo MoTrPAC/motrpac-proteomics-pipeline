@@ -1,5 +1,8 @@
 # Dockerfile PlexedPiper
-FROM rocker/tidyverse:4.0.2
+FROM rocker/r-ubuntu:18.04
+
+RUN mkdir -p /app/
+COPY scripts/pp.R /app/
 
 # hadolint ignore=DL3008
 RUN apt-get update \
@@ -8,5 +11,6 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # hadolint ignore=DL3059
-RUN R -e 'remotes::install_github("PNNL-Comp-Mass-Spec/PlexedPiper@0.3.1", build_vignettes = FALSE)' \
+RUN R -e 'install.packages("devtools")' \
+    && R -e 'remotes::install_github("PNNL-Comp-Mass-Spec/PlexedPiper@0.3.5", build_vignettes = FALSE)' \
     && R -e 'install.packages("optparse")'

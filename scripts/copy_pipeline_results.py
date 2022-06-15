@@ -674,16 +674,8 @@ def copy_wrapper_pp( metadata, dest_root_folder, bucket_source, bucket_origin, b
     is_ptm = metadata['inputs']['proteomics_msgfplus.isPTM']
 
     wrapper_method = ""
-
-    if is_ptm:
-        ptm_type = metadata['inputs']['proteomics_msgfplus.isPTM']
-        print("+ PTM proteomics experiment: ", ptm_type)
-        wrapper_method = "proteomics_msgfplus.wrapper_pp_ptm"
-        if not wrapper_method in metadata['calls']:
-            wrapper_method = "proteomics_msgfplus.wrapper_pp_ptm_inference"
-    else:
-        print("+ Global proteomics experiment results")
-        wrapper_method = "proteomics_msgfplus.wrapper_pp"
+    print("+ Proteomics experiment results")
+    wrapper_method = "proteomics_msgfplus.wrapper_pp"
 
     if not wrapper_method in metadata['calls']:
         print('(-) Plexed piper not available')

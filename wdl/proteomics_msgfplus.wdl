@@ -2,7 +2,7 @@ workflow proteomics_msgfplus {
 
     meta {
         author: "David Jimenez-Morales"
-        version: "v0.3.1"
+        version: "v0.4.0"
     }
 
     # Quantification method
@@ -33,6 +33,7 @@ workflow proteomics_msgfplus {
     String msgf_docker
     String? msgf_disk
     File fasta_sequence_db
+    String sequence_db_name
 
     # MS-GF+ TRYPTIC
     File msgf_tryptic_mzrefinery_parameter
@@ -60,7 +61,7 @@ workflow proteomics_msgfplus {
 
     # ASCORE (ONLY PTMs)
     Boolean isPTM
-    String? ptm_type
+    String? proteomics_experiment
     Int? ascore_ncpu
     Int? ascore_ramGB
     String? ascore_docker
@@ -76,6 +77,8 @@ workflow proteomics_msgfplus {
     File? sd_references
     File? sd_samples
     File? pr_ratio #prioritized inference
+    Boolean? unique_only # Unique peptides only (default FALSE)
+    Boolean? refine_prior # Refine prior probabilities (default TRUE)
 
     call msgf_sequences { input:
         ncpu = msgf_ncpu,
@@ -157,7 +160,6 @@ workflow proteomics_msgfplus {
             ramGB = phrp_ramGB,
             docker = phrp_docker,
             disks = phrp_disk,
-            isPTM = isPTM,
             input_tsv = mzidtotsvconverter.tsv,
             phrp_parameter_m = phrp_parameter_m,
             phrp_parameter_t = phrp_parameter_t,
@@ -182,68 +184,28 @@ workflow proteomics_msgfplus {
         }
     }
 
-    if(isPTM){
-        if(quant_method == "tmt"){
-            if(defined(pr_ratio)){
-                call wrapper_pp_ptm_inference { input:
-                    ncpu = wrapper_ncpu,
-                    ramGB = wrapper_ramGB,
-                    docker = wrapper_docker,
-                    disks = wrapper_disk,
-                    fractions =  sd_fractions,
-                    references = sd_references,
-                    samples = sd_samples,
-                    fasta_sequence_db = fasta_sequence_db,
-                    ptm_type = ptm_type,
-                    ReporterIons_output_file = masic.ReporterIons_output_file,
-                    SICstats_output_file = masic.SICstats_output_file,
-                    syn = phrp.syn,
-                    syn_ascore = ascore.syn_ascore,
-                    results_prefix = results_prefix,
-                    pr_ratio = pr_ratio,
-                    species = species
-                }
-            }
-
-            if(!defined(pr_ratio)){
-                call wrapper_pp_ptm { input:
-                    ncpu = wrapper_ncpu,
-                    ramGB = wrapper_ramGB,
-                    docker = wrapper_docker,
-                    disks = wrapper_disk,
-                    fractions =  sd_fractions,
-                    references = sd_references,
-                    samples = sd_samples,
-                    fasta_sequence_db = fasta_sequence_db,
-                    ptm_type = ptm_type,
-                    ReporterIons_output_file = masic.ReporterIons_output_file,
-                    SICstats_output_file = masic.SICstats_output_file,
-                    syn = phrp.syn,
-                    syn_ascore = ascore.syn_ascore,
-                    results_prefix = results_prefix,
-                    species = species
-                }
-            }
-        }
-    }
-
-    if(!isPTM){
-        if(quant_method == "tmt"){
-            call wrapper_pp { input:
-                ncpu = wrapper_ncpu,
-                ramGB = wrapper_ramGB,
-                docker = wrapper_docker,
-                disks = wrapper_disk,
-                fractions =  sd_fractions,
-                references = sd_references,
-                samples = sd_samples,
-                fasta_sequence_db = fasta_sequence_db,
-                ReporterIons_output_file = masic.ReporterIons_output_file,
-                SICstats_output_file = masic.SICstats_output_file,
-                syn = phrp.syn,
-                results_prefix = results_prefix,
-                species = species
-            }
+    if(quant_method == "tmt"){
+        call wrapper_pp { input:
+            ncpu = wrapper_ncpu,
+            ramGB = wrapper_ramGB,
+            docker = wrapper_docker,
+            disks = wrapper_disk,
+            fractions =  sd_fractions,
+            references = sd_references,
+            samples = sd_samples,
+            fasta_sequence_db = fasta_sequence_db,
+            sequence_db_name = sequence_db_name,
+            proteomics_experiment = proteomics_experiment,
+            ReporterIons_output_file = masic.ReporterIons_output_file,
+            SICstats_output_file = masic.SICstats_output_file,
+            syn = phrp.syn,
+            syn_ascore = ascore.syn_ascore,
+            results_prefix = results_prefix,
+            pr_ratio = pr_ratio,
+            species = species,
+            unique_only = unique_only,
+            refine_prior = refine_prior,
+            isPTM = isPTM
         }
     }
 }
@@ -510,12 +472,9 @@ task msgf_identification {
         ls
         tar xvzf ${sequencedb_files}
 
-        echo "Rename _FIXED.mzML to .mzML"
+        echo "Rename *_FIXED.mzML to *.mzML"
     
         cp ${input_fixed_mzml} ${sample_id}.mzML
-
-        echo "(check that it worked)"
-        ls *.mzid
 
         echo "MSGF+ IDENTIFICATION BEGINs - - - - - - - - - -"
 
@@ -585,8 +544,6 @@ task phrp {
     String docker
     String? disks
 
-    Boolean isPTM
-    
     File input_tsv
     String sample_id = basename(input_tsv, ".tsv")
 
@@ -688,118 +645,28 @@ task ascore {
     }
 }
 
-task wrapper_pp_ptm {
+task wrapper_pp {
+    File? null
     Int ncpu
     Int ramGB
     String docker
     String? disks
+
+    Boolean isPTM
 
     File samples
     File fractions
     File references
 
     File fasta_sequence_db
+    String sequence_db_name
 
-    String ptm_type
-    String results_prefix
-    String species
-
-    # MASIC
-    Array[File?] ReporterIons_output_file = []
-    Array[File] SICstats_output_file = []
-
-    # #PHRP
-    Array[File] syn = []
-
-    # #ASCORE
-    Array[File?] syn_ascore = []
-
-    command {
-        echo "FINAL-STEP: COPY ALL THE FILES TO THE SAME PLACE"
-
-        echo "MASIC"
-
-        mkdir final_output_masic
-
-        cp ${sep=' ' ReporterIons_output_file} final_output_masic
-        cp ${sep=' ' SICstats_output_file} final_output_masic
-
-        tar -C final_output_masic -zcvf final_output_masic.tar.gz .
-
-        echo "PHRP"
-
-        mkdir final_output_phrp
-
-        cp ${sep=' ' syn} final_output_phrp
-
-        tar -C final_output_phrp -zcvf final_output_phrp.tar.gz .
-
-        echo "ASCORE"
-
-        mkdir final_output_ascore
-
-        cp ${sep=' ' syn_ascore} final_output_ascore
-
-        tar -C final_output_ascore -zcvf final_output_ascore.tar.gz .
-
-        echo "STUDY DESIGN FOLDER"
-
-        mkdir study_design
-
-        cp ${samples} study_design
-        cp ${fractions} study_design
-        cp ${references} study_design
-
-        Rscript /app/pp_ptm.R \
-        -p ${ptm_type} \
-        -i final_output_phrp \
-        -a final_output_ascore \
-        -j final_output_masic \
-        -f ${fasta_sequence_db} \
-        -s study_design \
-        -o output_plexedpiper \
-        -n ${results_prefix} \
-        -c "${species}"
-
-        echo "-------------------"
-        echo "End of PlexedPiper"
-        echo "List files"
-        ls
-        ls output_plexedpiper
-    }
-
-    output {
-        File final_output_masic_tar = "final_output_masic.tar.gz"
-        File final_output_phrp_tar = "final_output_phrp.tar.gz"
-        File final_output_ascore = "final_output_ascore.tar.gz"
-        File results_rii = glob("output_plexedpiper/*RII-peptide.txt")[0]
-        File results_ratio = glob("output_plexedpiper/*ratio.txt")[0]
-    }
-
-    runtime {
-        docker: "${docker}"
-        memory: "${ramGB} GB"
-        cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
-    }
-}
-
-task wrapper_pp_ptm_inference {
-    Int ncpu
-    Int ramGB
-    String docker
-    String? disks
-
-    File samples
-    File fractions
-    File references
-
-    File fasta_sequence_db
-
-    String ptm_type
+    String proteomics_experiment
     String results_prefix
     File? pr_ratio
     String species
+    Boolean unique_only
+    Boolean refine_prior
 
     # MASIC
     Array[File?] ReporterIons_output_file = []
@@ -831,34 +698,52 @@ task wrapper_pp_ptm_inference {
 
         tar -C final_output_phrp -zcvf final_output_phrp.tar.gz .
 
-        echo "ASCORE"
-
-        mkdir final_output_ascore
-
-        cp ${sep=' ' syn_ascore} final_output_ascore
-
-        tar -C final_output_ascore -zcvf final_output_ascore.tar.gz .
+        if ${isPTM}
+        then
+            echo "ASCORE"
+            mkdir final_output_ascore
+            cp ${sep=' ' syn_ascore} final_output_ascore
+            tar -C final_output_ascore -zcvf final_output_ascore.tar.gz .
+        fi
 
         echo "STUDY DESIGN FOLDER"
-
         mkdir study_design
 
         cp ${samples} study_design
         cp ${fractions} study_design
         cp ${references} study_design
 
-        Rscript /app/pp_ptm.R \
-        -p ${ptm_type} \
-        -i final_output_phrp \
-        -a final_output_ascore \
-        -j final_output_masic \
-        -f ${fasta_sequence_db} \
-        -s study_design \
-        -o output_plexedpiper \
-        -g ${pr_ratio} \
-        -n ${results_prefix} \
-        -c "${species}"
-
+        if ${isPTM}; then
+            
+            Rscript /app/pp.R \
+            -p ${proteomics_experiment} \
+            -i final_output_phrp \
+            -a final_output_ascore \
+            -j final_output_masic \
+            -f ${fasta_sequence_db} \
+            -d ${sequence_db_name} \
+            -s study_design \
+            -o output_plexedpiper \
+            -g ${default="no-prior" pr_ratio} \
+            -n ${results_prefix} \
+            -c "${species}" \
+            -u ${unique_only} \
+            -r ${refine_prior}
+        else
+            Rscript /app/pp.R \
+            -p ${proteomics_experiment} \
+            -i final_output_phrp \
+            -j final_output_masic \
+            -f ${fasta_sequence_db} \
+            -d ${sequence_db_name} \
+            -s study_design \
+            -o output_plexedpiper \
+            -n ${results_prefix} \
+            -c "${species}" \
+            -u ${unique_only} \
+            -r ${refine_prior}
+        fi
+        
         echo "-------------------"
         echo "End of PlexedPiper"
         echo "List files--------"
@@ -871,7 +756,7 @@ task wrapper_pp_ptm_inference {
     output {
         File final_output_masic_tar = "final_output_masic.tar.gz"
         File final_output_phrp_tar = "final_output_phrp.tar.gz"
-        File final_output_ascore = "final_output_ascore.tar.gz"
+        File? final_output_ascore = if (isPTM == true) then "final_output_ascore.tar.gz" else null
         File results_rii = glob("output_plexedpiper/*RII-peptide.txt")[0]
         File results_ratio = glob("output_plexedpiper/*ratio.txt")[0]
     }
@@ -881,85 +766,5 @@ task wrapper_pp_ptm_inference {
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
         disks : select_first([disks,"local-disk 100 SSD"])
-    }
-}
-
-task wrapper_pp {
-    Int ncpu
-    Int ramGB
-    String docker
-    String? disks
-    String results_prefix
-    String species
-
-    File samples
-    File fractions
-    File references
-
-    File fasta_sequence_db
-
-    # MASIC
-    Array[File?] ReporterIons_output_file = []
-    Array[File] SICstats_output_file = []
-
-    # #PHRP
-    Array[File] syn = []
-
-    command {
-        echo "FINAL-STEP: COPY ALL THE FILES TO THE SAME PLACE"
-
-        echo "MASIC"
-
-        mkdir final_output_masic
-
-        cp ${sep=' ' ReporterIons_output_file} final_output_masic
-        cp ${sep=' ' SICstats_output_file} final_output_masic
-
-        tar -C final_output_masic -zcvf final_output_masic.tar.gz .
-
-        echo "PHRP"
-
-        mkdir final_output_phrp
-
-        cp ${sep=' ' syn} final_output_phrp
-
-        tar -C final_output_phrp -zcvf final_output_phrp.tar.gz .
-
-        echo "STUDY DESIGN FOLDER"
-
-        mkdir study_design
-
-        cp ${samples} study_design
-        cp ${fractions} study_design
-        cp ${references} study_design
-        
-        Rscript /app/pp.R \
-        -i final_output_phrp \
-        -j final_output_masic \
-        -f ${fasta_sequence_db} \
-        -s study_design \
-        -o output_plexedpiper \
-        -n ${results_prefix} \
-        -c "${species}"
-
-        echo "-------------------"
-        echo "End of PlexedPiper"
-        echo "List files"
-        ls
-        ls output_plexedpiper
-    }
-
-    output {
-        File final_output_masic_tar = "final_output_masic.tar.gz"
-        File final_output_phrp_tar = "final_output_phrp.tar.gz"
-        File results_rii = glob("output_plexedpiper/*RII-peptide.txt")[0]
-        File results_ratio = glob("output_plexedpiper/*ratio.txt")[0]
-    }
-
-    runtime {
-        docker: "${docker}"
-        memory: "${ramGB} GB"
-        cpu: "${ncpu}"
-        disks: select_first([disks,"local-disk 100 SSD"])
     }
 }
