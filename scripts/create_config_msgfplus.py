@@ -11,10 +11,23 @@ warnings.filterwarnings(
     "ignore", "Your application has authenticated using end user credentials"
 )
 
+def proteomics_experiments():
+    """
+    List of supported proteomic experiments
+
+    :return: list of prot experiments
+    """
+    prot_exp = ["pr-tmt11", "pr-tmt16",
+                "ph-tmt11", "ph-tmt16"
+                "ub-tmt11", "ub-tmt16",
+                "ac-tmt11", "ac-tmt16",
+                "pr-lf", "ph-lf", "ub-lf", "ac-lf"]
+
+    return(prot_exp)
 
 def create_arguments():
     """
-    Creates argument parser instance with all the valid commands for the CloudProteo CLI
+    Creates argument parser instance with all the valid commands for the OmicsPipelines CLI
 
     :return: ArgumentParser object with valid options
     :rtype: argparse.ArgumentParser
@@ -52,10 +65,8 @@ def create_arguments():
         '--experiment_prot',
         required=True,
         type=str,
-        help='Proteomics experiment. One of the following: '
-        'pr-tmt11, ph-tmt11, ub-tmt11, ac-tmt11, '
-        'pr-tmt16, ph-tmt16, ub-tmt16, ac-tmt16, '
-        'pr-lf, ph-lf, ub-lf, ac-lf',
+        help='Proteomics experiment. '
+             f'One of the following: {" ".join(str(x) for x in proteomics_experiments())}'
     )
     parser.add_argument(
         '-b',
@@ -133,7 +144,33 @@ def create_arguments():
         required=True,
         type=str,
         help='Species: scientific name for the specie to which the samples belong',
-    )
+    ),
+    parser.add_argument(
+        '-u',
+        '--unique_only',
+        required=True,
+        type=bool,
+        help='Whether to discard peptides that match multiple proteins in the parsimonious protein inference step.'
+        'It would ignore arguments -g and -r. Default: FALSE',
+    ),
+    parser.add_argument(
+        '-i',
+        '--refine_prior',
+        required=True,
+        type=bool,
+        help='Peptides are allowed to match multiple proteins in the prior. '
+             'That is, the greedy set cover algorithm is only applied to the set '
+             'of proteins not in the prior. If TRUE (default), the algorithm is applied '
+             'to the prior and non-prior sets separately before combining',
+    ),
+    parser.add_argument(
+        '-a',
+        '--sequence_db_name',
+        required=True,
+        type=str,
+        help='Name of Protein database (either RefSeq or UniProt)',
+    ),
+
     return parser
 
 
@@ -237,7 +274,7 @@ class MSGFConfigurationGenerator:
             raise ValueError(
                 f'The value {self.experiment_prot} passed in for the <experiment_prot> '
                 f'argument is not supported. Only one of the following are expected: '
-                f'pr-tmt, pr-lf, ph-tmt, ph-lf, ub-tmt, ub-lf, ac-tmt, ac-lf'
+                f'{" ".join(str(x) for x in proteomics_experiments())}'
             ) from FileNotFoundError
 
         self.json_data = json_data
@@ -294,7 +331,7 @@ class MSGFConfigurationGenerator:
         if self.results_prefix is not None:
             self.json_data['proteomics_msgfplus.results_prefix'] = self.results_prefix
         else:
-            self.json_data['proteomics_msgfplus.results_prefix'] = "cloudproteo-results"
+            self.json_data['proteomics_msgfplus.results_prefix'] = "omicspipelines-prot-results"
 
         raw_files = self.load_and_process_raw_files()
 
@@ -330,7 +367,7 @@ class MSGFConfigurationGenerator:
         if self.results_prefix is not None:
             self.json_data['proteomics_msgfplus.results_prefix'] = self.results_prefix
         else:
-            self.json_data['proteomics_msgfplus.results_prefix'] = "cloudproteo-results"
+            self.json_data['proteomics_msgfplus.results_prefix'] = "omicspipelines-prot-results"
 
         # PTM ONLY: Prioritized inference
         if self.pr_ratio is not None:
@@ -350,9 +387,15 @@ class MSGFConfigurationGenerator:
             )
 
         self.json_data['proteomics_msgfplus.species'] = self.species
-
+        self.json_data['proteomics_msgfplus.refine_prior'] = self.refine_prior
+        self.json_data['proteomics_msgfplus.unique_only'] = self.unique_only
+        self.json_data['proteomics_msgfplus.sequence_db_name'] = self.sequence_db_name
+        # Extract proteomics experiment (pr/ph/ub/ac) from experiment_prot
+        experiment_split = self.experiment_prot.split('-')
+        proteomics_experiment = experiment_split[0]
+        self.json_data['proteomics_msgfplus.proteomics_experiment'] = proteomics_experiment
+        # print('self.proteomics_experiment = ', self.proteomics_experiment)
         return self.json_data
-
 
 def main():
     # PROCESS ARGUMENTS
