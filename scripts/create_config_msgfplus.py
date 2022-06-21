@@ -207,7 +207,7 @@ class MSGFConfigurationGenerator:
 
         study_design_location = self.args.study_design_location.rstrip('/')
         self.study_design_location = (
-            f'gs://{self.bucket_name_config}/{study_design_location}'
+            f'gs://{self.bucket_name_raw}/{study_design_location}'
         )
 
         sequence_db = self.args.sequence_db.rstrip('/')
@@ -257,7 +257,7 @@ class MSGFConfigurationGenerator:
 
         # Relative path to script from directory
         dirname = Path(os.path.abspath(os.path.dirname(__file__))).parent
-        print(f'{dirname=}')
+        #print(f'{dirname=}')
 
         print("+ Proteomics experiment: ", self.experiment_prot)
         self.template = os.path.join(
