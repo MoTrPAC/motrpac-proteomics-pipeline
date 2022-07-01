@@ -27,7 +27,7 @@ option_list <- list(
   make_option(c("-t", "--tmt"),
               type="character",
               help="tmt11 or tmt16",
-              metavar="character"),
+              metavar="character")
 )
 
 opt_parser <- OptionParser(option_list = option_list)
