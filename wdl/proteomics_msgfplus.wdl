@@ -2,7 +2,7 @@ workflow proteomics_msgfplus {
 
     meta {
         author: "David Jimenez-Morales"
-        version: "v0.3.1"
+        version: "v0.4.0"
     }
 
     # Quantification method
@@ -16,23 +16,24 @@ workflow proteomics_msgfplus {
     # MASIC
     Int masic_ncpu
     Int masic_ramGB
-    Int? masic_disk
     String masic_docker
-
+    String? masic_disk
+    
     File masic_parameter
-
+    
     # MSCONVERT
     Int msconvert_ncpu
     Int msconvert_ramGB
-    Int? msconvert_disk
     String msconvert_docker
+    String? msconvert_disk
 
     # MS-GF+ SHARED OPTIONS
     Int msgf_ncpu
     Int msgf_ramGB
-    Int? msgf_disk
     String msgf_docker
+    String? msgf_disk
     File fasta_sequence_db
+    String sequence_db_name
 
     # MS-GF+ TRYPTIC
     File msgf_tryptic_mzrefinery_parameter
@@ -49,8 +50,8 @@ workflow proteomics_msgfplus {
     # PHRP
     Int phrp_ncpu
     Int phrp_ramGB
-    Int? phrp_disk
     String phrp_docker
+    String? phrp_disk
 
     File phrp_parameter_m
     File phrp_parameter_t
@@ -60,204 +61,151 @@ workflow proteomics_msgfplus {
 
     # ASCORE (ONLY PTMs)
     Boolean isPTM
-    String? ptm_type
-
+    String? proteomics_experiment
     Int? ascore_ncpu
     Int? ascore_ramGB
-    Int? ascore_disk
+    String? ascore_docker
+    String? ascore_disk
     File? ascore_parameter_p
-    String ascore_docker
 
     # WRAPPER (PlexedPiper)
     Int? wrapper_ncpu
     Int? wrapper_ramGB
-    Int? wrapper_disk
-    String wrapper_docker
+    String? wrapper_docker
+    String? wrapper_disk
     File? sd_fractions
     File? sd_references
     File? sd_samples
     File? pr_ratio #prioritized inference
+    Boolean? unique_only # Unique peptides only (default FALSE)
+    Boolean? refine_prior # Refine prior probabilities (default TRUE)
 
-    call msgf_sequences {
-        input:
+    call msgf_sequences { input:
+        ncpu = msgf_ncpu,
+        ramGB = msgf_ramGB,
+        docker = msgf_docker,
+        disks = msgf_disk,
+        fasta_sequence_db = fasta_sequence_db
+    }
+
+    scatter (i in range(length(raw_file))) {
+        call masic { input:
+            ncpu = masic_ncpu,
+            ramGB = masic_ramGB,
+            docker = masic_docker,
+            disks = masic_disk,
+            raw_file = raw_file[i],
+            masic_parameter = masic_parameter,
+            quant_method = quant_method
+        }
+
+        call msconvert { input:
+            ncpu = msconvert_ncpu,
+            ramGB = msconvert_ramGB,
+            docker = msconvert_docker,
+            disks = msconvert_disk,
+            raw_file = raw_file[i]
+        }
+
+        call msgf_tryptic { input:
             ncpu = msgf_ncpu,
             ramGB = msgf_ramGB,
             docker = msgf_docker,
             disks = msgf_disk,
-            fasta_sequence_db = fasta_sequence_db
-    }
-
-    scatter (i in range(length(raw_file))) {
-        call masic {
-            input:
-                ncpu = masic_ncpu,
-                ramGB = masic_ramGB,
-                docker = masic_docker,
-                disks = masic_disk,
-                raw_file = raw_file[i],
-                masic_parameter = masic_parameter,
-                quant_method = quant_method
+            input_mzml = msconvert.mzml,
+            fasta_sequence_db = fasta_sequence_db,
+            sequencedb_files = msgf_sequences.sequencedb_files,
+            msgf_tryptic_mzrefinery_parameter = msgf_tryptic_mzrefinery_parameter
         }
 
-        call msconvert {
-            input:
-                ncpu = msconvert_ncpu,
-                ramGB = msconvert_ramGB,
-                docker = msconvert_docker,
-                disks = msconvert_disk,
-                raw_file = raw_file[i]
+        call msconvert_mzrefiner { input:
+            ncpu = msconvert_ncpu,
+            ramGB = msconvert_ramGB,
+            docker = msconvert_docker,
+            disks = msconvert_disk,
+            input_mzml = msconvert.mzml,
+            input_mzid = msgf_tryptic.mzid
         }
 
-        call msgf_tryptic {
-            input:
-                ncpu = msgf_ncpu,
-                ramGB = msgf_ramGB,
-                docker = msgf_docker,
-                disks = msgf_disk,
-                input_mzml = msconvert.mzml,
+        call ppm_errorcharter { input:
+            ncpu = msconvert_ncpu,
+            ramGB = msconvert_ramGB,
+            docker = ppm_errorcharter_docker,
+            disks = msconvert_disk,
+            input_fixed_mzml = msconvert_mzrefiner.mzml_fixed,
+            input_mzid = msgf_tryptic.mzid
+        }
+
+        call msgf_identification { input:
+            ncpu = msgf_ncpu,
+            ramGB = msgf_ramGB,
+            docker = msgf_docker,
+            disks = msgf_disk,
+            input_fixed_mzml = msconvert_mzrefiner.mzml_fixed,
+            fasta_sequence_db = fasta_sequence_db,
+            sequencedb_files = msgf_sequences.sequencedb_files,
+            msgf_identification_parameter = msgf_identification_parameter
+        }
+
+        call mzidtotsvconverter { input:
+            ncpu = msconvert_ncpu,
+            ramGB = msconvert_ramGB,
+            docker = mzidtotsvconverter_docker,
+            disks = msconvert_disk,
+            input_mzid_final = msgf_identification.mzid_final
+        }
+
+        call phrp { input:
+            ncpu = phrp_ncpu,
+            ramGB = phrp_ramGB,
+            docker = phrp_docker,
+            disks = phrp_disk,
+            input_tsv = mzidtotsvconverter.tsv,
+            phrp_parameter_m = phrp_parameter_m,
+            phrp_parameter_t = phrp_parameter_t,
+            phrp_parameter_n = phrp_parameter_n,
+            phrp_synpvalue = phrp_synpvalue,
+            phrp_synprob = phrp_synprob,
+            input_revcat_fasta = msgf_sequences.revcat_fasta
+        }
+
+        if(isPTM){
+            call ascore { input:
+                ncpu = ascore_ncpu,
+                ramGB = ascore_ramGB,
+                docker = ascore_docker,
+                disks = ascore_disk,
+                input_syn = phrp.syn,
+                input_fixed_mzml = msgf_identification.rename_mzmlfixed,
+                ascore_parameter_p = ascore_parameter_p,
                 fasta_sequence_db = fasta_sequence_db,
-                sequencedb_files = msgf_sequences.sequencedb_files,
-                msgf_tryptic_mzrefinery_parameter = msgf_tryptic_mzrefinery_parameter
-        }
-
-        call msconvert_mzrefiner {
-            input:
-                ncpu = msconvert_ncpu,
-                ramGB = msconvert_ramGB,
-                docker = msconvert_docker,
-                disks = msconvert_disk,
-                input_mzml = msconvert.mzml,
-                input_mzid = msgf_tryptic.mzid
-        }
-
-        call ppm_errorcharter {
-            input:
-                ncpu = msconvert_ncpu,
-                ramGB = msconvert_ramGB,
-                docker = ppm_errorcharter_docker,
-                disks = msconvert_disk,
-                input_fixed_mzml = msconvert_mzrefiner.mzml_fixed,
-                input_mzid = msgf_tryptic.mzid
-        }
-
-        call msgf_identification {
-            input:
-                ncpu = msgf_ncpu,
-                ramGB = msgf_ramGB,
-                docker = msgf_docker,
-                disks = msgf_disk,
-                input_fixed_mzml = msconvert_mzrefiner.mzml_fixed,
-                fasta_sequence_db = fasta_sequence_db,
-                sequencedb_files = msgf_sequences.sequencedb_files,
-                msgf_identification_parameter = msgf_identification_parameter
-        }
-
-        call mzidtotsvconverter {
-            input:
-                ncpu = msconvert_ncpu,
-                ramGB = msconvert_ramGB,
-                docker = mzidtotsvconverter_docker,
-                disks = msconvert_disk,
-                input_mzid_final = msgf_identification.mzid_final
-        }
-
-        call phrp {
-            input:
-                ncpu = phrp_ncpu,
-                ramGB = phrp_ramGB,
-                docker = phrp_docker,
-                disks = phrp_disk,
-                isPTM = isPTM,
-                input_tsv = mzidtotsvconverter.tsv,
-                phrp_parameter_m = phrp_parameter_m,
-                phrp_parameter_t = phrp_parameter_t,
-                phrp_parameter_n = phrp_parameter_n,
-                phrp_synpvalue = phrp_synpvalue,
-                phrp_synprob = phrp_synprob,
-                input_revcat_fasta = msgf_sequences.revcat_fasta
-        }
-
-        if(isPTM) {
-            call ascore {
-                input:
-                    ncpu = ascore_ncpu,
-                    ramGB = ascore_ramGB,
-                    docker = ascore_docker,
-                    disks = ascore_disk,
-                    input_syn = phrp.syn,
-                    input_fixed_mzml = msgf_identification.rename_mzmlfixed,
-                    ascore_parameter_p = ascore_parameter_p,
-                    fasta_sequence_db = fasta_sequence_db,
-                    syn_ModSummary = phrp.syn_ModSummary
+                syn_ModSummary = phrp.syn_ModSummary
             }
         }
     }
 
-    if(isPTM) {
-        if(quant_method == "tmt") {
-            if(defined(pr_ratio)) {
-                call wrapper_pp_ptm_inference {
-                    input:
-                        ncpu = wrapper_ncpu,
-                        ramGB = wrapper_ramGB,
-                        docker = wrapper_docker,
-                        disks = wrapper_disk,
-                        fractions =  sd_fractions,
-                        references = sd_references,
-                        samples = sd_samples,
-                        fasta_sequence_db = fasta_sequence_db,
-                        ptm_type = ptm_type,
-                        ReporterIons_output_file = masic.ReporterIons_output_file,
-                        SICstats_output_file = masic.SICstats_output_file,
-                        syn = phrp.syn,
-                        syn_ascore = ascore.syn_ascore,
-                        results_prefix = results_prefix,
-                        pr_ratio = pr_ratio,
-                        species = species
-                }
-            }
-
-            if(!defined(pr_ratio)) {
-                call wrapper_pp_ptm {
-                    input:
-                        ncpu = wrapper_ncpu,
-                        ramGB = wrapper_ramGB,
-                        docker = wrapper_docker,
-                        disks = wrapper_disk,
-                        fractions =  sd_fractions,
-                        references = sd_references,
-                        samples = sd_samples,
-                        fasta_sequence_db = fasta_sequence_db,
-                        ptm_type = ptm_type,
-                        ReporterIons_output_file = masic.ReporterIons_output_file,
-                        SICstats_output_file = masic.SICstats_output_file,
-                        syn = phrp.syn,
-                        syn_ascore = ascore.syn_ascore,
-                        results_prefix = results_prefix,
-                        species = species
-                }
-            }
-        }
-    }
-
-    if(!isPTM) {
-        if(quant_method == "tmt") {
-            call wrapper_pp {
-                input:
-                    ncpu = wrapper_ncpu,
-                    ramGB = wrapper_ramGB,
-                    docker = wrapper_docker,
-                    disks = wrapper_disk,
-                    fractions =  sd_fractions,
-                    references = sd_references,
-                    samples = sd_samples,
-                    fasta_sequence_db = fasta_sequence_db,
-                    ReporterIons_output_file = masic.ReporterIons_output_file,
-                    SICstats_output_file = masic.SICstats_output_file,
-                    syn = phrp.syn,
-                    results_prefix = results_prefix,
-                    species = species
-            }
+    if(quant_method == "tmt"){
+        call wrapper_pp { input:
+            ncpu = wrapper_ncpu,
+            ramGB = wrapper_ramGB,
+            docker = wrapper_docker,
+            disks = wrapper_disk,
+            fractions =  sd_fractions,
+            references = sd_references,
+            samples = sd_samples,
+            fasta_sequence_db = fasta_sequence_db,
+            sequence_db_name = sequence_db_name,
+            proteomics_experiment = proteomics_experiment,
+            ReporterIons_output_file = masic.ReporterIons_output_file,
+            SICstats_output_file = masic.SICstats_output_file,
+            syn = phrp.syn,
+            syn_ascore = ascore.syn_ascore,
+            results_prefix = results_prefix,
+            pr_ratio = pr_ratio,
+            species = species,
+            unique_only = unique_only,
+            refine_prior = refine_prior,
+            isPTM = isPTM
         }
     }
 }
@@ -267,13 +215,13 @@ task msgf_sequences {
     Int ncpu
     Int ramGB
     String docker
-    Int? disks
+    String? disks
 
     File fasta_sequence_db
 
     String seq_file_id = basename(fasta_sequence_db, ".fasta")
     # String output_full = output_msgf_tryptic + "/" + output_name
-
+    
     command {
         echo "PRE-STEP: MSGF+ READY TO PROCES SEQUENCE DB"
 
@@ -296,7 +244,7 @@ task msgf_sequences {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
+        disks : select_first([disks,"local-disk 100 SSD"])
     }
 }
 
@@ -306,7 +254,7 @@ task masic {
     Int ncpu
     Int ramGB
     String docker
-    Int? disks
+    String? disks
     File raw_file
     File masic_parameter
     String quant_method
@@ -345,7 +293,7 @@ task masic {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
+        disks : select_first([disks,"local-disk 100 SSD"])
     }
 }
 
@@ -353,11 +301,11 @@ task msconvert {
     Int ncpu
     Int ramGB
     String docker
-    Int? disks
+    String? disks
     File raw_file
 
     String sample_id = basename(raw_file, ".raw")
-
+    
     command {
         echo "STEP 1: MSCONVERT - - - - - - - -"
 
@@ -375,7 +323,7 @@ task msconvert {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
+        disks : select_first([disks,"local-disk 100 SSD"])
     }
 }
 
@@ -383,7 +331,7 @@ task msgf_tryptic {
     Int ncpu
     Int ramGB
     String docker
-    Int? disks
+    String? disks
 
     File input_mzml
     File fasta_sequence_db
@@ -393,12 +341,12 @@ task msgf_tryptic {
     # Create new output destination
     String sample_id = basename(input_mzml, ".mzML")
     String seq_file_id = basename(fasta_sequence_db, ".fasta")
-
+    
     command {
         echo "STEP 2: MS-GF+ TRYPTIC SEARCH"
         ls
         echo "COPY FILES - - - - - - - - - -"
-
+        
         cp ${sequencedb_files} .
         ls
         tar xvzf ${sequencedb_files}
@@ -411,7 +359,7 @@ task msgf_tryptic {
         -o output_msgf_tryptic/${sample_id}.mzid \
         -d ${seq_file_id}.fasta \
         -conf ${msgf_tryptic_mzrefinery_parameter}
-
+        
         echo "LIST RESULTS - - - - - - - - - -"
         ls
         echo "ADIOS - - - - - - - - - -"
@@ -425,7 +373,7 @@ task msgf_tryptic {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
+        disks : select_first([disks,"local-disk 100 SSD"])
     }
 }
 
@@ -433,7 +381,7 @@ task msconvert_mzrefiner {
     Int ncpu
     Int ramGB
     String docker
-    Int? disks
+    String? disks
     File input_mzml
     File input_mzid
 
@@ -441,7 +389,7 @@ task msconvert_mzrefiner {
     String sample_id = basename(input_mzml, ".mzML")
     String output_name = sample_id + "_FIXED.mzML"
     #String output_full = output_msconvert_mzrefiner + "/" + output_name
-
+    
     command {
         echo "STEP 3A: MSCONVERT-MZREFINE"
 
@@ -460,7 +408,7 @@ task msconvert_mzrefiner {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
+        disks : select_first([disks,"local-disk 100 SSD"])
     }
 }
 
@@ -468,12 +416,12 @@ task ppm_errorcharter {
     Int ncpu
     Int ramGB
     String docker
-    Int? disks
+    String? disks
     File input_fixed_mzml
     File input_mzid
 
     String sample_id = basename(input_mzid, ".mzid")
-
+    
     command {
         echo "STEP 3B: PPMErrorCharter"
 
@@ -495,7 +443,7 @@ task ppm_errorcharter {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
+        disks : select_first([disks,"local-disk 100 SSD"])
     }
 }
 
@@ -504,7 +452,7 @@ task msgf_identification {
     Int ncpu
     Int ramGB
     String docker
-    Int? disks
+    String? disks
 
     File input_fixed_mzml
     File fasta_sequence_db
@@ -514,22 +462,19 @@ task msgf_identification {
     # Create new output destination
     String sample_id = basename(input_fixed_mzml, "_FIXED.mzML")
     String seq_file_id = basename(fasta_sequence_db, ".fasta")
-
+    
     command {
         echo "STEP 4: MS-GF+ IDENTIFICATION SEARCH - - - - - - - - - -"
         ls
         echo "COPY FILES - - - - - - - - - -"
-
+        
         cp ${sequencedb_files} .
         ls
         tar xvzf ${sequencedb_files}
 
-        echo "Rename _FIXED.mzML to .mzML"
-
+        echo "Rename *_FIXED.mzML to *.mzML"
+    
         cp ${input_fixed_mzml} ${sample_id}.mzML
-
-        echo "(check that it worked)"
-        ls *.mzid
 
         echo "MSGF+ IDENTIFICATION BEGINs - - - - - - - - - -"
 
@@ -556,7 +501,7 @@ task msgf_identification {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
+        disks : select_first([disks,"local-disk 100 SSD"])
     }
 }
 
@@ -564,14 +509,14 @@ task mzidtotsvconverter {
     Int ncpu
     Int ramGB
     String docker
-    Int? disks
+    String? disks
     File input_mzid_final
 
     # Create new output destination
     String sample_id = basename(input_mzid_final, "_final.mzid")
     String output_name = sample_id + ".tsv"
     #String output_full = output_mzidtotsvconverter + "/" + output_name
-
+    
     command {
         echo "STEP 5:: MzidToTSVConverter"
 
@@ -589,7 +534,7 @@ task mzidtotsvconverter {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
+        disks : select_first([disks,"local-disk 100 SSD"])
     }
 }
 
@@ -597,9 +542,7 @@ task phrp {
     Int ncpu
     Int ramGB
     String docker
-    Int? disks
-
-    Boolean isPTM
+    String? disks
 
     File input_tsv
     String sample_id = basename(input_tsv, ".tsv")
@@ -609,13 +552,13 @@ task phrp {
     File phrp_parameter_n
     Float phrp_synpvalue
     Float phrp_synprob
-
+    
     # Create new output destination
     String phrp_logfile = sample_id + "_PHRP_LogFile.txt"
     #String output_logfile = output_phrp + "/" + phrp_logfile
 
     File input_revcat_fasta
-
+    
     command {
         echo "STEP 6: PeptideHitResultsProcRunner"
 
@@ -649,7 +592,7 @@ task phrp {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks: select_first(["local-disk ${disks} HDD", "local-disk 100 SSD"])
+        disks : select_first([disks, "local-disk 100 SSD"])
     }
 }
 
@@ -657,8 +600,8 @@ task ascore {
     Int ncpu
     Int ramGB
     String docker
-    Int? disks
-
+    String? disks
+    
     File input_syn
     File input_fixed_mzml
 
@@ -667,11 +610,11 @@ task ascore {
     File fasta_sequence_db
 
     File syn_ModSummary
-
+    
     # Create new output destination
     String seq_file_id = basename(input_syn, "_syn.txt")
     String ascore_logfile = "${seq_file_id}_ascore_LogFile.txt"
-
+    
     command {
         echo "STEP 7 (PTM): Ascore"
 
@@ -698,122 +641,32 @@ task ascore {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
+        disks : select_first([disks,"local-disk 100 SSD"])
     }
 }
 
-task wrapper_pp_ptm {
+task wrapper_pp {
+    File? null
     Int ncpu
     Int ramGB
     String docker
-    Int? disks
+    String? disks
+
+    Boolean isPTM
 
     File samples
     File fractions
     File references
 
     File fasta_sequence_db
+    String sequence_db_name
 
-    String ptm_type
-    String results_prefix
-    String species
-
-    # MASIC
-    Array[File?] ReporterIons_output_file = []
-    Array[File] SICstats_output_file = []
-
-    # #PHRP
-    Array[File] syn = []
-
-    # #ASCORE
-    Array[File?] syn_ascore = []
-
-    command {
-        echo "FINAL-STEP: COPY ALL THE FILES TO THE SAME PLACE"
-
-        echo "MASIC"
-
-        mkdir final_output_masic
-
-        cp ${sep=' ' ReporterIons_output_file} final_output_masic
-        cp ${sep=' ' SICstats_output_file} final_output_masic
-
-        tar -C final_output_masic -zcvf final_output_masic.tar.gz .
-
-        echo "PHRP"
-
-        mkdir final_output_phrp
-
-        cp ${sep=' ' syn} final_output_phrp
-
-        tar -C final_output_phrp -zcvf final_output_phrp.tar.gz .
-
-        echo "ASCORE"
-
-        mkdir final_output_ascore
-
-        cp ${sep=' ' syn_ascore} final_output_ascore
-
-        tar -C final_output_ascore -zcvf final_output_ascore.tar.gz .
-
-        echo "STUDY DESIGN FOLDER"
-
-        mkdir study_design
-
-        cp ${samples} study_design
-        cp ${fractions} study_design
-        cp ${references} study_design
-
-        Rscript /app/pp_ptm.R \
-        -p ${ptm_type} \
-        -i final_output_phrp \
-        -a final_output_ascore \
-        -j final_output_masic \
-        -f ${fasta_sequence_db} \
-        -s study_design \
-        -o output_plexedpiper \
-        -n ${results_prefix} \
-        -c "${species}"
-
-        echo "-------------------"
-        echo "End of PlexedPiper"
-        echo "List files"
-        ls
-        ls output_plexedpiper
-    }
-
-    output {
-        File final_output_masic_tar = "final_output_masic.tar.gz"
-        File final_output_phrp_tar = "final_output_phrp.tar.gz"
-        File final_output_ascore = "final_output_ascore.tar.gz"
-        File results_rii = glob("output_plexedpiper/*RII-peptide.txt")[0]
-        File results_ratio = glob("output_plexedpiper/*ratio.txt")[0]
-    }
-
-    runtime {
-        docker: "${docker}"
-        memory: "${ramGB} GB"
-        cpu: "${ncpu}"
-        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
-    }
-}
-
-task wrapper_pp_ptm_inference {
-    Int ncpu
-    Int ramGB
-    String docker
-    Int? disks
-
-    File samples
-    File fractions
-    File references
-
-    File fasta_sequence_db
-
-    String ptm_type
+    String proteomics_experiment
     String results_prefix
     File? pr_ratio
     String species
+    Boolean unique_only
+    Boolean refine_prior
 
     # MASIC
     Array[File?] ReporterIons_output_file = []
@@ -845,34 +698,52 @@ task wrapper_pp_ptm_inference {
 
         tar -C final_output_phrp -zcvf final_output_phrp.tar.gz .
 
-        echo "ASCORE"
-
-        mkdir final_output_ascore
-
-        cp ${sep=' ' syn_ascore} final_output_ascore
-
-        tar -C final_output_ascore -zcvf final_output_ascore.tar.gz .
+        if ${isPTM}
+        then
+            echo "ASCORE"
+            mkdir final_output_ascore
+            cp ${sep=' ' syn_ascore} final_output_ascore
+            tar -C final_output_ascore -zcvf final_output_ascore.tar.gz .
+        fi
 
         echo "STUDY DESIGN FOLDER"
-
         mkdir study_design
 
         cp ${samples} study_design
         cp ${fractions} study_design
         cp ${references} study_design
 
-        Rscript /app/pp_ptm.R \
-        -p ${ptm_type} \
-        -i final_output_phrp \
-        -a final_output_ascore \
-        -j final_output_masic \
-        -f ${fasta_sequence_db} \
-        -s study_design \
-        -o output_plexedpiper \
-        -g ${pr_ratio} \
-        -n ${results_prefix} \
-        -c "${species}"
-
+        if ${isPTM}; then
+            
+            Rscript /app/pp.R \
+            -p ${proteomics_experiment} \
+            -i final_output_phrp \
+            -a final_output_ascore \
+            -j final_output_masic \
+            -f ${fasta_sequence_db} \
+            -d ${sequence_db_name} \
+            -s study_design \
+            -o output_plexedpiper \
+            -g ${default="no-prior" pr_ratio} \
+            -n ${results_prefix} \
+            -c "${species}" \
+            -u ${unique_only} \
+            -r ${refine_prior}
+        else
+            Rscript /app/pp.R \
+            -p ${proteomics_experiment} \
+            -i final_output_phrp \
+            -j final_output_masic \
+            -f ${fasta_sequence_db} \
+            -d ${sequence_db_name} \
+            -s study_design \
+            -o output_plexedpiper \
+            -n ${results_prefix} \
+            -c "${species}" \
+            -u ${unique_only} \
+            -r ${refine_prior}
+        fi
+        
         echo "-------------------"
         echo "End of PlexedPiper"
         echo "List files--------"
@@ -885,7 +756,7 @@ task wrapper_pp_ptm_inference {
     output {
         File final_output_masic_tar = "final_output_masic.tar.gz"
         File final_output_phrp_tar = "final_output_phrp.tar.gz"
-        File final_output_ascore = "final_output_ascore.tar.gz"
+        File? final_output_ascore = if (isPTM == true) then "final_output_ascore.tar.gz" else null
         File results_rii = glob("output_plexedpiper/*RII-peptide.txt")[0]
         File results_ratio = glob("output_plexedpiper/*ratio.txt")[0]
     }
@@ -894,86 +765,6 @@ task wrapper_pp_ptm_inference {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
-    }
-}
-
-task wrapper_pp {
-    Int ncpu
-    Int ramGB
-    String docker
-    Int? disks
-    String results_prefix
-    String species
-
-    File samples
-    File fractions
-    File references
-
-    File fasta_sequence_db
-
-    # MASIC
-    Array[File?] ReporterIons_output_file = []
-    Array[File] SICstats_output_file = []
-
-    # #PHRP
-    Array[File] syn = []
-
-    command {
-        echo "FINAL-STEP: COPY ALL THE FILES TO THE SAME PLACE"
-
-        echo "MASIC"
-
-        mkdir final_output_masic
-
-        cp ${sep=' ' ReporterIons_output_file} final_output_masic
-        cp ${sep=' ' SICstats_output_file} final_output_masic
-
-        tar -C final_output_masic -zcvf final_output_masic.tar.gz .
-
-        echo "PHRP"
-
-        mkdir final_output_phrp
-
-        cp ${sep=' ' syn} final_output_phrp
-
-        tar -C final_output_phrp -zcvf final_output_phrp.tar.gz .
-
-        echo "STUDY DESIGN FOLDER"
-
-        mkdir study_design
-
-        cp ${samples} study_design
-        cp ${fractions} study_design
-        cp ${references} study_design
-
-        Rscript /app/pp.R \
-        -i final_output_phrp \
-        -j final_output_masic \
-        -f ${fasta_sequence_db} \
-        -s study_design \
-        -o output_plexedpiper \
-        -n ${results_prefix} \
-        -c "${species}"
-
-        echo "-------------------"
-        echo "End of PlexedPiper"
-        echo "List files"
-        ls
-        ls output_plexedpiper
-    }
-
-    output {
-        File final_output_masic_tar = "final_output_masic.tar.gz"
-        File final_output_phrp_tar = "final_output_phrp.tar.gz"
-        File results_rii = glob("output_plexedpiper/*RII-peptide.txt")[0]
-        File results_ratio = glob("output_plexedpiper/*ratio.txt")[0]
-    }
-
-    runtime {
-        docker: "${docker}"
-        memory: "${ramGB} GB"
-        cpu: "${ncpu}"
-        disks: select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
+        disks : select_first([disks,"local-disk 100 SSD"])
     }
 }
