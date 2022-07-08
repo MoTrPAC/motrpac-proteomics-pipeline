@@ -398,6 +398,11 @@ task msconvert_mzrefiner {
         --outfile output_msconvert_mzrefiner/${output_name} \
         --filter "mzRefiner ${input_mzid} thresholdValue=-1e-10 thresholdStep=10 maxSteps=2" \
         --zlib
+
+        # Check if the output_name exists. If it doesn't, create a copy of the input file with the output_name.
+        if [ ! -f output_msconvert_mzrefiner/${output_name} ]; then
+            cp ${input_mzml} output_msconvert_mzrefiner/${output_name}
+        fi
     }
 
     output {
