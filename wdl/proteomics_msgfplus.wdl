@@ -17,7 +17,7 @@ workflow proteomics_msgfplus {
     Int masic_ncpu
     Int masic_ramGB
     String masic_docker
-    String? masic_disk
+    Int? masic_disk
     
     File masic_parameter
     
@@ -25,13 +25,13 @@ workflow proteomics_msgfplus {
     Int msconvert_ncpu
     Int msconvert_ramGB
     String msconvert_docker
-    String? msconvert_disk
+    Int? msconvert_disk
 
     # MS-GF+ SHARED OPTIONS
     Int msgf_ncpu
     Int msgf_ramGB
     String msgf_docker
-    String? msgf_disk
+    Int? msgf_disk
     File fasta_sequence_db
     String sequence_db_name
 
@@ -51,7 +51,7 @@ workflow proteomics_msgfplus {
     Int phrp_ncpu
     Int phrp_ramGB
     String phrp_docker
-    String? phrp_disk
+    Int? phrp_disk
 
     File phrp_parameter_m
     File phrp_parameter_t
@@ -65,14 +65,14 @@ workflow proteomics_msgfplus {
     Int? ascore_ncpu
     Int? ascore_ramGB
     String? ascore_docker
-    String? ascore_disk
+    Int? ascore_disk
     File? ascore_parameter_p
 
     # WRAPPER (PlexedPiper)
     Int? wrapper_ncpu
     Int? wrapper_ramGB
     String? wrapper_docker
-    String? wrapper_disk
+    Int? wrapper_disk
     File? sd_fractions
     File? sd_references
     File? sd_samples
@@ -215,7 +215,7 @@ task msgf_sequences {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
 
     File fasta_sequence_db
 
@@ -244,7 +244,7 @@ task msgf_sequences {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks : select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }
 
@@ -254,7 +254,7 @@ task masic {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
     File raw_file
     File masic_parameter
     String quant_method
@@ -293,7 +293,7 @@ task masic {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks : select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }
 
@@ -301,7 +301,7 @@ task msconvert {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
     File raw_file
 
     String sample_id = basename(raw_file, ".raw")
@@ -323,7 +323,7 @@ task msconvert {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks : select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }
 
@@ -331,7 +331,7 @@ task msgf_tryptic {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
 
     File input_mzml
     File fasta_sequence_db
@@ -373,7 +373,7 @@ task msgf_tryptic {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks : select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }
 
@@ -381,7 +381,7 @@ task msconvert_mzrefiner {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
     File input_mzml
     File input_mzid
 
@@ -413,7 +413,7 @@ task msconvert_mzrefiner {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks : select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }
 
@@ -421,7 +421,7 @@ task ppm_errorcharter {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
     File input_fixed_mzml
     File input_mzid
 
@@ -448,7 +448,7 @@ task ppm_errorcharter {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks : select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }
 
@@ -457,7 +457,7 @@ task msgf_identification {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
 
     File input_fixed_mzml
     File fasta_sequence_db
@@ -506,7 +506,7 @@ task msgf_identification {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks : select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }
 
@@ -514,7 +514,7 @@ task mzidtotsvconverter {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
     File input_mzid_final
 
     # Create new output destination
@@ -539,7 +539,7 @@ task mzidtotsvconverter {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks : select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }
 
@@ -547,7 +547,7 @@ task phrp {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
 
     File input_tsv
     String sample_id = basename(input_tsv, ".tsv")
@@ -597,7 +597,7 @@ task phrp {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks, "local-disk 100 SSD"])
+        disks : select_first(["local-disk ${disks} HDD", "local-disk 100 SSD"])
     }
 }
 
@@ -605,7 +605,7 @@ task ascore {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
     
     File input_syn
     File input_fixed_mzml
@@ -646,7 +646,7 @@ task ascore {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks : select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }
 
@@ -655,7 +655,7 @@ task wrapper_pp {
     Int ncpu
     Int ramGB
     String docker
-    String? disks
+    Int? disks
 
     Boolean isPTM
 
@@ -770,6 +770,6 @@ task wrapper_pp {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks : select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }
