@@ -13,25 +13,26 @@ workflow proteomics_maxquant {
     # Docker details
     Int mq_ncpu
     Int mq_ramGB
+    Int? mq_disk
     String mq_docker
-    String? mq_disk
 
-    call maxquant { input:
-        ncpu = mq_ncpu,
-        ramGB = mq_ramGB,
-        docker = mq_docker,
-        disks = mq_disk,
-        mq_parameters = mq_parameters,
-        fasta_sequence_db = fasta_sequence_db,
-        raw_file = raw_file
+    call maxquant {
+        input:
+            ncpu = mq_ncpu,
+            ramGB = mq_ramGB,
+            docker = mq_docker,
+            disks = mq_disk,
+            mq_parameters = mq_parameters,
+            fasta_sequence_db = fasta_sequence_db,
+            raw_file = raw_file
     }
 }
 
 task maxquant {
     Int ncpu
     Int ramGB
+    Int? disks
     String docker
-    String? disks
     File mq_parameters
     File fasta_sequence_db
     Array[File] raw_file
@@ -86,7 +87,7 @@ task maxquant {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first([disks,"local-disk 100 SSD"])
+        disks : select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
     }
 }
 
