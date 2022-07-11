@@ -35,7 +35,7 @@ task msgf_sequences {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
+        disks : "local-disk ${select_first([disks, 100])} HDD"
     }
 
     parameter_meta {
@@ -96,7 +96,7 @@ task masic {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
+        disks: "local-disk ${select_first([disks, 100])} HDD"
     }
 
     parameter_meta {
@@ -141,7 +141,7 @@ task msconvert {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
+        disks : "local-disk ${select_first([disks, 100])} HDD"
     }
 
     parameter_meta {
@@ -202,7 +202,7 @@ task msgf_tryptic {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
+        disks : "local-disk ${select_first([disks, 100])} HDD"
     }
 
     parameter_meta {
@@ -264,7 +264,7 @@ task msconvert_mzrefiner {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
+        disks : "local-disk ${select_first([disks, 100])} HDD"
     }
 
     parameter_meta {
@@ -315,7 +315,7 @@ task ppm_errorcharter {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
+        disks : "local-disk ${select_first([disks, 100])} HDD"
     }
 
     parameter_meta {
@@ -387,7 +387,7 @@ task msgf_identification {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
+        disks : "local-disk ${select_first([disks, 100])} HDD"
     }
 
     parameter_meta {
@@ -439,7 +439,7 @@ task mzidtotsvconverter {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
+        disks : "local-disk ${select_first([disks, 100])} HDD"
     }
 
     parameter_meta {
@@ -508,7 +508,7 @@ task phrp {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first(["local-disk ${disks} HDD", "local-disk 100 SSD"])
+        disks: "local-disk ${select_first([disks, 100])} HDD"
     }
 
     parameter_meta {
@@ -589,7 +589,7 @@ task ascore {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
+        disks : "local-disk ${select_first([disks, 100])} HDD"
     }
 
     parameter_meta {
@@ -735,7 +735,7 @@ task wrapper_pp {
         docker: "${docker}"
         memory: "${ramGB} GB"
         cpu: "${ncpu}"
-        disks : select_first(["local-disk ${disks} HDD","local-disk 100 SSD"])
+        disks : "local-disk ${select_first([disks, 100])} HDD"
     }
 
     parameter_meta {
@@ -956,13 +956,13 @@ workflow proteomics_msgfplus {
         if (isPTM) {
             call ascore {
                 input:
-                    ncpu = ascore_ncpu,
-                    ramGB = ascore_ramGB,
-                    docker = ascore_docker,
+                    ncpu = select_first([ascore_ncpu]),
+                    ramGB = select_first([ascore_ramGB]),
+                    docker = select_first([ascore_docker]),
                     disks = ascore_disk,
                     input_syn = phrp.syn,
                     input_fixed_mzml = msgf_identification.rename_mzmlfixed,
-                    ascore_parameter_p = ascore_parameter_p,
+                    ascore_parameter_p = select_first([ascore_parameter_p]),
                     fasta_sequence_db = fasta_sequence_db,
                     syn_ModSummary = phrp.syn_ModSummary
             }
@@ -972,16 +972,16 @@ workflow proteomics_msgfplus {
     if (quant_method == "tmt") {
         call wrapper_pp {
             input:
-                ncpu = wrapper_ncpu,
-                ramGB = wrapper_ramGB,
-                docker = wrapper_docker,
+                ncpu = select_first([wrapper_ncpu]),
+                ramGB = select_first([wrapper_ramGB]),
+                docker = select_first([wrapper_docker]),
                 disks = wrapper_disk,
-                fractions =  sd_fractions,
-                references = sd_references,
-                samples = sd_samples,
+                fractions = select_first([sd_fractions]),
+                references = select_first([sd_references]),
+                samples = select_first([sd_samples]),
                 fasta_sequence_db = fasta_sequence_db,
                 sequence_db_name = sequence_db_name,
-                proteomics_experiment = proteomics_experiment,
+                proteomics_experiment = select_first([proteomics_experiment]),
                 ReporterIons_output_file = masic.ReporterIons_output_file,
                 SICstats_output_file = masic.SICstats_output_file,
                 syn = phrp.syn,
@@ -989,8 +989,8 @@ workflow proteomics_msgfplus {
                 results_prefix = results_prefix,
                 pr_ratio = pr_ratio,
                 species = species,
-                unique_only = unique_only,
-                refine_prior = refine_prior,
+                unique_only = select_first([unique_only]),
+                refine_prior = select_first([refine_prior]),
                 isPTM = isPTM
         }
     }
