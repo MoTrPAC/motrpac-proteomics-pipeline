@@ -99,6 +99,8 @@ task masic {
         disks: "local-disk ${select_first([disks, 100])} HDD"
     }
 
+    meta {}
+
     parameter_meta {
         sample_id: {
             type: "id"
@@ -778,6 +780,21 @@ workflow proteomics_msgfplus {
     meta {
         author: "David Jimenez-Morales"
         version: "v0.4.0"
+        task_labels: {
+            msgf_sequences: 'MSGF+ Process Sequence DB',
+            masic: 'MASIC',
+            msconvert: 'MSConvert',
+            msgf_tryptic: 'MSGF+ Full Tryptic Search',
+            msconvert_mzrefiner: 'MSConvert (MZRefiner filter)',
+            ppm_errorcharter: 'PPMErrorCharter',
+            msgf_identification: 'MS-GF+ Partial Tryptic Search',
+            mzidtotsvconverter: 'mzID to TSV Converter',
+            phrp: 'PeptideHitResultsProcessor',
+            ascore: 'AScore',
+            wrapper_pp: 'PlexedPiper',
+            wrapper_pp_ptm_inference: 'Plexed Piper (PTM Inference)',
+            wrapper_pp_ptm: 'Plexed Piper (PTM)'
+        }
     }
 
     input {    # Quantification method

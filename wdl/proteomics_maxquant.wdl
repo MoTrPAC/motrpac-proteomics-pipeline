@@ -5,19 +5,24 @@ workflow proteomics_maxquant {
     meta {
         author: "David Jimenez-Morales"
         version: "v0.0.1"
+        task_labels: {
+            maxquant: "MaxQuant"
+        }
     }
-input {
-    # MaxQuant input files and parameters
-    Array[File] raw_file = []
-    File mq_parameters
-    File fasta_sequence_db
 
-    # Docker details
-    Int mq_ncpu
-    Int mq_ramGB
-    Int? mq_disk
-    String mq_docker
-}
+    input {
+        # MaxQuant input files and parameters
+        Array[File] raw_file = []
+        File mq_parameters
+        File fasta_sequence_db
+
+        # Docker details
+        Int mq_ncpu
+        Int mq_ramGB
+        Int? mq_disk
+        String mq_docker
+    }
+
     call maxquant {
         input:
             ncpu = mq_ncpu,
