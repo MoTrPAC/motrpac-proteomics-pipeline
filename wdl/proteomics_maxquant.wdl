@@ -5,8 +5,12 @@ workflow proteomics_maxquant {
     meta {
         author: "David Jimenez-Morales"
         version: "v0.0.1"
+
         task_labels: {
-            maxquant: "MaxQuant"
+            maxquant: {
+                task_name: "MaxQuant",
+                description: "Mass spectrometry analysis software to identify peptides and proteins"
+            }
         }
     }
 

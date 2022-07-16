@@ -1,5 +1,275 @@
 version 1.0
 
+workflow proteomics_msgfplus {
+
+    meta {
+        author: "David Jimenez-Morales"
+        version: "v0.4.0"
+
+        task_labels: {
+            msgf_sequences: {
+                task_name: 'MSGF+ Process Sequence DB',
+                description: 'Preprocess the sequence database for MSGF+'
+            },
+            masic: {
+                task_name: 'MASIC',
+                description: 'Extract reporter ion peaks from MS2 spectra and create Selected Ion'
+            },
+            msconvert: {
+                task_name: 'MSConvert',
+                description: 'Convert Thermo .raw files to .mzML files (standard XML file format for MS data)'
+            },
+            msgf_tryptic: {
+                task_name: 'MSGF+ Full Tryptic Search',
+                description: 'Full tryptic search (for speed). Used in mzrefiner filter in MSConvert and PPMErrorCharter'
+            },
+            msconvert_mzrefiner: {
+                task_name: 'MSConvert (MZRefiner filter)',
+                description: 'Use mass error histograms to re-calibrate the m/z values in the .mzML file'
+            },
+            ppm_errorcharter: {
+                task_name: 'PPMErrorCharter',
+                description: 'Plot the mass error histograms before and after in silico recalibration'
+            },
+            msgf_identification: {
+                task_name: 'MS-GF+ Partial Tryptic Search',
+                description: 'Identify peptides using a partially tryptic search'
+            },
+            mzidtotsvconverter: {
+                task_name: 'mzID to TSV Converter',
+                description: 'Create a tab-separated value file listing peptide IDs required for PeptideHitResultsProcessor'
+            },
+            phrp: {
+                task_name: 'PeptideHitResultsProcessor',
+                description: 'Create tab-delimited files required for Ascore; files contain peptide IDs, unique sequence info, and residue modification details'
+            },
+            ascore: {
+                task_name: 'AScore',
+                description: 'Localize the position of Phosphorylation on S, T, and Y residues in phosphopeptides'
+            },
+            wrapper_pp: {
+                task_name: 'PlexedPiper',
+                description: 'Process isobaric labeling (e.g. TMT) proteomics data'
+            }
+        }
+    }
+
+    input {    # Quantification method
+        String quant_method
+
+        # RAW INPUT FILES
+        Array[File] raw_file = []
+        String results_prefix
+        String species
+
+        # MASIC
+        Int masic_ncpu
+        Int masic_ramGB
+        String masic_docker
+        Int? masic_disk
+        File masic_parameter
+
+        # MSCONVERT
+        Int msconvert_ncpu
+        Int msconvert_ramGB
+        String msconvert_docker
+        Int? msconvert_disk
+
+        # MS-GF+ SHARED OPTIONS
+        Int msgf_ncpu
+        Int msgf_ramGB
+        String msgf_docker
+        Int? msgf_disk
+        File fasta_sequence_db
+        String sequence_db_name
+
+        # MS-GF+ TRYPTIC
+        File msgf_tryptic_mzrefinery_parameter
+
+        # MS-GF+ IDENTIFICATION
+        File msgf_identification_parameter
+
+        # PPMErrorCharter
+        String ppm_errorcharter_docker
+
+        # MzidToTSVConverter
+        String mzidtotsvconverter_docker
+
+        # PHRP
+        Int phrp_ncpu
+        Int phrp_ramGB
+        String phrp_docker
+        Int? phrp_disk
+
+        File phrp_parameter_m
+        File phrp_parameter_t
+        File phrp_parameter_n
+        Float phrp_synpvalue
+        Float phrp_synprob
+
+        # ASCORE (ONLY PTMs)
+        Boolean isPTM
+        String? proteomics_experiment
+        Int? ascore_ncpu
+        Int? ascore_ramGB
+        String? ascore_docker
+        Int? ascore_disk
+        File? ascore_parameter_p
+
+        # WRAPPER (PlexedPiper)
+        Int? wrapper_ncpu
+        Int? wrapper_ramGB
+        String? wrapper_docker
+        Int? wrapper_disk
+        File? sd_fractions
+        File? sd_references
+        File? sd_samples
+        File? pr_ratio #prioritized inference
+        Boolean? unique_only # Unique peptides only (default FALSE)
+        Boolean? refine_prior # Refine prior probabilities (default TRUE)
+    }
+
+    call msgf_sequences {
+        input:
+            ncpu = msgf_ncpu,
+            ramGB = msgf_ramGB,
+            docker = msgf_docker,
+            disks = msgf_disk,
+            fasta_sequence_db = fasta_sequence_db
+    }
+
+    scatter (i in range(length(raw_file))) {
+        call masic {
+            input:
+                ncpu = masic_ncpu,
+                ramGB = masic_ramGB,
+                docker = masic_docker,
+                disks = masic_disk,
+                raw_file = raw_file[i],
+                masic_parameter = masic_parameter,
+                quant_method = quant_method
+        }
+
+        call msconvert {
+            input:
+                ncpu = msconvert_ncpu,
+                ramGB = msconvert_ramGB,
+                docker = msconvert_docker,
+                disks = msconvert_disk,
+                raw_file = raw_file[i]
+        }
+
+        call msgf_tryptic {
+            input:
+                ncpu = msgf_ncpu,
+                ramGB = msgf_ramGB,
+                docker = msgf_docker,
+                disks = msgf_disk,
+                input_mzml = msconvert.mzml,
+                fasta_sequence_db = fasta_sequence_db,
+                sequencedb_files = msgf_sequences.sequencedb_files,
+                msgf_tryptic_mzrefinery_parameter = msgf_tryptic_mzrefinery_parameter
+        }
+
+        call msconvert_mzrefiner {
+            input:
+                ncpu = msconvert_ncpu,
+                ramGB = msconvert_ramGB,
+                docker = msconvert_docker,
+                disks = msconvert_disk,
+                input_mzml = msconvert.mzml,
+                input_mzid = msgf_tryptic.mzid
+        }
+
+        call ppm_errorcharter {
+            input:
+                ncpu = msconvert_ncpu,
+                ramGB = msconvert_ramGB,
+                docker = ppm_errorcharter_docker,
+                disks = msconvert_disk,
+                input_fixed_mzml = msconvert_mzrefiner.mzml_fixed,
+                input_mzid = msgf_tryptic.mzid
+        }
+
+        call msgf_identification {
+            input:
+                ncpu = msgf_ncpu,
+                ramGB = msgf_ramGB,
+                docker = msgf_docker,
+                disks = msgf_disk,
+                input_fixed_mzml = msconvert_mzrefiner.mzml_fixed,
+                fasta_sequence_db = fasta_sequence_db,
+                sequencedb_files = msgf_sequences.sequencedb_files,
+                msgf_identification_parameter = msgf_identification_parameter
+        }
+
+        call mzidtotsvconverter {
+            input:
+                ncpu = msconvert_ncpu,
+                ramGB = msconvert_ramGB,
+                docker = mzidtotsvconverter_docker,
+                disks = msconvert_disk,
+                input_mzid_final = msgf_identification.mzid_final
+        }
+
+        call phrp {
+            input:
+                ncpu = phrp_ncpu,
+                ramGB = phrp_ramGB,
+                docker = phrp_docker,
+                disks = phrp_disk,
+                input_tsv = mzidtotsvconverter.tsv,
+                phrp_parameter_m = phrp_parameter_m,
+                phrp_parameter_t = phrp_parameter_t,
+                phrp_parameter_n = phrp_parameter_n,
+                phrp_synpvalue = phrp_synpvalue,
+                phrp_synprob = phrp_synprob,
+                input_revcat_fasta = msgf_sequences.revcat_fasta
+        }
+
+        if (isPTM) {
+            call ascore {
+                input:
+                    ncpu = select_first([ascore_ncpu]),
+                    ramGB = select_first([ascore_ramGB]),
+                    docker = select_first([ascore_docker]),
+                    disks = ascore_disk,
+                    input_syn = phrp.syn,
+                    input_fixed_mzml = msgf_identification.rename_mzmlfixed,
+                    ascore_parameter_p = select_first([ascore_parameter_p]),
+                    fasta_sequence_db = fasta_sequence_db,
+                    syn_ModSummary = phrp.syn_ModSummary
+            }
+        }
+    }
+
+    if (quant_method == "tmt") {
+        call wrapper_pp {
+            input:
+                ncpu = select_first([wrapper_ncpu]),
+                ramGB = select_first([wrapper_ramGB]),
+                docker = select_first([wrapper_docker]),
+                disks = wrapper_disk,
+                fractions = select_first([sd_fractions]),
+                references = select_first([sd_references]),
+                samples = select_first([sd_samples]),
+                fasta_sequence_db = fasta_sequence_db,
+                sequence_db_name = sequence_db_name,
+                proteomics_experiment = select_first([proteomics_experiment]),
+                ReporterIons_output_file = masic.ReporterIons_output_file,
+                SICstats_output_file = masic.SICstats_output_file,
+                syn = phrp.syn,
+                syn_ascore = ascore.syn_ascore,
+                results_prefix = results_prefix,
+                pr_ratio = pr_ratio,
+                species = species,
+                unique_only = select_first([unique_only]),
+                refine_prior = select_first([refine_prior]),
+                isPTM = isPTM
+        }
+    }
+}
+
 task msgf_sequences {
     input {
         Int ncpu
@@ -771,244 +1041,6 @@ task wrapper_pp {
         pr_ratio: {
             type: "parameter",
             label: "PR Ratio File"
-        }
-    }
-}
-
-workflow proteomics_msgfplus {
-
-    meta {
-        author: "David Jimenez-Morales"
-        version: "v0.4.0"
-        task_labels: {
-            msgf_sequences: 'MSGF+ Process Sequence DB',
-            masic: 'MASIC',
-            msconvert: 'MSConvert',
-            msgf_tryptic: 'MSGF+ Full Tryptic Search',
-            msconvert_mzrefiner: 'MSConvert (MZRefiner filter)',
-            ppm_errorcharter: 'PPMErrorCharter',
-            msgf_identification: 'MS-GF+ Partial Tryptic Search',
-            mzidtotsvconverter: 'mzID to TSV Converter',
-            phrp: 'PeptideHitResultsProcessor',
-            ascore: 'AScore',
-            wrapper_pp: 'PlexedPiper',
-            wrapper_pp_ptm_inference: 'Plexed Piper (PTM Inference)',
-            wrapper_pp_ptm: 'Plexed Piper (PTM)'
-        }
-    }
-
-    input {    # Quantification method
-        String quant_method
-
-        # RAW INPUT FILES
-        Array[File] raw_file = []
-        String results_prefix
-        String species
-
-        # MASIC
-        Int masic_ncpu
-        Int masic_ramGB
-        String masic_docker
-        Int? masic_disk
-        File masic_parameter
-
-        # MSCONVERT
-        Int msconvert_ncpu
-        Int msconvert_ramGB
-        String msconvert_docker
-        Int? msconvert_disk
-
-        # MS-GF+ SHARED OPTIONS
-        Int msgf_ncpu
-        Int msgf_ramGB
-        String msgf_docker
-        Int? msgf_disk
-        File fasta_sequence_db
-        String sequence_db_name
-
-        # MS-GF+ TRYPTIC
-        File msgf_tryptic_mzrefinery_parameter
-
-        # MS-GF+ IDENTIFICATION
-        File msgf_identification_parameter
-
-        # PPMErrorCharter
-        String ppm_errorcharter_docker
-
-        # MzidToTSVConverter
-        String mzidtotsvconverter_docker
-
-        # PHRP
-        Int phrp_ncpu
-        Int phrp_ramGB
-        String phrp_docker
-        Int? phrp_disk
-
-        File phrp_parameter_m
-        File phrp_parameter_t
-        File phrp_parameter_n
-        Float phrp_synpvalue
-        Float phrp_synprob
-
-        # ASCORE (ONLY PTMs)
-        Boolean isPTM
-        String? proteomics_experiment
-        Int? ascore_ncpu
-        Int? ascore_ramGB
-        String? ascore_docker
-        Int? ascore_disk
-        File? ascore_parameter_p
-
-        # WRAPPER (PlexedPiper)
-        Int? wrapper_ncpu
-        Int? wrapper_ramGB
-        String? wrapper_docker
-        Int? wrapper_disk
-        File? sd_fractions
-        File? sd_references
-        File? sd_samples
-        File? pr_ratio #prioritized inference
-        Boolean? unique_only # Unique peptides only (default FALSE)
-        Boolean? refine_prior # Refine prior probabilities (default TRUE)
-    }
-
-    call msgf_sequences {
-        input:
-            ncpu = msgf_ncpu,
-            ramGB = msgf_ramGB,
-            docker = msgf_docker,
-            disks = msgf_disk,
-            fasta_sequence_db = fasta_sequence_db
-    }
-
-    scatter (i in range(length(raw_file))) {
-        call masic {
-            input:
-                ncpu = masic_ncpu,
-                ramGB = masic_ramGB,
-                docker = masic_docker,
-                disks = masic_disk,
-                raw_file = raw_file[i],
-                masic_parameter = masic_parameter,
-                quant_method = quant_method
-        }
-
-        call msconvert {
-            input:
-                ncpu = msconvert_ncpu,
-                ramGB = msconvert_ramGB,
-                docker = msconvert_docker,
-                disks = msconvert_disk,
-                raw_file = raw_file[i]
-        }
-
-        call msgf_tryptic {
-            input:
-                ncpu = msgf_ncpu,
-                ramGB = msgf_ramGB,
-                docker = msgf_docker,
-                disks = msgf_disk,
-                input_mzml = msconvert.mzml,
-                fasta_sequence_db = fasta_sequence_db,
-                sequencedb_files = msgf_sequences.sequencedb_files,
-                msgf_tryptic_mzrefinery_parameter = msgf_tryptic_mzrefinery_parameter
-        }
-
-        call msconvert_mzrefiner {
-            input:
-                ncpu = msconvert_ncpu,
-                ramGB = msconvert_ramGB,
-                docker = msconvert_docker,
-                disks = msconvert_disk,
-                input_mzml = msconvert.mzml,
-                input_mzid = msgf_tryptic.mzid
-        }
-
-        call ppm_errorcharter {
-            input:
-                ncpu = msconvert_ncpu,
-                ramGB = msconvert_ramGB,
-                docker = ppm_errorcharter_docker,
-                disks = msconvert_disk,
-                input_fixed_mzml = msconvert_mzrefiner.mzml_fixed,
-                input_mzid = msgf_tryptic.mzid
-        }
-
-        call msgf_identification {
-            input:
-                ncpu = msgf_ncpu,
-                ramGB = msgf_ramGB,
-                docker = msgf_docker,
-                disks = msgf_disk,
-                input_fixed_mzml = msconvert_mzrefiner.mzml_fixed,
-                fasta_sequence_db = fasta_sequence_db,
-                sequencedb_files = msgf_sequences.sequencedb_files,
-                msgf_identification_parameter = msgf_identification_parameter
-        }
-
-        call mzidtotsvconverter {
-            input:
-                ncpu = msconvert_ncpu,
-                ramGB = msconvert_ramGB,
-                docker = mzidtotsvconverter_docker,
-                disks = msconvert_disk,
-                input_mzid_final = msgf_identification.mzid_final
-        }
-
-        call phrp {
-            input:
-                ncpu = phrp_ncpu,
-                ramGB = phrp_ramGB,
-                docker = phrp_docker,
-                disks = phrp_disk,
-                input_tsv = mzidtotsvconverter.tsv,
-                phrp_parameter_m = phrp_parameter_m,
-                phrp_parameter_t = phrp_parameter_t,
-                phrp_parameter_n = phrp_parameter_n,
-                phrp_synpvalue = phrp_synpvalue,
-                phrp_synprob = phrp_synprob,
-                input_revcat_fasta = msgf_sequences.revcat_fasta
-        }
-
-        if (isPTM) {
-            call ascore {
-                input:
-                    ncpu = select_first([ascore_ncpu]),
-                    ramGB = select_first([ascore_ramGB]),
-                    docker = select_first([ascore_docker]),
-                    disks = ascore_disk,
-                    input_syn = phrp.syn,
-                    input_fixed_mzml = msgf_identification.rename_mzmlfixed,
-                    ascore_parameter_p = select_first([ascore_parameter_p]),
-                    fasta_sequence_db = fasta_sequence_db,
-                    syn_ModSummary = phrp.syn_ModSummary
-            }
-        }
-    }
-
-    if (quant_method == "tmt") {
-        call wrapper_pp {
-            input:
-                ncpu = select_first([wrapper_ncpu]),
-                ramGB = select_first([wrapper_ramGB]),
-                docker = select_first([wrapper_docker]),
-                disks = wrapper_disk,
-                fractions = select_first([sd_fractions]),
-                references = select_first([sd_references]),
-                samples = select_first([sd_samples]),
-                fasta_sequence_db = fasta_sequence_db,
-                sequence_db_name = sequence_db_name,
-                proteomics_experiment = select_first([proteomics_experiment]),
-                ReporterIons_output_file = masic.ReporterIons_output_file,
-                SICstats_output_file = masic.SICstats_output_file,
-                syn = phrp.syn,
-                syn_ascore = ascore.syn_ascore,
-                results_prefix = results_prefix,
-                pr_ratio = pr_ratio,
-                species = species,
-                unique_only = select_first([unique_only]),
-                refine_prior = select_first([refine_prior]),
-                isPTM = isPTM
         }
     }
 }
