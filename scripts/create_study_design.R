@@ -56,7 +56,6 @@ validate_batch <- function(input_results_folder){
 # To facilitate debugging
 file_vial_metadata <- opt$file_vial_metadata
 batch_folder <- opt$batch_folder
-output_viallabel_name <- opt$output_viallabel_name
 cas <- opt$cas
 raw_source <- opt$raw_source
 tmt <- opt$tmt
@@ -101,7 +100,7 @@ if(file_vial_metadata == "generate"){
                             ignore.case = TRUE,
                             full.names=TRUE,
                             recursive = TRUE)
-                              
+  
   for (f in tmt_details ){
     nm_list[[f]] = read.delim(f)
   }
@@ -141,25 +140,37 @@ if( !all(ecolnames %in% colnames(vial_metadata)) ){
 # Remove white spaces (known issue for pnnl submissions)
 vial_metadata$vial_label <- gsub(" ", "", vial_metadata$vial_label)
 
+# Quick function to fix vial_labels
+fix_duplicates <- function(meta) {
+  if (anyDuplicated(meta$vial_label, incomparables = NA)) {
+    warning("Duplicate vial_label entries. Making unique.")
+    meta$vial_label <- make.unique(meta$vial_label)
+  }
+  return(meta)
+}
+
+vial_metadata <- fix_duplicates(meta = vial_metadata)
+
+
 # Generate samples.txt-----
 message("+ Generate samplex.txt... ", appendLF = FALSE)
 if(tmt == "tmt11"){
   samples <- vial_metadata %>%
-  mutate(PlexID = tmt_plex,
-         QuantBlock = 1,
-         ReporterName = tmt11_channel,
-         ReporterAlias = vial_label,
-         MeasurementName = vial_label) %>%
-  dplyr::select(-tmt_plex, -tmt11_channel, -vial_label)
+    mutate(PlexID = tmt_plex,
+           QuantBlock = 1,
+           ReporterName = tmt11_channel,
+           ReporterAlias = vial_label,
+           MeasurementName = vial_label) %>%
+    dplyr::select(-tmt_plex, -tmt11_channel, -vial_label)
   samples <- mutate(samples, MeasurementName = replace(MeasurementName, ReporterName=="131C", NA))
 }else if(tmt == "tmt16"){
   samples <- vial_metadata %>%
-  mutate(PlexID = tmt_plex,
-         QuantBlock = 1,
-         ReporterName = tmt16_channel,
-         ReporterAlias = vial_label,
-         MeasurementName = vial_label) %>%
-  dplyr::select(-tmt_plex, -tmt16_channel, -vial_label)
+    mutate(PlexID = tmt_plex,
+           QuantBlock = 1,
+           ReporterName = tmt16_channel,
+           ReporterAlias = vial_label,
+           MeasurementName = vial_label) %>%
+    dplyr::select(-tmt_plex, -tmt16_channel, -vial_label)
   samples <- mutate(samples, MeasurementName = replace(MeasurementName, ReporterName=="134N", NA))
 }
 samples$ReporterName <- gsub("126C", "126", samples$ReporterName)
@@ -235,10 +246,10 @@ if(raw_source == "manifest"){
   message("...from listing raw files in folder...", appendLF = FALSE)
   # List raw files for each folder
   fractions <- as.data.frame(list.files(file.path(batch_folder),
-                                       pattern="*.raw$",
-                                       ignore.case = TRUE,
-                                       full.names=TRUE,
-                                       recursive = TRUE))
+                                        pattern="*.raw$",
+                                        ignore.case = TRUE,
+                                        full.names=TRUE,
+                                        recursive = TRUE))
   colnames(fractions) <- c("Dataset")
   fractions <- as.data.frame(fractions)
   fractions$PlexID <- gsub("(.*/)(0)(\\d)(MOTRPAC.*)", "\\3", fractions$Dataset)
@@ -290,4 +301,4 @@ write.table(vial_metadata,
 
 
 message("All files are out! Check it out at: ", file.path(output_viallabel_name))
-  
+
