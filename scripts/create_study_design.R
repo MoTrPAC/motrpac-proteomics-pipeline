@@ -194,7 +194,7 @@ message("+ Generate fractions:", appendLF = FALSE)
 fractions <- NULL
 if(raw_source == "manifest"){
   # use the file_namifest to get information about 
-  if(cas == "pnnl"){
+  if(cas == "PN"){
     raws <- list.files(raw_folder)
     for (i in 1:length(raws)){
       message("\t", i, ". Folder: ", raws[i], appendLF = FALSE)
@@ -224,8 +224,8 @@ if(raw_source == "manifest"){
         fractions <- rbind(fractions, manifest)
       }
     }
-  }else if(cas == "broad"){
-    file_tmt <- list.files(file.path(batch_folder),
+  }else if(cas == "BR"){
+    file_tmt <- list.files(file.path(MotrpacBicQC::validate_batch(batch_folder)),
                            pattern="file_manifest_",
                            ignore.case = TRUE,
                            full.names=TRUE,
@@ -235,7 +235,8 @@ if(raw_source == "manifest"){
     tmt <- tmt[grepl(".*\\.raw", tmt$file_name),]
     tmt <- as.data.frame(apply(tmt, 2, function(x) basename(x)))
     tmt$PlexID <- NA
-    tmt$PlexID <- gsub("^(0)(\\d)(MOTRPAC.*)", "\\2", tmt$Dataset)
+    tmt$PlexID <- gsub("^(\\d{2})(MOTRPAC.*)", "\\1", tmt$file_name)
+    tmt$PlexID <- as.numeric(tmt$PlexID)
     tmt$PlexID <- paste0("S", tmt$PlexID)
     
     tmt <- rename(tmt, Dataset=file_name)
@@ -252,7 +253,8 @@ if(raw_source == "manifest"){
                                         recursive = TRUE))
   colnames(fractions) <- c("Dataset")
   fractions <- as.data.frame(fractions)
-  fractions$PlexID <- gsub("(.*/)(0)(\\d)(MOTRPAC.*)", "\\3", fractions$Dataset)
+  fractions$PlexID <- gsub("(.*/)(\\d{2})(MOTRPAC.*)", "\\2", fractions$Dataset)
+  fractions$PlexID <- as.numeric(fractions$PlexID)
   fractions$Dataset <- basename(fractions$Dataset)
   fractions$PlexID <- paste0("S", fractions$PlexID)
   
