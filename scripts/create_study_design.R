@@ -90,6 +90,14 @@ if(length(raw_folder) == 0){
   raw_folder <- batch_folder
 }
 
+if(tmt == "tmt11"){
+  ecolnames <- c("tmt_plex", "tmt11_channel", "vial_label")
+}else if(tmt == "tmt16"){
+  ecolnames <- c("tmt_plex", "tmt16_channel", "vial_label")
+}else{
+  stop("<tmt> must be one of this: tmt11, tmt16")
+}
+
 # Generate samples.txt-----
 message("\n+ Generate samples ", appendLF = FALSE)
 nm_list = list()
@@ -101,8 +109,21 @@ if(file_vial_metadata == "generate"){
                             full.names=TRUE,
                             recursive = TRUE)
   
+  # validate
   for (f in tmt_details ){
-    nm_list[[f]] = read.delim(f)
+    temp <- read.delim(f)
+    if(tmt == "tmt16"){
+      if(!any("tmt16_channel" %in% colnames(temp)) ){
+        stop("\ntmt16_channel column MISSED in this file\n", paste(f))
+      }
+    }else if(tmt == "tmt11"){
+      if(!any("tmt11_channel" %in% colnames(temp)) ){
+        stop("\ntmt11_channel column MISSED in this file\n", paste(f))
+      }
+    }else{
+      stop(paste(tmt,": this tmt type not supported yet") )
+    }
+    nm_list[[f]] = temp
   }
   vial_metadata <- bind_rows(nm_list)
   file_vial_metadata <- paste0("MOTRPAC_", phase, "_", tissue, "_", assay, "_", date, "_vial_metadata.txt")
@@ -122,14 +143,6 @@ colnames(vial_metadata) <- tolower(colnames(vial_metadata))
 vial_metadata$vial_label <- ifelse(grepl("ref", vial_metadata$vial_label, ignore.case = TRUE), paste0("Ref_", vial_metadata$tmt_plex), vial_metadata$vial_label)
 
 # Validate vial_label file-----
-if(tmt == "tmt11"){
-  ecolnames <- c("tmt_plex", "tmt11_channel", "vial_label")
-}else if(tmt == "tmt16"){
-  ecolnames <- c("tmt_plex", "tmt16_channel", "vial_label")
-}else{
-  stop("<tmt> must be one of this: tmt11, tmt16")
-}
-
 if( !all(ecolnames %in% colnames(vial_metadata)) ){
   stop("Vial Metadata. The expeted column names...\n\t", 
        paste(ecolnames, collapse = ", "), 
