@@ -153,10 +153,10 @@ if( !all(ecolnames %in% colnames(vial_metadata)) ){
 # Remove white spaces (known issue for pnnl submissions)
 vial_metadata$vial_label <- gsub(" ", "", vial_metadata$vial_label)
 
-# Quick function to fix vial_labels
+# Function to fix vial_labels
 fix_duplicates <- function(meta) {
   if (anyDuplicated(meta$vial_label, incomparables = NA)) {
-    warning("Duplicate vial_label entries. Making unique.")
+    warning("Duplicate vial_label entries. Making unique ids.")
     meta$vial_label <- make.unique(meta$vial_label)
   }
   return(meta)

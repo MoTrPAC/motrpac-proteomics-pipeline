@@ -41,8 +41,8 @@ option_list <- list(
               help="Prefix for the result output files", metavar="character"),
   make_option(c("-o", "--plexedpiper_output_folder"), type="character", default=NULL, 
               help="PlexedPiper output folder (Crosstabs)", metavar="character"),
-  make_option(c("-v", "--save_env"), type="character", default=FALSE, 
-              help="Save PP R env session", metavar="character")
+  make_option(c("-v", "--save_env"), type="logical", default=FALSE, 
+              help="Save PP R env session", metavar="logical")
 )
 
 opt_parser <- OptionParser(option_list = option_list)
