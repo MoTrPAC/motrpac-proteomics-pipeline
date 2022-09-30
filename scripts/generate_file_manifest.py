@@ -1,10 +1,20 @@
 import argparse
+import sys
 from base64 import b64decode
-from typing import Tuple, Iterator
+from typing import Iterator, Tuple
 
-from google.cloud import storage
-from google.cloud.storage import Bucket, Blob
 
+try:
+    from google.cloud import storage
+    from google.cloud.storage import Blob, Bucket
+except ImportError:
+    print("Please install google-cloud-storage", file=sys.stderr)
+    sys.exit(1)
+
+if sys.version_info[0] < 3:
+    raise Exception("Must be using at least Python 3.9")
+if sys.version_info[1] < 9:
+    raise Exception("Must be using at least Python 3.9")
 
 SEPARATOR = ","
 storage_client = storage.Client()
@@ -60,7 +70,7 @@ def generate_manifest(path, outfile):
     file_manifest_blob.upload_from_string(data, content_type="text/csv")
 
     if lines == 0:
-        raise Exception("No files in {} found. Please double check")
+        raise Exception(f"No files found at {path}. Please double check")
     else:
         print(f"Wrote data for {lines} files")
 
