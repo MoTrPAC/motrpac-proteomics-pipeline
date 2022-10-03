@@ -47,7 +47,7 @@ def parse_bucket_path(path: str) -> Tuple[str, str]:
 
 def generate_manifest(path, outfile):
     lines = 0
-    data = "file_path,md5sum\n"
+    data = "file_name,md5\n"
 
     bucket_name, prefix = parse_bucket_path(path)
 
