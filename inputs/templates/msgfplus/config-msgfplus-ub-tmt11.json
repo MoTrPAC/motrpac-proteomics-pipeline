@@ -1,6 +1,6 @@
 {
   "proteomics_msgfplus.ascore_disk": 20,
-  "proteomics_msgfplus.ascore_docker": "docker-repository/prot-ascore:v1.0.7587",
+  "proteomics_msgfplus.ascore_docker": "docker-repository/prot-ascore:v1.0.8315",
   "proteomics_msgfplus.ascore_ncpu": 4,
   "proteomics_msgfplus.ascore_parameter_p": "gcp-parameters/AScore_CID_0.5Da_ETD_0.5Da_HCD_0.05Da.xml",
   "proteomics_msgfplus.ascore_ramGB": 15,
