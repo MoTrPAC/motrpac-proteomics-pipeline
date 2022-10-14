@@ -90,9 +90,9 @@ if(length(raw_folder) == 0){
   raw_folder <- batch_folder
 }
 
-if(tmt == "tmt11"){
+if(tmt == "tmt11") {
   ecolnames <- c("tmt_plex", "tmt11_channel", "vial_label")
-}else if(tmt == "tmt16"){
+}else if(tmt == "tmt16") {
   ecolnames <- c("tmt_plex", "tmt16_channel", "vial_label")
 }else{
   stop("<tmt> must be one of this: tmt11, tmt16")
@@ -100,39 +100,42 @@ if(tmt == "tmt11"){
 
 # Generate samples.txt-----
 message("\n+ Generate samples ", appendLF = FALSE)
-nm_list = list()
-if(file_vial_metadata == "generate"){
+nm_list <- list()
+if( file_vial_metadata == "generate" ) {
   message("(from tmt details.txt file)... ", appendLF = FALSE)
   tmt_details <- list.files(file.path(raw_folder),
-                            pattern="details.txt",
+                            pattern = "details.txt",
                             ignore.case = TRUE,
-                            full.names=TRUE,
+                            full.names = TRUE,
                             recursive = TRUE)
   
   # validate
-  for (f in tmt_details ){
-    temp <- read.delim(f)
-    if(tmt == "tmt16"){
-      if(!any("tmt16_channel" %in% colnames(temp)) ){
-        stop("\ntmt16_channel column MISSED in this file\n", paste(f))
+  for (f in 1:length(tmt_details) ){
+    temp <- read.delim(tmt_details[f])
+    if(tmt == "tmt16") {
+      if(!any("tmt16_channel" %in% colnames(temp)) ) {
+        stop("\ntmt16_channel column MISSED in this file\n", paste( tmt_details[f] ))
       }
     }else if(tmt == "tmt11"){
       if(!any("tmt11_channel" %in% colnames(temp)) ){
-        stop("\ntmt11_channel column MISSED in this file\n", paste(f))
+        stop("\ntmt11_channel column MISSED in this file\n", paste( tmt_details[f] ))
       }
     }else{
       stop(paste(tmt,": this tmt type not supported yet") )
     }
-    nm_list[[f]] = temp
+    temp$tmt_plex <- paste0("S",f)
+    temp$vial_label <- ifelse(grepl("Ref", temp$vial_label), paste0("Ref_S",f), temp$vial_label)
+    
+    nm_list[[f]] <- temp
   }
   vial_metadata <- bind_rows(nm_list)
   file_vial_metadata <- paste0("MOTRPAC_", phase, "_", tissue, "_", assay, "_", date, "_vial_metadata.txt")
-}else{
+} else {
   message("(reading existing file_vial_metadata)... ", appendLF = FALSE)
-  vial_metadata <- read.table(file_vial_metadata, 
-                              sep="\t", 
-                              header=TRUE, 
-                              fill=TRUE)
+  vial_metadata <- read.table( file_vial_metadata,
+                              sep = "\t",
+                              header = TRUE,
+                              fill = TRUE )
 }
 
 message(" done!")
