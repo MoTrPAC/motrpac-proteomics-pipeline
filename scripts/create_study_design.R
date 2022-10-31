@@ -27,6 +27,10 @@ option_list <- list(
   make_option(c("-t", "--tmt"),
               type="character",
               help="tmt11 or tmt16",
+              metavar="character"),
+  make_option(c("-p", "--phase"),
+              type="character",
+              help="MOTRPAC PHASE",
               metavar="character")
 )
 
@@ -37,9 +41,10 @@ if (is.null(opt$file_vial_metadata) |
     is.null(opt$batch_folder) |
     is.null(opt$cas) |
     is.null(opt$raw_source) |
-    is.null(opt$tmt)){
+    is.null(opt$tmt) | 
+    is.null(opt$phase)){
   print_help(opt_parser)
-  stop("4 arguments are required", call.=FALSE)
+  stop("6 arguments are required", call.=FALSE)
 }
 
 validate_batch <- function(input_results_folder){
@@ -59,6 +64,7 @@ batch_folder <- opt$batch_folder
 cas <- opt$cas
 raw_source <- opt$raw_source
 tmt <- opt$tmt
+phase <- opt$phase
 
 message("\n##### GENERATE PlexedPiper study_design  FILES #####")
 message("-f: Vial metadata: ", file_vial_metadata)
@@ -69,7 +75,6 @@ message("-t: tmt experiment: ", tmt)
 # Generate vial_label file name (if not provided)------
 batch <- validate_batch(batch_folder)
 phase_folder <- MotrpacBicQC::validate_phase(batch_folder)
-phase <- MotrpacBicQC::set_phase(input_results_folder = input_results_folder, dmaqc_phase2validate = NULL)
 assay <- MotrpacBicQC::validate_assay(batch_folder)
 assay <- gsub("(PROT_)(.*)", "\\2", assay)
 tissue <- MotrpacBicQC::validate_tissue(batch_folder)
