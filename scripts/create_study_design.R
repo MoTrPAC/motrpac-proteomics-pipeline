@@ -151,6 +151,8 @@ nm_list <- list()
 raw_subfolders <- list.dirs(raw_folder)
 # The first folder is the root raw folder: remove
 raw_subfolders <- raw_subfolders[-1]
+raw_subfolders <- raw_subfolders[!grepl("study_design", raw_subfolders)]
+
 if( file_vial_metadata == "generate" ) {
   message("(from tmt details.txt file)... ", appendLF = FALSE)
   
