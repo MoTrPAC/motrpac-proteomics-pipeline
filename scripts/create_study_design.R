@@ -78,7 +78,7 @@ phase_folder <- MotrpacBicQC::validate_phase(batch_folder)
 assay <- MotrpacBicQC::validate_assay(batch_folder)
 assay <- gsub("(PROT_)(.*)", "\\2", assay)
 tissue <- MotrpacBicQC::validate_tissue(batch_folder)
-valid_cas <- c("PN", "BI")
+valid_cas <- c("PN", "BI", "PNBI")
 if(!any(cas %in% valid_cas)){
   stop("<cas> must be one of this: ", paste(valid_cas, collapse = ","))
 }
