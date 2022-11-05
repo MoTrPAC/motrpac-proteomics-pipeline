@@ -186,7 +186,7 @@ if( file_vial_metadata == "generate" ) {
     nm_list[[sf]] <- temp
   }
   vial_metadata <- dplyr::bind_rows(nm_list)
-  file_vial_metadata <- paste0("MOTRPAC_", phase, "_", tissue, "_", assay, "_", site,"_", date, "_vial_metadata.txt")
+  file_vial_metadata <- paste0("MOTRPAC_", phase, "_", tissue, "_", assay, "_", cas,"_", date, "_vial_metadata.txt")
 }
 message(" done!")
 
