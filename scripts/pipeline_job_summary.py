@@ -57,37 +57,27 @@ def main():
     print('Caper Job ID:', caper_job_id)
 
     storage_client = storage.Client(project_name)
-    # bucket_source = storage_client.get_bucket(bucket_origin)
+    blob = storage_client.bucket(bucket_origin).blob(f"{results_folder}/{caper_job_id}/metadata.json")
 
-    # all_blobs = storage_client.list_blobs(bucket_origin)
-    # regex = re.compile(r'.*/' + caper_job_id)
-    all_blobs = storage_client.list_blobs(bucket_origin, prefix=results_folder)
-
-    for blob in all_blobs:
-        if blob.name.endswith(caper_job_id + '/metadata.json'):
-            filename = blob.name
-            print('\nMetadata file location:\n', filename, '\n')
-            metadata = json.loads(blob.download_as_string(client=None))
-            break
-
-    if metadata.get('start'):
+    if blob.exists():
+        metadata = json.loads(blob.download_as_string().decode('utf-8'))
         start_time = dateparser.parse(metadata['start'])
         end_time = dateparser.parse(metadata['end'])
-        print('Pipeline Running Time: ', end_time - start_time)
+        print(f'Pipeline Running Time: {end_time - start_time}')
     else:
-        print('\nStart time not available!!!\n')
+        print('\nMetadata file not found!!!\n')
+        return
 
-    if metadata.get('failures'):
+    if 'failures' in metadata and metadata['failures']:
         failures_length = len(metadata['failures'])
-        print('PIPELINE ERRORS (', failures_length, ')')
-        for x in range(failures_length):
-            causeby_len = len(metadata['failures'][x]['causedBy'])
-            for y in range(causeby_len):
-                output = metadata['failures'][x]['causedBy'][y]['message']
-                print('\t- MESSAGE ', y + 1, ': ', output, "\n")
+        print(f'PIPELINE ERRORS ({failures_length})')
+        for i, failure in enumerate(metadata['failures']):
+            causeby_len = len(failure['causedBy'])
+            for j, causedBy in enumerate(failure['causedBy']):
+                output = causedBy['message']
+                print(f'\t- MESSAGE {j+1}: {output}')
     else:
-        print('+ No errors detected (congratulations)!\n')
-
+        print('+ No errors found')
 
 if __name__ == "__main__":
     main()
