@@ -21,7 +21,7 @@ RUN chmod +x /app/sqlite/Setup/compile-interop-assembly-release.sh \
 
 # Set up the application
 WORKDIR /app/ascore
-RUN wget -nv https://github.com/PNNL-Comp-Mass-Spec/AScore/releases/download/v1.0.7587/AScore_Program_Debian.zip \
+RUN wget -nv https://github.com/PNNL-Comp-Mass-Spec/AScore/releases/download/v1.0.8315/AScore_Program_Debian.zip \
     && unzip AScore_Program_Debian.zip \
     && rm -rf AScore_Program_Debian.zip \
     && cp /app/sqlite/bin/2013/Release/bin/libSQLite.Interop.so ./libSQLite.Interop.so \
