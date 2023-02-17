@@ -12,5 +12,5 @@ RUN apt-get update \
 
 # hadolint ignore=DL3059
 RUN R -e 'install.packages("devtools")' \
-    && R -e 'remotes::install_github("PNNL-Comp-Mass-Spec/PlexedPiper@update/add-gencode", build_vignettes = FALSE)' \
+    && R -e 'remotes::install_github("PNNL-Comp-Mass-Spec/PlexedPiper@0.4.1", build_vignettes = FALSE)' \
     && R -e 'install.packages("optparse")'
