@@ -1,30 +1,53 @@
+"""
+Copy the pipeline result for MSGF+ from the workflow outputs bucket/folder to the
+destination bucket/folder.
+"""
 import argparse
 import json
-import os
-import re  # regular expressions
+import logging
+import re
 import sys
 import warnings
+from collections.abc import Callable
+from pathlib import Path
 
 import dateparser
 from google.cloud import storage
 from google.cloud.storage import Bucket
 
+logging.basicConfig(filename="example.log", encoding="utf-8", level=logging.DEBUG)
 
 warnings.filterwarnings(
-    "ignore", "Your application has authenticated using end user credentials"
+    "ignore",
+    "Your application has authenticated using end user credentials",
 )
 
+logger = logging.getLogger(__name__)
 
-def trim_gs_prefix(full_file_path, bucket_name):
+
+def trim_gs_prefix(full_file_path: str, bucket_name: str) -> str:
     """
-    Replace the gs://bucket/ portion from the file path
+    Replace the gs://bucket/ portion from the file path.
+
+    :param full_file_path: The full file path
+    :param bucket_name: The bucket name to replace
     """
     gs_bucket_name = f"gs://{bucket_name}/"
-    new_str = full_file_path.replace(gs_bucket_name, "")
-    return new_str
+    return full_file_path.replace(gs_bucket_name, "")
 
 
-def upload_string(bucket_destination, str_content, destination_blob_name):
+def upload_string(
+    bucket_destination: Bucket,
+    str_content: str,
+    destination_blob_name: str,
+) -> None:
+    """
+    Upload a string to Google Cloud Storage.
+
+    :param bucket_destination: the destination_bucket
+    :param str_content: The string content to upload
+    :param destination_blob_name: The filename of the file to create
+    """
     b = bucket_destination.blob(destination_blob_name)
     b.upload_from_string(str_content)
 
@@ -36,10 +59,10 @@ def copy_file_to_new_location(
     dest_bucket: Bucket,
     dest_folder_name: str,
     new_filename: str = None,
-):
+) -> None:
     """
-    Copies a file from the given dictionary at the key `output_name` in the source
-    bucket to the destination bucket with the new path (and optional filename)
+    Copy a file from the given dictionary at the key `output_name` in the source
+    bucket to the destination bucket with the new path (and optional filename).
 
     :param attempt_outputs_dict: The dictionary being searched
     :param output_name: The key to look for the file in the `attempt_outputs_dict`
@@ -57,7 +80,7 @@ def copy_file_to_new_location(
         )
         # if not supplied with a new filename, use the original base filename
         if new_filename is None:
-            new_filename = os.path.basename(trimmed_file_path)
+            new_filename = Path(trimmed_file_path).name
         # create the new file path
         new_file_path = dest_folder_name + new_filename
         # get the original file
@@ -65,605 +88,368 @@ def copy_file_to_new_location(
         # copy the original file if it exists, log an error if it doesn't
         if original_file is not None:
             source_bucket.copy_blob(original_file, dest_bucket, new_file_path)
-            print(
-                f"- Copied {output_name} file to: "
-                f"gs://{dest_bucket.name}/{new_file_path}"
+            logger.info(
+                "- Copied %s file to: %s",
+                output_name,
+                f"gs://{dest_bucket.name}/{new_file_path}",
             )
         else:
-            print(
-                f"----> Unable to copy {output_name} at "
-                f"{attempt_outputs_dict[output_name]} "
-                f"to gs://{dest_bucket.name}/{new_file_path}",
-                file=sys.stderr,
+            logger.warning(
+                "----> Unable to copy %s at %s to %s",
+                output_name,
+                attempt_outputs_dict[output_name],
+                f"gs://{dest_bucket.name}/{new_file_path}",
             )
     else:
-        print(
-            f"----> Unable to copy {output_name}, key does not exist",
-            file=sys.stderr,
+        logger.warning(
+            "----> Unable to copy %s, key does not exist",
+            output_name,
         )
 
 
-def write_command_to_file(
-    call_attempt, results_output, bucket_destination, file_name
-):
+def parse_bucket_path(path: str) -> tuple[str, str]:
     """
-    The command executed on each call is available as text in the
-    metadata.json file. This function extracts the command and saves it
-    in the bucket as a file.
+    Split a full S3/GCS path in to bucket and key strings.
+    's3://bucket/key' -> ('bucket', 'key').
 
-    :param call_attempt: The call_attempt metadata object
-    :param results_output: the prefix name for the file
-    :param bucket_destination: bucket destination name
-    :param file_name: the file name
+    :param path: S3/GCS path (e.g. s3://bucket/key).
+    :return: Tuple of bucket and key strings
+    """
+    gcs_prefix = "gs://"
+    s3_prefix = "s3://"
+
+    if not path.startswith(s3_prefix) and not path.startswith(gcs_prefix):
+        err_msg = f"'{path}' is not a valid path. It MUST start with 's3://' or 'gs://'"
+        raise ValueError(err_msg)
+
+    if path.startswith(gcs_prefix):
+        parts = path.replace(gcs_prefix, "").split("/", 1)
+    else:
+        parts = path.replace(s3_prefix, "").split("/", 1)
+
+    bucket: str = parts[0]
+    if bucket == "":
+        err_msg = "Empty bucket name received"
+        raise ValueError(err_msg)
+    if "/" in bucket or bucket == " ":
+        err_msg = f"'{bucket}' is not a valid bucket name."
+        raise ValueError(err_msg)
+    key: str = ""
+    if len(parts) == 2:
+        key = key if parts[1] is None else parts[1]
+    return bucket, key
+
+
+class CopySpec:
+    """
+    Sets up a copy job from the target to the destination, contains common objects used
+    across all tasks.
     """
 
-    if "commandLine" in call_attempt:
+    def __init__(
+        self,
+        wf_id: str,
+        project: str,
+        source_location: str,
+        destination_location: str,
+    ) -> None:
+        """
+        Create a CopySpec instance. Creates the source and destination bucket and folder
+        names from the paths given, creates the Google Cloud Storage client, searches
+        for and loads the metadata file from the source bucket/folder.
+
+        :param wf_id: The workflow id (prefix in inputs.json)
+        :param project: The project to create the storage client for
+        :param source_location: The source of workflow outputs
+            (e.g. gs://my-bucket/my-folder/outputs)
+        :param destination_location: The destination to copy the outputs to
+            (e.g. gs://my-bucket/my-outputs)
+        """
+        source_bucket, source_folder = parse_bucket_path(source_location)
+        destination_bucket, destination_folder = parse_bucket_path(destination_location)
+
+        self.wf_id = wf_id
+        self.client = storage.Client(project=project)
+        self.source_bucket = self.client.get_bucket(source_bucket)
+        self.source_folder = source_folder.rstrip("/") + "/"
+        self.destination_bucket = self.client.get_bucket(destination_bucket)
+        self.destination_folder = destination_folder.rstrip("/") + "/"
+        self.metadata = self.set_metadata()
+
+        start_time = dateparser.parse(self.metadata["start"])
+        end_time = dateparser.parse(self.metadata["end"])
+        logger.info("Pipeline Running Time: %s \n", end_time - start_time)
+
+        self.tasks: list[TaskSpec] = []
+
+    def set_metadata(self) -> dict:
+        """
+        Find and set the metadata.json file in the source bucket/folder.
+
+        :return: The loaded metadata.json object.
+        """
+        bucket_content_list = self.client.list_blobs(
+            self.source_bucket,
+            prefix=self.source_folder,
+        )
+        metadata = None
+        # Get and load the metadata.json file
+        for blob in bucket_content_list:
+            m = re.match("(.*.metadata.json)", blob.name)
+            if m:
+                logger.info("\nMetadata file location: %sm[1]")
+                metadata = json.loads(blob.download_as_string(client=None))
+                break
+
+        if metadata is None:
+            logger.error(
+                "Error: unable to find metadata.json file in %s specified",
+                f"gs://{self.source_bucket.name}/{self.source_folder}",
+            )
+            sys.exit(1)
+
+        return metadata
+
+    def create_task(
+        self,
+        task_id: str,
+        stdout_filename: Callable[[dict], str] | str | None,
+        command_filename: Callable[[dict], str] | str,
+        outputs: list[str],
+        output_folder: str | None = None,
+    ) -> None:
+        """
+        Create a new TaskSpec and append it to the list of tasks to do.
+
+        :param task_id: The id of the call
+        :param stdout_filename: What to call the stdout file, takes either a static
+            string, or a callable which takes the call_attempt dict as an argument
+        :param command_filename:  What to call the command line file, takes either a
+            static string, or a callable which takes the call_attempt dict as an argument
+        :param outputs: The names of the outputs to copy, should be keys in the outputs
+            dict
+        :param output_folder: The folder to copy the results to, defers to TaskSpec if
+            not provided
+        """
+        self.tasks.append(
+            TaskSpec(
+                task_id,
+                stdout_filename,
+                command_filename,
+                outputs,
+                self,
+                output_folder,
+            ),
+        )
+
+    def run_tasks(self) -> None:
+        """Run all tasks for the copy job."""
+        for task in self.tasks:
+            task.run_copy()
+
+
+class TaskSpec:
+    """
+    Holds all information for copying files for a given task.
+    """
+
+    def __init__(
+        self,
+        task_id: str,
+        stdout_filename: Callable[[dict], str] | str,
+        command_filename: Callable[[dict], str] | str,
+        outputs: list[str],
+        copy_spec: CopySpec,
+        output_folder: str | None = None,
+    ) -> None:
+        """
+        Create a new TaskSpec.
+
+        :param task_id: The id of the call
+        :param stdout_filename: What to call the stdout file, takes either a static
+            string, or a callable which takes the call_attempt dict as an argument
+        :param command_filename:  What to call the command line file, takes either a
+            static string, or a callable which takes the call_attempt dict as an argument
+        :param outputs: The names of the outputs to copy, should be keys in the outputs
+            dict
+        :param copy_spec: The spec for the copy job which contains the source and
+            information destination as well as the metadata
+        :param output_folder: If not given, defaults to the task id pre-pended to _outputs
+        """
+        self.task_id = task_id
+        self._stdout_filename = stdout_filename
+        self._command_filename = command_filename
+        self.outputs = outputs
+        self.copy_spec = copy_spec
+        self.output_folder = (
+            output_folder or f"{copy_spec.destination_folder}/{task_id}_outputs"
+        )
+        self.calls = copy_spec.metadata["calls"][f"{copy_spec.wf_id}.{self.task_id}"]
+        self.attempt = {}
+
+    @property
+    def command_filename(self) -> str:
+        """
+        Return the command filename, calling it if the provided command filename is a
+        function.
+
+        :return: The stdout filename
+        """
+        if callable(self._command_filename):
+            return self._command_filename(self.attempt)
+        return self._command_filename
+
+    @property
+    def stdout_filename(self) -> str:
+        """
+        Return the stdout filename, calling it if the provided stdout filename is a
+        function.
+
+        :return: The stdout filename
+        """
+        if callable(self._stdout_filename):
+            return self._stdout_filename(self.attempt)
+        return self._stdout_filename
+
+    def write_command_to_file(self, call_attempt: dict, file_name: str) -> None:
+        """
+        Extract the command executed on each call available as text in the metadata.json
+        file and save it in the bucket as a file.
+
+        :param call_attempt: The call_attempt metadata object
+        :param file_name: the file name
+        """
         cmd_txt = call_attempt["commandLine"]
         if cmd_txt is not None:
-            cmd_txt_name = results_output + file_name
-            print("- Command to file:", cmd_txt_name)
-            new_blob_command = bucket_destination.blob(cmd_txt_name)
+            cmd_txt_name = f"{self.output_folder}/{file_name}"
+            logger.info("- Command to file: %s", cmd_txt_name)
+            new_blob_command = self.copy_spec.destination_bucket.blob(cmd_txt_name)
             new_blob_command.upload_from_string(cmd_txt, content_type="text/plain")
-    else:
-        print("----> Unable to copy commandLine")
+        else:
+            logger.warning("----> Unable to copy commandLine")
 
-
-# Copy ascore results to the same or different bucket
-def copy_ascore(metadata, dest_root_folder, bucket_source, bucket_destination):
-    ascore_output = dest_root_folder + "ascore_outputs/"
-    ascore_calls = metadata["calls"]["proteomics_msgfplus.ascore"]
-
-    for call_attempt in ascore_calls:
-        # # STDOUT, which requires to rename the file
-        if "stdout" in call_attempt:
-            seq_id = call_attempt["inputs"]["seq_file_id"]
-            copy_file_to_new_location(
-                call_attempt,
-                "stdout",
-                bucket_source,
-                bucket_destination,
-                ascore_output,
-                seq_id + "-ascore-stdout.log",
-            )
-
-        write_command_to_file(
-            call_attempt=call_attempt,
-            results_output=ascore_output,
-            bucket_destination=bucket_destination,
-            file_name="ascore-command.log",
+    def run_copy(self) -> None:
+        """
+        Copy the outputs from the source to the destination.
+        """
+        logger.info(
+            "\n %s, OUTPUTS---------------------------------\n",
+            self.task_id.capitalize(),
         )
-
-        executionStatus = trim_gs_prefix(
-            call_attempt["executionStatus"],
-            bucket_source.name,
-        )
-        if executionStatus == "Done":
-            attempt_outputs = call_attempt["outputs"]
-            for output in [
-                "syn_plus_ascore",
-                "syn_ascore",
-                "syn_ascore_proteinmap",
-                "output_ascore_logfile",
-            ]:
-                copy_file_to_new_location(
-                    attempt_outputs,
-                    output,
-                    bucket_source,
-                    bucket_destination,
-                    ascore_output,
+        for call_attempt in self.calls:
+            self.attempt = call_attempt
+            if "stdout" in call_attempt:
+                self.copy_file_to_new_location(
+                    call_attempt,
+                    "stdout",
+                    self.stdout_filename,
                 )
 
-        else:
-            print(" (-) Execution Status: ", executionStatus)
-            print(" (-) Data cannot be copied")
-
-
-# Copy msconvert_mzrefiner results to the same or different bucket
-def copy_msconvert_mzrefiner(
-    metadata, dest_root_folder, bucket_source, bucket_destination
-):
-    msconvert_mzrefiner_output = dest_root_folder + "msconvert_mzrefiner_outputs/"
-    msconvert_mzrefiner_calls = metadata["calls"][
-        "proteomics_msgfplus.msconvert_mzrefiner"
-    ]
-
-    for call_attempt in msconvert_mzrefiner_calls:
-        if "stdout" in call_attempt:
-            # STDOUT, which requires to rename the file
-            seq_id = call_attempt["inputs"]["sample_id"]
-            copy_file_to_new_location(
-                call_attempt,
-                "stdout",
-                bucket_source,
-                bucket_destination,
-                msconvert_mzrefiner_output,
-                seq_id + "-msconvert_mzrefiner-stdout.log",
+            self.write_command_to_file(
+                call_attempt=call_attempt,
+                file_name=self.command_filename,
             )
 
-        write_command_to_file(
-            call_attempt=call_attempt,
-            results_output=msconvert_mzrefiner_output,
-            bucket_destination=bucket_destination,
-            file_name="msconvert_mzrefiner-command.log",
-        )
+            execution_status = call_attempt["executionStatus"]
+            if execution_status == "Done":
+                call_outputs = call_attempt["outputs"]
+                for output in self.outputs:
+                    self.copy_file_to_new_location(
+                        call_outputs,
+                        output,
+                    )
+            else:
+                logger.warning(" (-) Execution Status: %s", execution_status)
+                logger.warning(" (-) Data cannot be copied")
 
-        executionStatus = trim_gs_prefix(
-            call_attempt["executionStatus"],
-            bucket_source.name,
-        )
-        if executionStatus == "Done":
-            attempt_outputs = call_attempt["outputs"]
-            copy_file_to_new_location(
-                attempt_outputs,
-                "mzml_fixed",
-                bucket_source,
-                bucket_destination,
-                msconvert_mzrefiner_output,
-            )
-        else:
-            print(" (-) Execution Status: ", executionStatus)
-            print(" (-) Data cannot be copied")
+    def copy_file_to_new_location(
+        self,
+        attempt_outputs_dict: dict,
+        output_name: str,
+        new_filename: str = None,
+    ) -> None:
+        """
+        Copy a file from the given dictionary at the key `output_name` in the source
+        bucket to the destination bucket with the new path (and optional filename).
 
-
-def copy_ppm_errorcharter(metadata, dest_root_folder, bucket_source, bucket_destination):
-    ppm_errorcharter_output = dest_root_folder + "output_ppm_errorcharter/"
-    ppm_errorcharter_calls = metadata["calls"]["proteomics_msgfplus.ppm_errorcharter"]
-
-    for call_attempt in ppm_errorcharter_calls:
-        if "stdout" in call_attempt:
-            seq_id = call_attempt["inputs"]["sample_id"]
-            copy_file_to_new_location(
-                call_attempt,
-                "stdout",
-                bucket_source,
-                bucket_destination,
-                ppm_errorcharter_output,
-                seq_id + "-ppm_errorcharter-stdout.log",
-            )
-
-        write_command_to_file(
-            call_attempt=call_attempt,
-            results_output=ppm_errorcharter_output,
-            bucket_destination=bucket_destination,
-            file_name="ppm_errorcharter-command.log",
-        )
-
-        executionStatus = trim_gs_prefix(
-            call_attempt["executionStatus"],
-            bucket_source.name,
-        )
-        if executionStatus == "Done":
-            attempt_outputs = call_attempt["outputs"]
-            for output in ["ppm_masserror_png", "ppm_histogram_png"]:
-                copy_file_to_new_location(
-                    attempt_outputs,
-                    output,
-                    bucket_source,
-                    bucket_destination,
-                    ppm_errorcharter_output,
+        :param attempt_outputs_dict: The dictionary being searched
+        :param output_name: The key to look for the file in the `attempt_outputs_dict`
+        :param new_filename: An optional new filename to give the object
+        """
+        file_to_copy = attempt_outputs_dict.get(output_name)
+        if file_to_copy is not None:
+            if isinstance(file_to_copy, list):
+                for f in file_to_copy:
+                    self.copy_single_file(f, new_filename, output_name)
+            elif isinstance(file_to_copy, str):
+                self.copy_single_file(file_to_copy, new_filename, output_name)
+            else:
+                logger.error(
+                    "----> Unable to copy %s, key has unsupported type %s",
+                    output_name,
+                    type(file_to_copy),
                 )
         else:
-            print(" (-) Execution Status: ", executionStatus)
-            print(" (-) Data cannot be copied")
+            logger.error("----> Unable to copy %s, key does not exist", output_name)
 
+    def copy_single_file(
+        self, original_filename: str, new_filename: str, output_name: str,
+    ) -> None:
+        """
+        Copy a single file with the original filename to the new_filename.
 
-# WARNING: ID IS COMING FROM THE RAW FILE NAME:
-def copy_masic(metadata, dest_root_folder, bucket_source, bucket_destination):
-    masic_output = dest_root_folder + "masic_outputs/"
-    masic_calls = metadata["calls"]["proteomics_msgfplus.masic"]
-
-    for call_attempt in masic_calls:
-        # print('\nBlob-', x, ' ', end = '')
-        if "stdout" in call_attempt:
-            # WARNING: ID IS COMING FROM THE RAW FILE NAME:
-            seq_id = os.path.basename(call_attempt["inputs"]["raw_file"]).replace(
-                ".raw", ""
-            )
-            copy_file_to_new_location(
-                call_attempt,
-                "stdout",
-                bucket_source,
-                bucket_destination,
-                masic_output,
-                seq_id + "-masic-stdout.log",
-            )
-
-        write_command_to_file(
-            call_attempt=call_attempt,
-            results_output=masic_output,
-            bucket_destination=bucket_destination,
-            file_name="masic-command.log",
+        :param original_filename: The original file's filename
+        :param new_filename: The new file's filename
+        :param output_name: The name of the output in the outputs dict
+        """
+        # remove the gs://<bucket>/ prefix from the data
+        trimmed_file_path = trim_gs_prefix(
+            original_filename,
+            self.copy_spec.source_bucket.name,
         )
-
-        executionStatus = trim_gs_prefix(
-            call_attempt["executionStatus"],
-            bucket_source.name,
-        )
-        if executionStatus == "Done":
-            attempt_outputs = call_attempt["outputs"]
-            for output in [
-                "ReporterIons_output_file",
-                "PeakAreaHistogram_output_file",
-                "RepIonObsRateHighAbundance_output_file",
-                "RepIonObsRate_output_txt_file",
-                "MSMS_scans_output_file",
-                "SICs_output_file",
-                "MS_scans_output_file",
-                "SICstats_output_file",
-                "ScanStatsConstant_output_file",
-                "RepIonStatsHighAbundance_output_file",
-                "ScanStatsEx_output_file",
-                "ScanStats_output_file",
-                "PeakWidthHistogram_output_file",
-                "RepIonStats_output_file",
-                "DatasetInfo_output_file",
-                "RepIonObsRate_output_png_file",
-            ]:
-                copy_file_to_new_location(
-                    attempt_outputs,
-                    output,
-                    bucket_source,
-                    bucket_destination,
-                    masic_output,
-                )
-
-        else:
-            print(" (-) Execution Status: ", executionStatus)
-            print(" (-) Data cannot be copied")
-
-
-# Copy msconvert results to the same or different bucket
-def copy_msconvert(metadata, dest_root_folder, bucket_source, bucket_destination):
-    msconvert_output = dest_root_folder + "msconvert_outputs/"
-    msconvert_calls = metadata["calls"]["proteomics_msgfplus.msconvert"]
-
-    for x, call_attempt in range(msconvert_calls):
-        if "stdout" in call_attempt:
-            seq_id = os.path.basename(call_attempt["inputs"]["raw_file"]).replace(
-                ".raw", ""
+        # if not supplied with a new filename, use the original base filename
+        if new_filename is None:
+            new_filename = Path(trimmed_file_path).name
+        # create the new file path
+        new_file_path = f"{self.output_folder}/{new_filename}"
+        # get the original file
+        original_file = self.copy_spec.source_bucket.get_blob(trimmed_file_path)
+        # copy the original file if it exists, log an error if it doesn't
+        if original_file is not None:
+            self.copy_spec.source_bucket.copy_blob(
+                original_file,
+                self.copy_spec.destination_bucket.name,
+                new_file_path,
             )
-            copy_file_to_new_location(
-                call_attempt,
-                "stdout",
-                bucket_source,
-                bucket_destination,
-                msconvert_output,
-                seq_id + "-msconvert-stdout.log",
-            )
-
-        write_command_to_file(
-            call_attempt=call_attempt,
-            results_output=msconvert_output,
-            bucket_destination=bucket_destination,
-            file_name="msconvert-command.log",
-        )
-
-        executionStatus = trim_gs_prefix(
-            call_attempt["executionStatus"],
-            bucket_source.name,
-        )
-        if executionStatus == "Done":
-            call_outputs = call_attempt["outputs"]
-            copy_file_to_new_location(
-                call_outputs,
-                "mzml",
-                bucket_source,
-                bucket_destination,
-                msconvert_output,
+            logger.info(
+                "- Copied %s file to: %s",
+                output_name,
+                f"gs://{self.copy_spec.destination_bucket.name}/{new_file_path}",
             )
         else:
-            print(" (-) Execution Status: ", executionStatus)
-            print(" (-) Data cannot be copied")
-
-
-def copy_msgf_identification(
-    metadata, dest_root_folder, bucket_source, bucket_destination
-):
-    msgf_identification_output = dest_root_folder + "msgf_identification_outputs/"
-    msgf_identification_calls = metadata["calls"][
-        "proteomics_msgfplus.msgf_identification"
-    ]
-
-    for call_attempt in msgf_identification_calls:
-        if "stdout" in call_attempt:
-            seq_id = call_attempt["inputs"]["sample_id"]
-            copy_file_to_new_location(
-                call_attempt,
-                "stdout",
-                bucket_source,
-                bucket_destination,
-                msgf_identification_output,
-                seq_id + "-msgf_identification-stdout.log",
+            logger.error(
+                "----> Unable to copy %s at %s to %s",
+                output_name,
+                original_filename,
+                f"gs://{self.copy_spec.destination_bucket.name}/{new_file_path}",
             )
-
-        write_command_to_file(
-            call_attempt=call_attempt,
-            results_output=msgf_identification_output,
-            bucket_destination=bucket_destination,
-            file_name="msgf_identification-command.log",
-        )
-
-        executionStatus = trim_gs_prefix(
-            call_attempt["executionStatus"],
-            bucket_source.name,
-        )
-        if executionStatus == "Done":
-            attempt_outputs = call_attempt["outputs"]
-            for output in ["rename_mzmlfixed", "mzid_final"]:
-                copy_file_to_new_location(
-                    attempt_outputs,
-                    output,
-                    bucket_source,
-                    bucket_destination,
-                    msgf_identification_output,
-                )
-        else:
-            print(" (-) Execution Status: ", executionStatus)
-            print(" (-) Data cannot be copied")
-
-
-# Copy msgf_sequences results to the same or different bucket
-def copy_msgf_sequences(metadata, dest_root_folder, bucket_source, bucket_destination):
-    msgf_sequences_output = dest_root_folder + "msgf_sequences_outputs/"
-    msgf_sequences_calls = metadata["calls"]["proteomics_msgfplus.msgf_sequences"]
-
-    for call_attempt in msgf_sequences_calls:
-        # # Get and upload the command
-        if "commandLine" in call_attempt:
-            msgf_sequences_cmd = call_attempt["commandLine"]
-            cmd_local_file_name = "command-msgf_sequences.txt"
-            cmd_blob_filename = msgf_sequences_output + cmd_local_file_name
-            print("- Command: ", cmd_blob_filename)
-            upload_string(bucket_destination, msgf_sequences_cmd, cmd_blob_filename)
-
-        write_command_to_file(
-            call_attempt=call_attempt,
-            results_output=msgf_sequences_output,
-            bucket_destination=bucket_destination,
-            file_name="msgf_sequences-command.log",
-        )
-
-        executionStatus = trim_gs_prefix(
-            call_attempt["executionStatus"],
-            bucket_source.name,
-        )
-        if executionStatus == "Done":
-            attempt_outputs = call_attempt["outputs"]
-            for output in ["revcat_fasta, sequencedb_files"]:
-                copy_file_to_new_location(
-                    attempt_outputs,
-                    output,
-                    bucket_source,
-                    bucket_destination,
-                    msgf_sequences_output,
-                )
-        else:
-            print(" (-) Execution Status: ", executionStatus)
-            print(" (-) Data cannot be copied")
-
-
-# Copy msgf_tryptic results to the same or different bucket
-def copy_msgf_tryptic(metadata, dest_root_folder, bucket_source, bucket_destination):
-    msgf_tryptic_output = dest_root_folder + "msgf_tryptic_outputs/"
-    msgf_tryptic_calls = metadata["calls"]["proteomics_msgfplus.msgf_tryptic"]
-
-    for call_attempt in msgf_tryptic_calls:
-        # STDOUT, which requires to rename the file
-        if "stdout" in call_attempt:
-            seq_id = call_attempt["inputs"]["sample_id"]
-            copy_file_to_new_location(
-                call_attempt,
-                "stdout",
-                bucket_source,
-                bucket_destination,
-                msgf_tryptic_output,
-                seq_id + "-msgf_tryptic-stdout.log",
-            )
-
-        write_command_to_file(
-            call_attempt=call_attempt,
-            results_output=msgf_tryptic_output,
-            bucket_destination=bucket_destination,
-            file_name="msgf_tryptic-command.log",
-        )
-
-        executionStatus = trim_gs_prefix(
-            call_attempt["executionStatus"],
-            bucket_source.name,
-        )
-        if executionStatus == "Done":
-            call_outputs = call_attempt["outputs"]
-            copy_file_to_new_location(
-                call_outputs,
-                "mzid",
-                bucket_source,
-                bucket_destination,
-                msgf_tryptic_output,
-            )
-        else:
-            print(" (-) Execution Status: ", executionStatus)
-            print(" (-) Data cannot be copied")
-
-
-########################################################################
-# WARNING TO DO: THERE MIGHT BE AN EXTRA OUTPUT TO BE ADDED: phrp_log_file
-########################################################################
-def copy_phrp(metadata, dest_root_folder, bucket_source, bucket_destination):
-    phrp_output = dest_root_folder + "phrp_outputs/"
-    phrp_calls = metadata["calls"]["proteomics_msgfplus.phrp"]
-    # print('- Number of files processed:', phrp_length)
-
-    for call_attempt in phrp_calls:
-        # print('\nBlob-', x, ' ', end = '')
-        if "stdout" in call_attempt:
-            # WARNING: ID IS COMING FROM THE RAW FILE NAME:
-            seq_id = os.path.basename(call_attempt["inputs"]["input_tsv"])
-            seq_id = seq_id.replace(".tsv", "")
-            copy_file_to_new_location(
-                call_attempt,
-                "stdout",
-                bucket_source,
-                bucket_destination,
-                phrp_output,
-                seq_id + "-phrp-stdout.log",
-            )
-
-        write_command_to_file(
-            call_attempt=call_attempt,
-            results_output=phrp_output,
-            bucket_destination=bucket_destination,
-            file_name="phrp-command.log",
-        )
-
-        executionStatus = trim_gs_prefix(
-            call_attempt["executionStatus"],
-            bucket_source.name,
-        )
-        if executionStatus == "Done":
-            attempt_outputs = call_attempt["outputs"]
-            for output in [
-                "syn_ResultToSeqMap",
-                "fht",
-                "PepToProtMapMTS",
-                "syn_ProteinMods",
-                "syn_SeqToProteinMap",
-                "syn",
-                "syn_ModSummary",
-                "syn_SeqInfo",
-                "syn_ModDetails",
-            ]:
-                copy_file_to_new_location(
-                    attempt_outputs,
-                    output,
-                    bucket_source,
-                    bucket_destination,
-                    phrp_output,
-                )
-        else:
-            print(" (-) Execution Status: ", executionStatus)
-            print(" (-) Data cannot be copied")
-
-
-# Copy mzidtotsvconverter results to the same or different bucket
-def copy_mzidtotsvconverter(
-    metadata, dest_root_folder, bucket_source, bucket_destination
-):
-    mzidtotsvconverter_output = dest_root_folder + "mzidtotsvconverter_outputs/"
-    mzidtotsvconverter_calls = metadata["calls"]["proteomics_msgfplus.mzidtotsvconverter"]
-
-    for call_attempt in mzidtotsvconverter_calls:
-        if "stdout" in call_attempt:
-            seq_id = call_attempt["inputs"]["sample_id"]
-            copy_file_to_new_location(
-                call_attempt,
-                "stdout",
-                bucket_source,
-                bucket_destination,
-                mzidtotsvconverter_output,
-                seq_id + "-mzidtotsvconverter-stdout.log",
-            )
-
-        write_command_to_file(
-            call_attempt=call_attempt,
-            results_output=mzidtotsvconverter_output,
-            bucket_destination=bucket_destination,
-            file_name="mzidtotsvconverter-command.log",
-        )
-
-        executionStatus = trim_gs_prefix(
-            call_attempt["executionStatus"],
-            bucket_source.name,
-        )
-        if executionStatus == "Done":
-            call_outputs = call_attempt["outputs"]
-            copy_file_to_new_location(
-                call_outputs,
-                "tsv",
-                bucket_source,
-                bucket_destination,
-                mzidtotsvconverter_output,
-            )
-        else:
-            print(" (-) Execution Status: ", executionStatus)
-            print(" (-) Data cannot be copied")
-
-
-# Copy wrapper_pp results to the same or different bucket
-def copy_wrapper_pp(
-    metadata,
-    dest_root_folder,
-    bucket_source: Bucket,
-    bucket_destination: Bucket,
-):
-    wrapper_results_output = dest_root_folder + "wrapper_results/"
-
-    # Check whether isPTM
-
-    print("+ Proteomics experiment results")
-    wrapper_method = "proteomics_msgfplus.wrapper_pp"
-
-    if wrapper_method not in metadata["calls"]:
-        print("(-) Plexed piper not available")
-        return None
-
-    wrapper_results_calls = metadata["calls"][wrapper_method]
-
-    for call_attempt in wrapper_results_calls:
-        if "stdout" in call_attempt:
-            copy_file_to_new_location(
-                call_attempt,
-                "stdout",
-                bucket_source,
-                bucket_destination,
-                wrapper_results_output,
-            )
-
-        write_command_to_file(
-            call_attempt=call_attempt,
-            results_output=wrapper_results_output,
-            bucket_destination=bucket_destination,
-            file_name="wrapper_results-command.log",
-        )
-
-        executionStatus = trim_gs_prefix(
-            call_attempt["executionStatus"], bucket_source.name
-        )
-        if executionStatus == "Done":
-            call_outputs = call_attempt["outputs"]
-            for output in [
-                "results_ratio",
-                "results_rii",
-                "final_output_masic_tar",
-                "final_output_phrp_tar",
-                "final_output_ascore",
-            ]:
-                copy_file_to_new_location(
-                    call_outputs,
-                    output,
-                    bucket_source,
-                    bucket_destination,
-                    wrapper_results_output,
-                )
-        else:
-            print(" (-) Execution Status: ", executionStatus)
-            print(" (-) Data cannot be copied")
 
 
 # Copy wrapper_pp results to the same or different bucket
 def copy_ppinputs(
-    metadata,
-    dest_root_folder,
+    metadata: dict,
+    dest_root_folder: str,
     bucket_source: Bucket,
     bucket_destination: Bucket,
 ):
     # Check whether isPTM
 
-    print("+ Proteomics experiment results")
+    logger.info("+ Proteomics experiment results")
     wrapper_method = "proteomics_msgfplus.wrapper_pp"
 
     if wrapper_method not in metadata["calls"]:
-        print("(-) Plexed piper not available", file=sys.stderr)
-        return None
+        logger.error("(-) Plexed piper not available")
+        return
 
     inputs = metadata["inputs"]
 
@@ -683,10 +469,11 @@ def copy_ppinputs(
 
     wrapper_results_calls = metadata["calls"][wrapper_method]
     for call_attempt in wrapper_results_calls:
-        executionStatus = trim_gs_prefix(
-            call_attempt["executionStatus"], bucket_source.name
+        execution_status = trim_gs_prefix(
+            call_attempt["executionStatus"],
+            bucket_source.name,
         )
-        if executionStatus == "Done":
+        if execution_status == "Done":
             call_outputs = call_attempt["outputs"]
             for output in [
                 "results_ratio",
@@ -703,103 +490,28 @@ def copy_ppinputs(
                     dest_root_folder,
                 )
         else:
-            print(" (-) Execution Status: ", executionStatus)
-            print(" (-) Data cannot be copied")
+            logger.warning(" (-) Execution Status: %s", execution_status)
+            logger.warning(" (-) Data cannot be copied")
 
 
-# MAXQUANT METHODS----------------------------------------------------
-# Copy maxquant results to the same or different bucket
-def copy_maxquant(
-    metadata: dict,
-    dest_root_folder: str,
-    bucket_source: Bucket,
-    bucket_destination: Bucket,
-):
-    maxquant_output = dest_root_folder + "maxquant_outputs/"
-    maxquant_calls = metadata["calls"]["proteomics_maxquant.maxquant"]
-
-    for call_attempt in maxquant_calls:
-        if "stdout" in call_attempt:
-            seq_id = "console"
-            copy_file_to_new_location(
-                call_attempt,
-                "stdout",
-                bucket_source,
-                bucket_destination,
-                maxquant_output,
-                seq_id + "-maxquant-stdout.log",
-            )
-
-        write_command_to_file(
-            call_attempt=call_attempt,
-            results_output=maxquant_output,
-            bucket_destination=bucket_destination,
-            file_name="maxquant-command.log",
-        )
-
-        executionStatus = trim_gs_prefix(
-            call_attempt["executionStatus"],
-            bucket_source.name,
-        )
-        if executionStatus == "Done":
-            attempt_outputs = call_attempt["outputs"]
-            for output in [
-                "evidence",
-                "modificationSpecificPeptides",
-                "allPeptides",
-                "peptides",
-                "mzRange",
-                "matchedFeatures",
-                "ms3Scans",
-                "proteinGroups",
-                "msms",
-                "runningTimes",
-                "libraryMatch",
-                "msmsScans",
-                "parameters",
-                "summary",
-            ]:
-                copy_file_to_new_location(
-                    attempt_outputs,
-                    output,
-                    bucket_source,
-                    bucket_destination,
-                    maxquant_output,
-                )
-
-            if "sites" in attempt_outputs:
-                for files in attempt_outputs["sites"]:
-                    s_file = trim_gs_prefix(files, bucket_source.name)
-                    blob_f_sites = bucket_source.get_blob(s_file)
-                    new_f_sites = maxquant_output + os.path.basename(s_file)
-                    print("- File to:", new_f_sites)
-                    bucket_source.copy_blob(blob_f_sites, bucket_destination, new_f_sites)
-
-        else:
-            print(" (-) Execution Status: ", executionStatus)
-            print(" (-) Data cannot be copied")
-
-
-def arg_parser():
+def create_args():
     parser = argparse.ArgumentParser(
-        description="Copy proteomics pipeline output files to a desire location"
+        description="Copy proteomics pipeline output files to a desire location",
     )
     parser.add_argument(
-        "-p", "--project", required=True, type=str, help="GCP project name. Required."
+        "-p",
+        "--project",
+        required=True,
+        type=str,
+        help="GCP project name. Required.",
     )
     parser.add_argument(
         "-b",
-        "--bucket_origin",
+        "--origin",
         required=True,
         type=str,
-        help="Bucket with output files. Required.",
-    )
-    parser.add_argument(
-        "-d",
-        "--bucket_destination_name",
-        required=False,
-        type=str,
-        help="Bucket to copy file. Not Required. Default: same as bucket_origin).",
+        help="Bucket with output files. Required. "
+        "(e.g. gs://my-bucket/test/results/input_test_gcp_s6-global-2files-8/)",
     )
     parser.add_argument(
         "-m",
@@ -809,20 +521,12 @@ def arg_parser():
         help="Proteomics Method. Currently supported: msgfplus or maxquant.",
     )
     parser.add_argument(
-        "-r",
-        "--results_location_path",
-        required=True,
-        type=str,
-        help="Path to the pipeline results. Required "
-        "(e.g. results/proteomics_msgfplus/9c6ff6fe-ce7d-4d23-ac18-9935614d6f9b)",
-    )
-    parser.add_argument(
         "-o",
-        "--dest_root_folder",
+        "--destination",
         required=True,
         type=str,
-        help="Folder path to copy the files. Required "
-        "(e.g. test/results/input_test_gcp_s6-global-2files-8/)",
+        help="Full path to copy the files to. Required. "
+        "(e.g. gs://my-bucket/test/results/input_test_gcp_s6-global-2files-8/)",
     )
     parser.add_argument(
         "-c",
@@ -838,194 +542,221 @@ def arg_parser():
 
 
 def main():
-    parser = arg_parser()
+    parser = create_args()
     args = parser.parse_args()
 
     project_name = args.project.rstrip("/")
-    print("\nGCP project:", project_name)
+    logger.info("\nGCP project: %s", project_name)
 
-    bucket_origin = args.bucket_origin.rstrip("/")
-    print("Bucket origin:", bucket_origin)
-
-    bucket_destination_name = args.bucket_destination_name
-    if args.bucket_destination_name is None:
-        print(
-            "Bucket destination: --bucket_destination_name (-d) is empty. Same as "
-            f"original will be used ({bucket_origin})",
-            file=sys.stderr,
-        )
-        if input("Proceed? (y/n) ") != "y":
-            sys.exit(1)
-        bucket_destination_name = bucket_origin
-    else:
-        print("Bucket destination: ", bucket_destination_name)
-
-    print("\nOPTIONS:")
+    origin = args.origin.rstrip("/")
+    logger.info("Origin: %s", origin)
+    destination = args.origin.rstrip("/")
+    logger.info("Destination: %s", destination)
 
     method_proteomics = args.method_proteomics
-    print("+ Proteomics Pipeline METHOD: ", method_proteomics)
-
-    results_location_path = args.results_location_path.rstrip("/")
-    print("+ Copy files from:", results_location_path)
-
-    dest_root_folder = args.dest_root_folder
-    if not dest_root_folder.endswith("/"):
-        dest_root_folder += "/"
-
-    print("+ Copy files to: ", dest_root_folder)
-
-    storage_client = storage.Client(project_name)
-    bucket_source = storage_client.get_bucket(bucket_origin)
-    bucket_destination = storage_client.get_bucket(bucket_destination_name)
-
-    bucket_content_list = storage_client.list_blobs(
-        bucket_source, prefix=results_location_path
-    )
-    metadata = None
-    # Get and load the metadata.json file
-    for blob in bucket_content_list:
-        # print(type(here))
-        # print(here)
-        m = re.match("(.*.metadata.json)", blob.name)
-        if m:
-            print("\nMetadata file location: ", m[1])
-            metadata = json.loads(blob.download_as_string(client=None))
-            break
-
-    if metadata is None:
-        print(
-            "Error: unable to find metadata.json file in path specified",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    start_time = dateparser.parse(metadata["start"])
-    end_time = dateparser.parse(metadata["end"])
-
-    print("Pipeline Running Time: ", end_time - start_time, "\n")
+    logger.info("+ Proteomics Pipeline METHOD: %s", method_proteomics)
 
     if method_proteomics == "maxquant":
-        print("PROTEOMICS METHOD: maxquant")
-        print("+ Copy MAXQUANT outputs-----------------------------\n")
-        copy_maxquant(metadata, dest_root_folder, bucket_source, bucket_destination)
+        logger.info("PROTEOMICS METHOD: maxquant")
+        logger.info("+ Copy MAXQUANT outputs-----------------------------\n")
+        copy_job = CopySpec("proteomics_maxquant", project_name, origin, destination)
+        copy_job.create_task(
+            "maxquant",
+            "console-maxquant-stdout.log",
+            "maxquant-command.log",
+            [
+                "evidence",
+                "modificationSpecificPeptides",
+                "allPeptides",
+                "peptides",
+                "mzRange",
+                "matchedFeatures",
+                "ms3Scans",
+                "proteinGroups",
+                "msms",
+                "runningTimes",
+                "libraryMatch",
+                "msmsScans",
+                "parameters",
+                "summary",
+                "sites",
+            ],
+        )
     else:
+        copy_job = CopySpec("proteomics_msgfplus", project_name, origin, destination)
         if args.copy_what == "full":
-            print("PROTEOMICS METHOD: msgfplus")
+            logger.info("PROTEOMICS METHOD: msgfplus")
 
-            if "inputs" in metadata:
-                is_ptm = metadata["inputs"]["proteomics_msgfplus.isPTM"]
+            if "inputs" in copy_job.metadata:
+                is_ptm = copy_job.metadata["inputs"]["proteomics_msgfplus.isPTM"]
                 if is_ptm:
-                    print("\n######## PTM PROTEOMICS EXPERIMENT ########\n")
+                    logger.info("\n####### PTM PROTEOMICS EXPERIMENT #######\n")
                 else:
-                    print("\n######## GLOBAL PROTEIN ABUNDANCE EXPERIMENT ########\n")
-                print("Ready to copy ALL MSGFplus outputs")
+                    logger.info(
+                        "\n####### GLOBAL PROTEIN ABUNDANCE EXPERIMENT #######\n",
+                    )
+                logger.info("Ready to copy ALL MSGF-plus outputs")
 
-            if "proteomics_msgfplus.ascore" in metadata["calls"]:
-                print("\nASCORE OUTPUTS--------------------------------------\n")
-                copy_ascore(
-                    metadata,
-                    dest_root_folder,
-                    bucket_source,
-                    bucket_destination,
+            if "proteomics_msgfplus.ascore" in copy_job.metadata["calls"]:
+                copy_job.create_task(
+                    "ascore",
+                    lambda x: x["inputs"]["seq_file_id"] + "-ascore-stdout.log",
+                    "ascore-command.log",
+                    [
+                        "syn_plus_ascore",
+                        "syn_ascore",
+                        "syn_ascore_proteinmap",
+                        "output_ascore_logfile",
+                    ],
                 )
 
-            print("\nMSCONVERT_MZREFINER OUTPUTS-----------------------------\n")
-            copy_msconvert_mzrefiner(
-                metadata,
-                dest_root_folder,
-                bucket_source,
-                bucket_destination,
+            copy_job.create_task(
+                "msconvert_mzrefiner",
+                lambda x: f"{x['inputs']['sample_id']}-msconvert_mzrefiner-stdout.log",
+                "msconvert_mzrefiner-command.log",
+                ["mzml_fixed"],
             )
 
-            print("\nPPMErrorCharter (ppm_errorcharter)------------------------\n")
-            copy_ppm_errorcharter(
-                metadata,
-                dest_root_folder,
-                bucket_source,
-                bucket_destination,
+            copy_job.create_task(
+                "ppm_errorcharter",
+                lambda x: f"{x['inputs']['sample_id']}-ppm_errorcharter-stdout.log",
+                "ppm_errorcharter-command.log",
+                ["ppm_masserror_png", "ppm_histogram_png"],
             )
 
-            print("\nMASIC OUTPUTS-------------------------------------------\n")
-            copy_masic(
-                metadata,
-                dest_root_folder,
-                bucket_source,
-                bucket_destination,
+            copy_job.create_task(
+                "masic",
+                lambda x: f"{Path(x['inputs']['raw_file']).name.replace('.raw', '')}-masic-stdout.log",
+                "masic-command.log",
+                [
+                    "ReporterIons_output_file",
+                    "PeakAreaHistogram_output_file",
+                    "RepIonObsRateHighAbundance_output_file",
+                    "RepIonObsRate_output_txt_file",
+                    "MSMS_scans_output_file",
+                    "SICs_output_file",
+                    "MS_scans_output_file",
+                    "SICstats_output_file",
+                    "ScanStatsConstant_output_file",
+                    "RepIonStatsHighAbundance_output_file",
+                    "ScanStatsEx_output_file",
+                    "ScanStats_output_file",
+                    "PeakWidthHistogram_output_file",
+                    "RepIonStats_output_file",
+                    "DatasetInfo_output_file",
+                    "RepIonObsRate_output_png_file",
+                ],
             )
 
-            print("\nMSCONVERT OUTPUTS---------------------------------------\n")
-            copy_msconvert(
-                metadata,
-                dest_root_folder,
-                bucket_source,
-                bucket_destination,
+            copy_job.create_task(
+                "msconvert",
+                lambda x: f"{Path(x['inputs']['raw_file']).name.replace('.raw', '')}-msconvert-stdout.log",
+                "msconvert-command.log",
+                ["mzml"],
             )
 
-            print("\nMSGF_IDENTIFICATION OUTPUTS-----------------------------\n")
-            copy_msgf_identification(
-                metadata,
-                dest_root_folder,
-                bucket_source,
-                bucket_destination,
+            copy_job.create_task(
+                "msgf_identification",
+                lambda x: f"{x['inputs']['sample_id']}-msgf_identification-stdout.log",
+                "msgf_identification-command.log",
+                ["rename_mzmlfixed", "mzid_final"],
             )
 
-            print("\nMSGF_SEQUENCES OUTPUTS----------------------------------\n")
-            copy_msgf_sequences(
-                metadata,
-                dest_root_folder,
-                bucket_source,
-                bucket_destination,
+            copy_job.create_task(
+                "msgf_sequences",
+                "msgf_sequences-stdout.log",
+                "msgf_sequences-command.log",
+                ["revcat_fasta, sequencedb_files"],
             )
 
-            print("\nMSGF_TRYPTIC OUTPUTS------------------------------------\n")
-            copy_msgf_tryptic(
-                metadata,
-                dest_root_folder,
-                bucket_source,
-                bucket_destination,
+            copy_job.create_task(
+                "msgf_tryptic",
+                lambda x: f"{x['inputs']['sample_id']}-msgf_tryptic-stdout.log",
+                "msgf_tryptic-command.log",
+                ["mzid"],
             )
 
-            print("\nPHRP OUTPUTS--------------------------------------------\n")
-            copy_phrp(
-                metadata,
-                dest_root_folder,
-                bucket_source,
-                bucket_destination,
+            copy_job.create_task(
+                "phrp",
+                lambda x: f"{Path(x['inputs']['input_tsv']).name.replace('.tsv', '')}-phrp-stdout.log",
+                "phrp-command.log",
+                [
+                    "syn_ResultToSeqMap",
+                    "fht",
+                    "PepToProtMapMTS",
+                    "syn_ProteinMods",
+                    "syn_SeqToProteinMap",
+                    "syn",
+                    "syn_ModSummary",
+                    "syn_SeqInfo",
+                    "syn_ModDetails",
+                ],
             )
 
-            print("\nMZID to TSV CONVERTER OUTPUTS---------------------------\n")
-            copy_mzidtotsvconverter(
-                metadata,
-                dest_root_folder,
-                bucket_source,
-                bucket_destination,
+            copy_job.create_task(
+                "mzidtotsvconverter",
+                lambda x: f"{x['inputs']['sample_id']}-mzidtotsvconverter-stdout.log",
+                "mzidtotsvconverter-command.log",
+                ["tsv"],
             )
 
-            print("\nWRAPPER: PlexedPiper output-------------------------------\n")
-            copy_wrapper_pp(metadata, dest_root_folder, bucket_source, bucket_destination)
+            if "proteomics_msgfplus.wrapper_pp" in copy_job.metadata["calls"]:
+                copy_job.create_task(
+                    "wrapper_pp",
+                    None,
+                    "wrapper_results-command.log",
+                    ["tsv"],
+                )
+            else:
+                logger.error("(-) Plexed piper not available")
+                return
+
         elif args.copy_what == "ppinputs":
-            if "inputs" in metadata:
-                is_ptm = metadata["inputs"]["proteomics_msgfplus.isPTM"]
+            if "inputs" in copy_job.metadata:
+                is_ptm = copy_job.metadata["inputs"]["proteomics_msgfplus.isPTM"]
                 if is_ptm:
-                    print("\n######## PTM PROTEOMICS EXPERIMENT ########\n")
+                    logger.info("\n######## PTM PROTEOMICS EXPERIMENT ########\n")
                 else:
-                    print("\n######## GLOBAL PROTEIN ABUNDANCE EXPERIMENT ########\n")
-                print("Ready to copy ONLY PlexedPiper (RII + Ratio) results")
-            print("\nWRAPPER: PlexedPiper output-------------------------------\n")
+                    logger.info(
+                        "\n####### GLOBAL PROTEIN ABUNDANCE EXPERIMENT #######\n",
+                    )
+                logger.info("Ready to copy ONLY PlexedPiper (RII + Ratio) results")
+                logger.info(
+                    "\nWRAPPER: PlexedPiper output----------------------------\n",
+                )
 
-            copy_ppinputs(metadata, dest_root_folder, bucket_source, bucket_destination)
+                copy_ppinputs(
+                    copy_job.metadata,
+                    copy_job.destination_folder,
+                    copy_job.source_bucket,
+                    copy_job.destination_bucket,
+                )
+        elif args.copy_what == "results":
+            if "inputs" in copy_job.metadata:
+                is_ptm = copy_job.metadata["inputs"]["proteomics_msgfplus.isPTM"]
+                if is_ptm:
+                    logger.info("\n####### PTM PROTEOMICS EXPERIMENT #######\n")
+                else:
+                    logger.info(
+                        "\n####### GLOBAL PROTEIN ABUNDANCE EXPERIMENT #######\n",
+                    )
+
+                logger.info("Ready to copy ONLY PlexedPiper (RII + Ratio) results")
+                if "proteomics_msgfplus.wrapper_pp" in copy_job.metadata["calls"]:
+                    copy_job.create_task(
+                        "wrapper_pp",
+                        None,
+                        "wrapper_results-command.log",
+                        ["tsv"],
+                    )
+                else:
+                    logger.error("(-) Plexed piper not available")
+                    return
         else:
-            if "inputs" in metadata:
-                is_ptm = metadata["inputs"]["proteomics_msgfplus.isPTM"]
-                if is_ptm:
-                    print("\n######## PTM PROTEOMICS EXPERIMENT ########\n")
-                else:
-                    print("\n######## GLOBAL PROTEIN ABUNDANCE EXPERIMENT ########\n")
-                print("Ready to copy ONLY PlexedPiper (RII + Ratio) results")
-            print("\nWRAPPER: PlexedPiper output-------------------------------\n")
-            copy_wrapper_pp(metadata, dest_root_folder, bucket_source, bucket_destination)
+            err_msg = "You should not have gotten here"
+            raise ValueError(err_msg)
 
-    print("\n")
+        copy_job.run_tasks()
 
 
 if __name__ == "__main__":
