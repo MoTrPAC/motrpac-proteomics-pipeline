@@ -9,8 +9,10 @@ import re
 import sys
 import warnings
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, Future
+from functools import wraps
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, ParamSpec, TypeVar, Optional
 
 import dateparser
 from google.cloud import storage
@@ -31,6 +33,27 @@ formatter = logging.Formatter(
 syslog.setFormatter(formatter)
 base_logger.setLevel(logging.INFO)
 base_logger.addHandler(syslog)
+
+P = ParamSpec("P")
+R = TypeVar("R")
+_DEFAULT_POOL = ThreadPoolExecutor()
+
+
+def threadpool(
+    f: Callable[P, R], pool: Optional[ThreadPoolExecutor] = None
+) -> Callable[P, Future[R]]:
+    """
+    Decorator that wraps a function and runs it in a threadpool.
+    :param f: The function to wrap
+    :param pool: A threadpool to use, or the default threadpool if None
+    :return: The wrapped function
+    """
+
+    @wraps(f)
+    def wrap(*args, **kwargs) -> Future[R]:
+        return (pool or _DEFAULT_POOL).submit(f, *args, **kwargs)
+
+    return wrap
 
 
 def trim_gs_prefix(full_file_path: str, bucket_name: str) -> str:
@@ -146,12 +169,20 @@ class CopySpec:
 
         :return: The loaded metadata.json object.
         """
+
+        metadata = None
+        self.logger.info("Searching for metadata.json in file list")
+        # assume that the metadata file is called metadata.json
+        metadata_blob = self.source_bucket.get_blob(f"{self.source_folder}/metadata.json")
+        if metadata_blob is not None:
+            self.logger.info("Metadata file location: %s", metadata_blob.name)
+            return json.loads(metadata_blob.download_as_string(client=None))
+
+        # if we can't find the metadata file, search for it
         bucket_content_list = self.client.list_blobs(
             self.source_bucket,
             prefix=f"{self.source_folder}/",
         )
-        metadata = None
-        self.logger.info("Searching for metadata.json in file list")
         # Get and load the metadata.json file
         for blob in bucket_content_list:
             m = re.match("(.*.metadata.json)", blob.name)
@@ -307,9 +338,7 @@ class TaskSpec:
                 self.copy_file_to_new_location(
                     inputs_dict,
                     key,
-                    f"{directory.rstrip('/')}/{Path(inputs_dict[key]).name}".lstrip(
-                        "/"
-                    ),
+                    f"{directory.rstrip('/')}/{Path(inputs_dict[key]).name}".lstrip("/"),
                 )
 
         for call_attempt in self.calls:
@@ -365,10 +394,9 @@ class TaskSpec:
                     type(file_to_copy),
                 )
         else:
-            self.logger.error(
-                "----> Unable to copy %s, key does not exist", output_name
-            )
+            self.logger.error("----> Unable to copy %s, key does not exist", output_name)
 
+    @threadpool
     def copy_single_file(
         self,
         original_filename: str,
