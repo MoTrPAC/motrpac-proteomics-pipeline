@@ -546,25 +546,24 @@ def main():
         copy_job = CopySpec(
             "proteomics_msgfplus", project_name, origin, destination, args.dry_run
         )
+        logger.info("PROTEOMICS METHOD: msgfplus")
+        if "inputs" in copy_job.metadata:
+            is_ptm = copy_job.metadata["inputs"]["proteomics_msgfplus.isPTM"]
+            if is_ptm:
+                logger.info("######## PTM PROTEOMICS EXPERIMENT ########")
+            else:
+                logger.info(
+                    "####### GLOBAL PROTEIN ABUNDANCE EXPERIMENT #######",
+                )
         if args.copy_what == "full":
-            logger.info("PROTEOMICS METHOD: msgfplus")
-
-            if "inputs" in copy_job.metadata:
-                is_ptm = copy_job.metadata["inputs"]["proteomics_msgfplus.isPTM"]
-                if is_ptm:
-                    logger.info("####### PTM PROTEOMICS EXPERIMENT #######")
-                else:
-                    logger.info(
-                        "####### GLOBAL PROTEIN ABUNDANCE EXPERIMENT #######",
-                    )
-                logger.info("Ready to copy ALL MSGF-plus outputs")
+            logger.info("Ready to copy ALL MSGF-plus outputs")
 
             if "proteomics_msgfplus.ascore" in copy_job.metadata["calls"]:
                 copy_job.create_task(
-                    "ascore",
-                    lambda x: f"{x['inputs']['seq_file_id']}-ascore-stdout.log",
-                    "ascore-command.log",
-                    [
+                    task_id="ascore",
+                    stdout_filename=lambda x: f"{x['inputs']['seq_file_id']}-ascore-stdout.log",
+                    command_filename="ascore-command.log",
+                    outputs=[
                         "syn_plus_ascore",
                         "syn_ascore",
                         "syn_ascore_proteinmap",
@@ -573,24 +572,24 @@ def main():
                 )
 
             copy_job.create_task(
-                "msconvert_mzrefiner",
-                lambda x: f"{x['inputs']['sample_id']}-msconvert_mzrefiner-stdout.log",
-                "msconvert_mzrefiner-command.log",
-                ["mzml_fixed"],
+                task_id="msconvert_mzrefiner",
+                stdout_filename=lambda x: f"{x['inputs']['sample_id']}-msconvert_mzrefiner-stdout.log",
+                command_filename="msconvert_mzrefiner-command.log",
+                outputs=["mzml_fixed"],
             )
 
             copy_job.create_task(
-                "ppm_errorcharter",
-                lambda x: f"{x['inputs']['sample_id']}-ppm_errorcharter-stdout.log",
-                "ppm_errorcharter-command.log",
-                ["ppm_masserror_png", "ppm_histogram_png"],
+                task_id="ppm_errorcharter",
+                stdout_filename=lambda x: f"{x['inputs']['sample_id']}-ppm_errorcharter-stdout.log",
+                command_filename="ppm_errorcharter-command.log",
+                outputs=["ppm_masserror_png", "ppm_histogram_png"],
             )
 
             copy_job.create_task(
-                "masic",
-                lambda x: f"{Path(x['inputs']['raw_file']).name.replace('.raw', '')}-masic-stdout.log",
-                "masic-command.log",
-                [
+                task_id="masic",
+                stdout_filename=lambda x: f"{Path(x['inputs']['raw_file']).name.replace('.raw', '')}-masic-stdout.log",
+                command_filename="masic-command.log",
+                outputs=[
                     "ReporterIons_output_file",
                     "PeakAreaHistogram_output_file",
                     "RepIonObsRateHighAbundance_output_file",
@@ -611,38 +610,38 @@ def main():
             )
 
             copy_job.create_task(
-                "msconvert",
-                lambda x: f"{Path(x['inputs']['raw_file']).name.replace('.raw', '')}-msconvert-stdout.log",
-                "msconvert-command.log",
-                ["mzml"],
+                task_id="msconvert",
+                stdout_filename=lambda x: f"{Path(x['inputs']['raw_file']).name.replace('.raw', '')}-msconvert-stdout.log",
+                command_filename="msconvert-command.log",
+                outputs=["mzml"],
             )
 
             copy_job.create_task(
-                "msgf_identification",
-                lambda x: f"{x['inputs']['sample_id']}-msgf_identification-stdout.log",
-                "msgf_identification-command.log",
-                ["rename_mzmlfixed", "mzid_final"],
+                task_id="msgf_identification",
+                stdout_filename=lambda x: f"{x['inputs']['sample_id']}-msgf_identification-stdout.log",
+                command_filename="msgf_identification-command.log",
+                outputs=["rename_mzmlfixed", "mzid_final"],
             )
 
             copy_job.create_task(
-                "msgf_sequences",
-                "msgf_sequences-stdout.log",
-                "msgf_sequences-command.log",
-                ["revcat_fasta, sequencedb_files"],
+                task_id="msgf_sequences",
+                stdout_filename="msgf_sequences-stdout.log",
+                command_filename="msgf_sequences-command.log",
+                outputs=["revcat_fasta, sequencedb_files"],
             )
 
             copy_job.create_task(
-                "msgf_tryptic",
-                lambda x: f"{x['inputs']['sample_id']}-msgf_tryptic-stdout.log",
-                "msgf_tryptic-command.log",
-                ["mzid"],
+                task_id="msgf_tryptic",
+                stdout_filename=lambda x: f"{x['inputs']['sample_id']}-msgf_tryptic-stdout.log",
+                command_filename="msgf_tryptic-command.log",
+                outputs=["mzid"],
             )
 
             copy_job.create_task(
-                "phrp",
-                lambda x: f"{Path(x['inputs']['input_tsv']).name.replace('.tsv', '')}-phrp-stdout.log",
-                "phrp-command.log",
-                [
+                task_id="phrp",
+                stdout_filename=lambda x: f"{Path(x['inputs']['input_tsv']).name.replace('.tsv', '')}-phrp-stdout.log",
+                command_filename="phrp-command.log",
+                outputs=[
                     "syn_ResultToSeqMap",
                     "fht",
                     "PepToProtMapMTS",
@@ -656,18 +655,18 @@ def main():
             )
 
             copy_job.create_task(
-                "mzidtotsvconverter",
-                lambda x: f"{x['inputs']['sample_id']}-mzidtotsvconverter-stdout.log",
-                "mzidtotsvconverter-command.log",
-                ["tsv"],
+                task_id="mzidtotsvconverter",
+                stdout_filename=lambda x: f"{x['inputs']['sample_id']}-mzidtotsvconverter-stdout.log",
+                command_filename="mzidtotsvconverter-command.log",
+                outputs=["tsv"],
             )
 
             if "proteomics_msgfplus.wrapper_pp" in copy_job.metadata["calls"]:
                 copy_job.create_task(
-                    "wrapper_pp",
-                    None,
-                    "wrapper_results-command.log",
-                    [
+                    task_id="wrapper_pp",
+                    stdout_filename=None,
+                    command_filename="wrapper_results-command.log",
+                    outputs=[
                         "results_ratio",
                         "results_rii",
                         "final_output_masic_tar",
@@ -677,66 +676,47 @@ def main():
                 )
             else:
                 logger.error("(-) Plexed piper not available")
-                return
 
         elif args.copy_what == "ppinputs":
-            if "inputs" in copy_job.metadata:
-                is_ptm = copy_job.metadata["inputs"]["proteomics_msgfplus.isPTM"]
-                if is_ptm:
-                    logger.info("######## PTM PROTEOMICS EXPERIMENT ########")
-                else:
-                    logger.info(
-                        "####### GLOBAL PROTEIN ABUNDANCE EXPERIMENT #######",
-                    )
-                logger.info("Ready to copy ONLY PlexedPiper results + inputs")
+            logger.info("Ready to copy ONLY PlexedPiper results + inputs")
+            copy_job.create_task(
+                task_id="wrapper_pp",
+                stdout_filename=None,
+                command_filename=None,
+                outputs=[
+                    "results_ratio",
+                    "results_rii",
+                    "final_output_masic_tar",
+                    "final_output_phrp_tar",
+                    "final_output_ascore",
+                ],
+                output_folder=copy_job.destination_folder,
+                inputs=[
+                    ("proteomics_msgfplus.fasta_sequence_db", ""),
+                    ("proteomics_msgfplus.sd_samples", "study_design"),
+                    ("proteomics_msgfplus.sd_fractions", "study_design"),
+                    ("proteomics_msgfplus.sd_references", "study_design"),
+                ],
+            )
+
+        elif args.copy_what == "results":
+            logger.info("Ready to copy ONLY PlexedPiper (RII + Ratio) results")
+            if "proteomics_msgfplus.wrapper_pp" in copy_job.metadata["calls"]:
                 copy_job.create_task(
-                    "wrapper_pp",
-                    None,
-                    None,
-                    [
+                    task_id="wrapper_pp",
+                    stdout_filename=None,
+                    command_filename=None,
+                    outputs=[
                         "results_ratio",
                         "results_rii",
                         "final_output_masic_tar",
                         "final_output_phrp_tar",
                         "final_output_ascore",
                     ],
-                    copy_job.destination_folder,
-                    [
-                        ("proteomics_msgfplus.fasta_sequence_db", ""),
-                        ("proteomics_msgfplus.sd_samples", "study_design"),
-                        ("proteomics_msgfplus.sd_fractions", "study_design"),
-                        ("proteomics_msgfplus.sd_references", "study_design"),
-                    ],
+                    output_folder="wrapper_results",
                 )
-
-        elif args.copy_what == "results":
-            if "inputs" in copy_job.metadata:
-                is_ptm = copy_job.metadata["inputs"]["proteomics_msgfplus.isPTM"]
-                if is_ptm:
-                    logger.info("####### PTM PROTEOMICS EXPERIMENT #######")
-                else:
-                    logger.info(
-                        "####### GLOBAL PROTEIN ABUNDANCE EXPERIMENT #######",
-                    )
-
-                logger.info("Ready to copy ONLY PlexedPiper (RII + Ratio) results")
-                if "proteomics_msgfplus.wrapper_pp" in copy_job.metadata["calls"]:
-                    copy_job.create_task(
-                        "wrapper_pp",
-                        None,
-                        None,
-                        [
-                            "results_ratio",
-                            "results_rii",
-                            "final_output_masic_tar",
-                            "final_output_phrp_tar",
-                            "final_output_ascore",
-                        ],
-                        "wrapper_results",
-                    )
-                else:
-                    logger.error("(-) Plexed piper not available")
-                    return
+            else:
+                logger.error("(-) Plexed piper not available")
         else:
             err_msg = "You should not have gotten here"
             raise ValueError(err_msg)
