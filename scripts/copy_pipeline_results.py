@@ -9,15 +9,23 @@ import re
 import sys
 import warnings
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor, Future
+from concurrent.futures import Future, ThreadPoolExecutor
 from functools import wraps
 from pathlib import Path
-from typing import List, Tuple, ParamSpec, TypeVar, Optional
+from typing import List, Tuple, TypeVar
 
 import dateparser
 from google.cloud import storage
 from google.cloud.storage import Bucket
 
+if sys.version_info >= (3, 10):
+    from typing import ParamSpec
+else:
+    try:
+        from typing_extensions import ParamSpec
+    except ImportError:
+        print("Please pip install `typing_extensions`", file=sys.stderr)
+        sys.exit(1)
 
 warnings.filterwarnings(
     "ignore",
@@ -40,10 +48,11 @@ _DEFAULT_POOL = ThreadPoolExecutor()
 
 
 def threadpool(
-    f: Callable[P, R], pool: Optional[ThreadPoolExecutor] = None
+    f: Callable[P, R], pool: ThreadPoolExecutor | None = None
 ) -> Callable[P, Future[R]]:
     """
     Decorator that wraps a function and runs it in a threadpool.
+
     :param f: The function to wrap
     :param pool: A threadpool to use, or the default threadpool if None
     :return: The wrapped function
@@ -130,6 +139,7 @@ class CopySpec:
         project: str,
         source_location: str,
         destination_location: str,
+        *,
         dry_run: bool,
     ) -> None:
         """
@@ -173,7 +183,9 @@ class CopySpec:
         metadata = None
         self.logger.info("Searching for metadata.json in file list")
         # assume that the metadata file is called metadata.json
-        metadata_blob = self.source_bucket.get_blob(f"{self.source_folder}/metadata.json")
+        metadata_blob = self.source_bucket.get_blob(
+            f"{self.source_folder}/metadata.json"
+        )
         if metadata_blob is not None:
             self.logger.info("Metadata file location: %s", metadata_blob.name)
             return json.loads(metadata_blob.download_as_string(client=None))
@@ -338,7 +350,9 @@ class TaskSpec:
                 self.copy_file_to_new_location(
                     inputs_dict,
                     key,
-                    f"{directory.rstrip('/')}/{Path(inputs_dict[key]).name}".lstrip("/"),
+                    f"{directory.rstrip('/')}/{Path(inputs_dict[key]).name}".lstrip(
+                        "/"
+                    ),
                 )
 
         for call_attempt in self.calls:
@@ -394,34 +408,47 @@ class TaskSpec:
                     type(file_to_copy),
                 )
         else:
-            self.logger.error("----> Unable to copy %s, key does not exist", output_name)
+            self.logger.error(
+                "----> Unable to copy %s, key does not exist", output_name
+            )
 
     @threadpool
     def copy_single_file(
         self,
-        original_filename: str,
+        orig_file_path: str,
         new_filename: str,
         output_name: str,
     ) -> None:
         """
         Copy a single file with the original filename to the new_filename.
 
-        :param original_filename: The original file's filename
+        :param orig_file_path: The original file's gs://path
         :param new_filename: The new file's filename
         :param output_name: The name of the output in the outputs dict
         """
         # remove the gs://<bucket>/ prefix from the data
-        trimmed_file_path = trim_gs_prefix(
-            original_filename,
-            self.copy_spec.source_bucket.name,
-        )
+        orig_file_bucket, orig_filename = parse_bucket_path(orig_file_path)
         # if not supplied with a new filename, use the original base filename
         if new_filename is None:
-            new_filename = Path(trimmed_file_path).name
+            new_filename = Path(orig_filename).name
         # create the new file path
         new_file_path = f"{self.output_folder}/{new_filename}"
         # get the original file
-        original_file = self.copy_spec.source_bucket.get_blob(trimmed_file_path)
+        # avoid creating a new bucket instance if the file is in the same bucket
+        if orig_file_bucket == self.copy_spec.source_bucket.name:
+            original_file = self.copy_spec.source_bucket.get_blob(orig_filename)
+        else:
+            # get the other bucket
+            other_bucket = self.copy_spec.client.get_bucket(orig_file_bucket)
+            if other_bucket is None:
+                self.logger.error(
+                    "----> Unable to copy %s file at %s, bucket does not exist",
+                    output_name,
+                    orig_file_path,
+                )
+                return
+            # get the original file from the other bucket
+            original_file = other_bucket.get_blob(orig_filename)
         # copy the original file if it exists, log an error if it doesn't
         if original_file is not None:
             if not self.copy_spec.dry_run:
@@ -439,7 +466,7 @@ class TaskSpec:
             self.logger.error(
                 "----> Unable to copy %s at %s to %s",
                 output_name,
-                original_filename,
+                orig_file_path,
                 f"gs://{self.copy_spec.destination_bucket.name}/{new_file_path}",
             )
 
@@ -506,7 +533,7 @@ def main():
     logger.info("GCP project: %s", project_name)
     origin = args.origin.rstrip("/")
     logger.info("Origin: %s", origin)
-    destination = args.origin.rstrip("/")
+    destination = args.destination.rstrip("/")
     logger.info("Destination: %s", destination)
     method_proteomics = args.method_proteomics
     logger.info("+ Proteomics Pipeline METHOD: %s", method_proteomics)
@@ -518,7 +545,11 @@ def main():
         logger.info("PROTEOMICS METHOD: maxquant")
         logger.info("+ Copy MAXQUANT outputs-----------------------------")
         copy_job = CopySpec(
-            "proteomics_maxquant", project_name, origin, destination, args.dry_run
+            wf_id="proteomics_maxquant",
+            project=project_name,
+            source_location=origin,
+            destination_location=destination,
+            dry_run=args.dry_run,
         )
         copy_job.create_task(
             "maxquant",
@@ -544,7 +575,11 @@ def main():
         )
     else:
         copy_job = CopySpec(
-            "proteomics_msgfplus", project_name, origin, destination, args.dry_run
+            wf_id="proteomics_msgfplus",
+            project=project_name,
+            source_location=origin,
+            destination_location=destination,
+            dry_run=args.dry_run,
         )
         logger.info("PROTEOMICS METHOD: msgfplus")
         if "inputs" in copy_job.metadata:
@@ -722,6 +757,7 @@ def main():
             raise ValueError(err_msg)
 
         copy_job.run_tasks()
+        _DEFAULT_POOL.shutdown(wait=True, cancel_futures=False)
         logger.info("All Done!")
 
 
