@@ -10,19 +10,27 @@ import sys
 import warnings
 from collections.abc import Callable
 from pathlib import Path
+from typing import List, Tuple
 
 import dateparser
 from google.cloud import storage
 from google.cloud.storage import Bucket
 
-logging.basicConfig(filename="example.log", encoding="utf-8", level=logging.DEBUG)
 
 warnings.filterwarnings(
     "ignore",
     "Your application has authenticated using end user credentials",
 )
 
-logger = logging.getLogger(__name__)
+base_logger = logging.getLogger("copy_pipeline_results")
+syslog = logging.StreamHandler()
+formatter = logging.Formatter(
+    "%(levelname)s :: %(asctime)s.%(msecs)03d :: %(task)s :: %(message)s",
+    datefmt="%Y/%M/%d %H:%M:%S",
+)
+syslog.setFormatter(formatter)
+base_logger.setLevel(logging.INFO)
+base_logger.addHandler(syslog)
 
 
 def trim_gs_prefix(full_file_path: str, bucket_name: str) -> str:
@@ -50,61 +58,6 @@ def upload_string(
     """
     b = bucket_destination.blob(destination_blob_name)
     b.upload_from_string(str_content)
-
-
-def copy_file_to_new_location(
-    attempt_outputs_dict: dict,
-    output_name: str,
-    source_bucket: Bucket,
-    dest_bucket: Bucket,
-    dest_folder_name: str,
-    new_filename: str = None,
-) -> None:
-    """
-    Copy a file from the given dictionary at the key `output_name` in the source
-    bucket to the destination bucket with the new path (and optional filename).
-
-    :param attempt_outputs_dict: The dictionary being searched
-    :param output_name: The key to look for the file in the `attempt_outputs_dict`
-    :param source_bucket: The source bucket
-    :param dest_bucket: The destination bucket
-    :param dest_folder_name: The folder to place the file in
-    :param new_filename: An optional new filename to give the object
-    """
-    file_to_copy = attempt_outputs_dict.get(output_name)
-    if file_to_copy is not None:
-        # remove the gs://<bucket>/ prefix from the data
-        trimmed_file_path = trim_gs_prefix(
-            attempt_outputs_dict[output_name],
-            source_bucket.name,
-        )
-        # if not supplied with a new filename, use the original base filename
-        if new_filename is None:
-            new_filename = Path(trimmed_file_path).name
-        # create the new file path
-        new_file_path = dest_folder_name + new_filename
-        # get the original file
-        original_file = source_bucket.get_blob(trimmed_file_path)
-        # copy the original file if it exists, log an error if it doesn't
-        if original_file is not None:
-            source_bucket.copy_blob(original_file, dest_bucket, new_file_path)
-            logger.info(
-                "- Copied %s file to: %s",
-                output_name,
-                f"gs://{dest_bucket.name}/{new_file_path}",
-            )
-        else:
-            logger.warning(
-                "----> Unable to copy %s at %s to %s",
-                output_name,
-                attempt_outputs_dict[output_name],
-                f"gs://{dest_bucket.name}/{new_file_path}",
-            )
-    else:
-        logger.warning(
-            "----> Unable to copy %s, key does not exist",
-            output_name,
-        )
 
 
 def parse_bucket_path(path: str) -> tuple[str, str]:
@@ -146,12 +99,15 @@ class CopySpec:
     across all tasks.
     """
 
+    logger = logging.LoggerAdapter(base_logger, {"task": "General"})
+
     def __init__(
         self,
         wf_id: str,
         project: str,
         source_location: str,
         destination_location: str,
+        dry_run: bool,
     ) -> None:
         """
         Create a CopySpec instance. Creates the source and destination bucket and folder
@@ -164,6 +120,7 @@ class CopySpec:
             (e.g. gs://my-bucket/my-folder/outputs)
         :param destination_location: The destination to copy the outputs to
             (e.g. gs://my-bucket/my-outputs)
+        :param dry_run: Whether to actually copy the files
         """
         source_bucket, source_folder = parse_bucket_path(source_location)
         destination_bucket, destination_folder = parse_bucket_path(destination_location)
@@ -171,14 +128,15 @@ class CopySpec:
         self.wf_id = wf_id
         self.client = storage.Client(project=project)
         self.source_bucket = self.client.get_bucket(source_bucket)
-        self.source_folder = source_folder.rstrip("/") + "/"
+        self.source_folder = source_folder.rstrip("/")
         self.destination_bucket = self.client.get_bucket(destination_bucket)
-        self.destination_folder = destination_folder.rstrip("/") + "/"
+        self.destination_folder = destination_folder.rstrip("/")
         self.metadata = self.set_metadata()
+        self.dry_run = dry_run
 
         start_time = dateparser.parse(self.metadata["start"])
         end_time = dateparser.parse(self.metadata["end"])
-        logger.info("Pipeline Running Time: %s \n", end_time - start_time)
+        self.logger.info("Pipeline Running Time: %s", end_time - start_time)
 
         self.tasks: list[TaskSpec] = []
 
@@ -190,21 +148,22 @@ class CopySpec:
         """
         bucket_content_list = self.client.list_blobs(
             self.source_bucket,
-            prefix=self.source_folder,
+            prefix=f"{self.source_folder}/",
         )
         metadata = None
+        self.logger.info("Searching for metadata.json in file list")
         # Get and load the metadata.json file
         for blob in bucket_content_list:
             m = re.match("(.*.metadata.json)", blob.name)
             if m:
-                logger.info("\nMetadata file location: %sm[1]")
+                self.logger.info("Metadata file location: %s", m[1])
                 metadata = json.loads(blob.download_as_string(client=None))
                 break
 
         if metadata is None:
-            logger.error(
+            self.logger.error(
                 "Error: unable to find metadata.json file in %s specified",
-                f"gs://{self.source_bucket.name}/{self.source_folder}",
+                f"gs://{self.source_bucket.name}/{self.source_folder}/",
             )
             sys.exit(1)
 
@@ -214,9 +173,10 @@ class CopySpec:
         self,
         task_id: str,
         stdout_filename: Callable[[dict], str] | str | None,
-        command_filename: Callable[[dict], str] | str,
+        command_filename: Callable[[dict], str] | str | None,
         outputs: list[str],
         output_folder: str | None = None,
+        inputs: List[Tuple[str, str]] = None,
     ) -> None:
         """
         Create a new TaskSpec and append it to the list of tasks to do.
@@ -230,6 +190,7 @@ class CopySpec:
             dict
         :param output_folder: The folder to copy the results to, defers to TaskSpec if
             not provided
+        :param inputs: Any global inputs to copy
         """
         self.tasks.append(
             TaskSpec(
@@ -239,6 +200,7 @@ class CopySpec:
                 outputs,
                 self,
                 output_folder,
+                inputs,
             ),
         )
 
@@ -256,11 +218,12 @@ class TaskSpec:
     def __init__(
         self,
         task_id: str,
-        stdout_filename: Callable[[dict], str] | str,
-        command_filename: Callable[[dict], str] | str,
+        stdout_filename: Callable[[dict], str] | str | None,
+        command_filename: Callable[[dict], str] | str | None,
         outputs: list[str],
         copy_spec: CopySpec,
         output_folder: str | None = None,
+        inputs: List[Tuple[str, str]] = None,
     ) -> None:
         """
         Create a new TaskSpec.
@@ -275,17 +238,21 @@ class TaskSpec:
         :param copy_spec: The spec for the copy job which contains the source and
             information destination as well as the metadata
         :param output_folder: If not given, defaults to the task id pre-pended to _outputs
+        :param inputs: Any global inputs to copy
         """
         self.task_id = task_id
         self._stdout_filename = stdout_filename
         self._command_filename = command_filename
         self.outputs = outputs
+        self.inputs = inputs
         self.copy_spec = copy_spec
         self.output_folder = (
             output_folder or f"{copy_spec.destination_folder}/{task_id}_outputs"
         )
+
         self.calls = copy_spec.metadata["calls"][f"{copy_spec.wf_id}.{self.task_id}"]
         self.attempt = {}
+        self.logger = logging.LoggerAdapter(base_logger, {"task": task_id.upper()})
 
     @property
     def command_filename(self) -> str:
@@ -322,45 +289,53 @@ class TaskSpec:
         cmd_txt = call_attempt["commandLine"]
         if cmd_txt is not None:
             cmd_txt_name = f"{self.output_folder}/{file_name}"
-            logger.info("- Command to file: %s", cmd_txt_name)
-            new_blob_command = self.copy_spec.destination_bucket.blob(cmd_txt_name)
-            new_blob_command.upload_from_string(cmd_txt, content_type="text/plain")
+            self.logger.info("- Command to file: %s", cmd_txt_name)
+            if not self.copy_spec.dry_run:
+                new_blob_command = self.copy_spec.destination_bucket.blob(cmd_txt_name)
+                new_blob_command.upload_from_string(cmd_txt, content_type="text/plain")
         else:
-            logger.warning("----> Unable to copy commandLine")
+            self.logger.warning("----> Unable to copy commandLine")
 
     def run_copy(self) -> None:
         """
-        Copy the outputs from the source to the destination.
+        Copy files from the source to the destination.
         """
-        logger.info(
-            "\n %s, OUTPUTS---------------------------------\n",
-            self.task_id.capitalize(),
-        )
+        # copy any source files
+        if self.inputs is not None:
+            inputs_dict = self.copy_spec.metadata["inputs"]
+            for key, directory in self.inputs:
+                self.copy_file_to_new_location(
+                    inputs_dict,
+                    key,
+                    f"{directory.rstrip('/')}/{Path(inputs_dict[key]).name}".lstrip(
+                        "/"
+                    ),
+                )
+
         for call_attempt in self.calls:
+            # set the attempt to get the proper stdout filename
             self.attempt = call_attempt
-            if "stdout" in call_attempt:
+            # copy any stdout file if given a filename
+            if self.stdout_filename is not None and "stdout" in call_attempt:
                 self.copy_file_to_new_location(
                     call_attempt,
                     "stdout",
                     self.stdout_filename,
                 )
 
-            self.write_command_to_file(
-                call_attempt=call_attempt,
-                file_name=self.command_filename,
-            )
+            # copy any commandline if given a filename
+            if self.command_filename is not None:
+                self.write_command_to_file(call_attempt, self.command_filename)
 
             execution_status = call_attempt["executionStatus"]
             if execution_status == "Done":
+                # copy all outputs
                 call_outputs = call_attempt["outputs"]
                 for output in self.outputs:
-                    self.copy_file_to_new_location(
-                        call_outputs,
-                        output,
-                    )
+                    self.copy_file_to_new_location(call_outputs, output)
             else:
-                logger.warning(" (-) Execution Status: %s", execution_status)
-                logger.warning(" (-) Data cannot be copied")
+                self.logger.warning(" (-) Execution Status: %s", execution_status)
+                self.logger.warning(" (-) Data cannot be copied")
 
     def copy_file_to_new_location(
         self,
@@ -384,16 +359,21 @@ class TaskSpec:
             elif isinstance(file_to_copy, str):
                 self.copy_single_file(file_to_copy, new_filename, output_name)
             else:
-                logger.error(
+                self.logger.error(
                     "----> Unable to copy %s, key has unsupported type %s",
                     output_name,
                     type(file_to_copy),
                 )
         else:
-            logger.error("----> Unable to copy %s, key does not exist", output_name)
+            self.logger.error(
+                "----> Unable to copy %s, key does not exist", output_name
+            )
 
     def copy_single_file(
-        self, original_filename: str, new_filename: str, output_name: str,
+        self,
+        original_filename: str,
+        new_filename: str,
+        output_name: str,
     ) -> None:
         """
         Copy a single file with the original filename to the new_filename.
@@ -416,82 +396,24 @@ class TaskSpec:
         original_file = self.copy_spec.source_bucket.get_blob(trimmed_file_path)
         # copy the original file if it exists, log an error if it doesn't
         if original_file is not None:
-            self.copy_spec.source_bucket.copy_blob(
-                original_file,
-                self.copy_spec.destination_bucket.name,
-                new_file_path,
-            )
-            logger.info(
+            if not self.copy_spec.dry_run:
+                self.copy_spec.source_bucket.copy_blob(
+                    original_file,
+                    self.copy_spec.destination_bucket.name,
+                    new_file_path,
+                )
+            self.logger.info(
                 "- Copied %s file to: %s",
                 output_name,
                 f"gs://{self.copy_spec.destination_bucket.name}/{new_file_path}",
             )
         else:
-            logger.error(
+            self.logger.error(
                 "----> Unable to copy %s at %s to %s",
                 output_name,
                 original_filename,
                 f"gs://{self.copy_spec.destination_bucket.name}/{new_file_path}",
             )
-
-
-# Copy wrapper_pp results to the same or different bucket
-def copy_ppinputs(
-    metadata: dict,
-    dest_root_folder: str,
-    bucket_source: Bucket,
-    bucket_destination: Bucket,
-):
-    # Check whether isPTM
-
-    logger.info("+ Proteomics experiment results")
-    wrapper_method = "proteomics_msgfplus.wrapper_pp"
-
-    if wrapper_method not in metadata["calls"]:
-        logger.error("(-) Plexed piper not available")
-        return
-
-    inputs = metadata["inputs"]
-
-    for key, directory in [
-        ("proteomics_msgfplus.fasta_sequence_db", ""),
-        ("proteomics_msgfplus.sd_samples", "study_design/"),
-        ("proteomics_msgfplus.sd_fractions", "study_design/"),
-        ("proteomics_msgfplus.sd_references", "study_design/"),
-    ]:
-        copy_file_to_new_location(
-            inputs,
-            key,
-            bucket_source,
-            bucket_destination,
-            dest_root_folder + directory,
-        )
-
-    wrapper_results_calls = metadata["calls"][wrapper_method]
-    for call_attempt in wrapper_results_calls:
-        execution_status = trim_gs_prefix(
-            call_attempt["executionStatus"],
-            bucket_source.name,
-        )
-        if execution_status == "Done":
-            call_outputs = call_attempt["outputs"]
-            for output in [
-                "results_ratio",
-                "results_rii",
-                "final_output_masic_tar",
-                "final_output_phrp_tar",
-                "final_output_ascore",
-            ]:
-                copy_file_to_new_location(
-                    call_outputs,
-                    output,
-                    bucket_source,
-                    bucket_destination,
-                    dest_root_folder,
-                )
-        else:
-            logger.warning(" (-) Execution Status: %s", execution_status)
-            logger.warning(" (-) Data cannot be copied")
 
 
 def create_args():
@@ -506,7 +428,7 @@ def create_args():
         help="GCP project name. Required.",
     )
     parser.add_argument(
-        "-b",
+        "-o",
         "--origin",
         required=True,
         type=str,
@@ -518,10 +440,11 @@ def create_args():
         "--method_proteomics",
         required=True,
         type=str,
+        choices=["msgfplus", "maxquant"],
         help="Proteomics Method. Currently supported: msgfplus or maxquant.",
     )
     parser.add_argument(
-        "-o",
+        "-d",
         "--destination",
         required=True,
         type=str,
@@ -538,28 +461,37 @@ def create_args():
         help="What would you like to copy: <full>: all msgfplus outputs "
         "<results>: plexedpiper results only",
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Don't actually copy the files, just print what it's going to do",
+    )
     return parser
 
 
 def main():
     parser = create_args()
     args = parser.parse_args()
+    logger = logging.LoggerAdapter(base_logger, {"task": "General"})
 
     project_name = args.project.rstrip("/")
-    logger.info("\nGCP project: %s", project_name)
-
+    logger.info("GCP project: %s", project_name)
     origin = args.origin.rstrip("/")
     logger.info("Origin: %s", origin)
     destination = args.origin.rstrip("/")
     logger.info("Destination: %s", destination)
-
     method_proteomics = args.method_proteomics
     logger.info("+ Proteomics Pipeline METHOD: %s", method_proteomics)
 
+    if args.dry_run:
+        logger.info("This is a dry run, no files will be copied")
+
     if method_proteomics == "maxquant":
         logger.info("PROTEOMICS METHOD: maxquant")
-        logger.info("+ Copy MAXQUANT outputs-----------------------------\n")
-        copy_job = CopySpec("proteomics_maxquant", project_name, origin, destination)
+        logger.info("+ Copy MAXQUANT outputs-----------------------------")
+        copy_job = CopySpec(
+            "proteomics_maxquant", project_name, origin, destination, args.dry_run
+        )
         copy_job.create_task(
             "maxquant",
             "console-maxquant-stdout.log",
@@ -583,24 +515,26 @@ def main():
             ],
         )
     else:
-        copy_job = CopySpec("proteomics_msgfplus", project_name, origin, destination)
+        copy_job = CopySpec(
+            "proteomics_msgfplus", project_name, origin, destination, args.dry_run
+        )
         if args.copy_what == "full":
             logger.info("PROTEOMICS METHOD: msgfplus")
 
             if "inputs" in copy_job.metadata:
                 is_ptm = copy_job.metadata["inputs"]["proteomics_msgfplus.isPTM"]
                 if is_ptm:
-                    logger.info("\n####### PTM PROTEOMICS EXPERIMENT #######\n")
+                    logger.info("####### PTM PROTEOMICS EXPERIMENT #######")
                 else:
                     logger.info(
-                        "\n####### GLOBAL PROTEIN ABUNDANCE EXPERIMENT #######\n",
+                        "####### GLOBAL PROTEIN ABUNDANCE EXPERIMENT #######",
                     )
                 logger.info("Ready to copy ALL MSGF-plus outputs")
 
             if "proteomics_msgfplus.ascore" in copy_job.metadata["calls"]:
                 copy_job.create_task(
                     "ascore",
-                    lambda x: x["inputs"]["seq_file_id"] + "-ascore-stdout.log",
+                    lambda x: f"{x['inputs']['seq_file_id']}-ascore-stdout.log",
                     "ascore-command.log",
                     [
                         "syn_plus_ascore",
@@ -705,7 +639,13 @@ def main():
                     "wrapper_pp",
                     None,
                     "wrapper_results-command.log",
-                    ["tsv"],
+                    [
+                        "results_ratio",
+                        "results_rii",
+                        "final_output_masic_tar",
+                        "final_output_phrp_tar",
+                        "final_output_ascore",
+                    ],
                 )
             else:
                 logger.error("(-) Plexed piper not available")
@@ -715,30 +655,40 @@ def main():
             if "inputs" in copy_job.metadata:
                 is_ptm = copy_job.metadata["inputs"]["proteomics_msgfplus.isPTM"]
                 if is_ptm:
-                    logger.info("\n######## PTM PROTEOMICS EXPERIMENT ########\n")
+                    logger.info("######## PTM PROTEOMICS EXPERIMENT ########")
                 else:
                     logger.info(
-                        "\n####### GLOBAL PROTEIN ABUNDANCE EXPERIMENT #######\n",
+                        "####### GLOBAL PROTEIN ABUNDANCE EXPERIMENT #######",
                     )
-                logger.info("Ready to copy ONLY PlexedPiper (RII + Ratio) results")
-                logger.info(
-                    "\nWRAPPER: PlexedPiper output----------------------------\n",
+                logger.info("Ready to copy ONLY PlexedPiper results + inputs")
+                copy_job.create_task(
+                    "wrapper_pp",
+                    None,
+                    None,
+                    [
+                        "results_ratio",
+                        "results_rii",
+                        "final_output_masic_tar",
+                        "final_output_phrp_tar",
+                        "final_output_ascore",
+                    ],
+                    copy_job.destination_folder,
+                    [
+                        ("proteomics_msgfplus.fasta_sequence_db", ""),
+                        ("proteomics_msgfplus.sd_samples", "study_design"),
+                        ("proteomics_msgfplus.sd_fractions", "study_design"),
+                        ("proteomics_msgfplus.sd_references", "study_design"),
+                    ],
                 )
 
-                copy_ppinputs(
-                    copy_job.metadata,
-                    copy_job.destination_folder,
-                    copy_job.source_bucket,
-                    copy_job.destination_bucket,
-                )
         elif args.copy_what == "results":
             if "inputs" in copy_job.metadata:
                 is_ptm = copy_job.metadata["inputs"]["proteomics_msgfplus.isPTM"]
                 if is_ptm:
-                    logger.info("\n####### PTM PROTEOMICS EXPERIMENT #######\n")
+                    logger.info("####### PTM PROTEOMICS EXPERIMENT #######")
                 else:
                     logger.info(
-                        "\n####### GLOBAL PROTEIN ABUNDANCE EXPERIMENT #######\n",
+                        "####### GLOBAL PROTEIN ABUNDANCE EXPERIMENT #######",
                     )
 
                 logger.info("Ready to copy ONLY PlexedPiper (RII + Ratio) results")
@@ -746,8 +696,15 @@ def main():
                     copy_job.create_task(
                         "wrapper_pp",
                         None,
-                        "wrapper_results-command.log",
-                        ["tsv"],
+                        None,
+                        [
+                            "results_ratio",
+                            "results_rii",
+                            "final_output_masic_tar",
+                            "final_output_phrp_tar",
+                            "final_output_ascore",
+                        ],
+                        "wrapper_results",
                     )
                 else:
                     logger.error("(-) Plexed piper not available")
@@ -757,6 +714,7 @@ def main():
             raise ValueError(err_msg)
 
         copy_job.run_tasks()
+        logger.info("All Done!")
 
 
 if __name__ == "__main__":
