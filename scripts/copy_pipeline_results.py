@@ -84,23 +84,21 @@ def copy_file_to_new_location(
 
 
 def write_command_to_file(
-    metadata, x, method, results_output, bucket_destination, file_name
+    call_attempt, results_output, bucket_destination, file_name
 ):
     """
     The command executed on each call is available as text in the
     metadata.json file. This function extracts the command and saves it
     in the bucket as a file.
 
-    :param x: index
-    :param metadata: the metadata object
-    :param method: the call method name
+    :param call_attempt: The call_attempt metadata object
     :param results_output: the prefix name for the file
     :param bucket_destination: bucket destination name
     :param file_name: the file name
     """
 
-    if "commandLine" in metadata["calls"][method][x]:
-        cmd_txt = metadata["calls"][method][x]["commandLine"]
+    if "commandLine" in call_attempt:
+        cmd_txt = call_attempt["commandLine"]
         if cmd_txt is not None:
             cmd_txt_name = results_output + file_name
             print("- Command to file:", cmd_txt_name)
@@ -115,7 +113,7 @@ def copy_ascore(metadata, dest_root_folder, bucket_source, bucket_destination):
     ascore_output = dest_root_folder + "ascore_outputs/"
     ascore_calls = metadata["calls"]["proteomics_msgfplus.ascore"]
 
-    for x, call_attempt in enumerate(ascore_calls):
+    for call_attempt in ascore_calls:
         # # STDOUT, which requires to rename the file
         if "stdout" in call_attempt:
             seq_id = call_attempt["inputs"]["seq_file_id"]
@@ -129,9 +127,7 @@ def copy_ascore(metadata, dest_root_folder, bucket_source, bucket_destination):
             )
 
         write_command_to_file(
-            metadata=metadata,
-            x=x,
-            method="proteomics_msgfplus.ascore",
+            call_attempt=call_attempt,
             results_output=ascore_output,
             bucket_destination=bucket_destination,
             file_name="ascore-command.log",
@@ -171,7 +167,7 @@ def copy_msconvert_mzrefiner(
         "proteomics_msgfplus.msconvert_mzrefiner"
     ]
 
-    for x, call_attempt in enumerate(msconvert_mzrefiner_calls):
+    for call_attempt in msconvert_mzrefiner_calls:
         if "stdout" in call_attempt:
             # STDOUT, which requires to rename the file
             seq_id = call_attempt["inputs"]["sample_id"]
@@ -185,9 +181,7 @@ def copy_msconvert_mzrefiner(
             )
 
         write_command_to_file(
-            metadata=metadata,
-            x=x,
-            method="proteomics_msgfplus.msconvert_mzrefiner",
+            call_attempt=call_attempt,
             results_output=msconvert_mzrefiner_output,
             bucket_destination=bucket_destination,
             file_name="msconvert_mzrefiner-command.log",
@@ -215,7 +209,7 @@ def copy_ppm_errorcharter(metadata, dest_root_folder, bucket_source, bucket_dest
     ppm_errorcharter_output = dest_root_folder + "output_ppm_errorcharter/"
     ppm_errorcharter_calls = metadata["calls"]["proteomics_msgfplus.ppm_errorcharter"]
 
-    for x, call_attempt in enumerate(ppm_errorcharter_calls):
+    for call_attempt in ppm_errorcharter_calls:
         if "stdout" in call_attempt:
             seq_id = call_attempt["inputs"]["sample_id"]
             copy_file_to_new_location(
@@ -228,9 +222,7 @@ def copy_ppm_errorcharter(metadata, dest_root_folder, bucket_source, bucket_dest
             )
 
         write_command_to_file(
-            metadata=metadata,
-            x=x,
-            method="proteomics_msgfplus.ppm_errorcharter",
+            call_attempt=call_attempt,
             results_output=ppm_errorcharter_output,
             bucket_destination=bucket_destination,
             file_name="ppm_errorcharter-command.log",
@@ -260,7 +252,7 @@ def copy_masic(metadata, dest_root_folder, bucket_source, bucket_destination):
     masic_output = dest_root_folder + "masic_outputs/"
     masic_calls = metadata["calls"]["proteomics_msgfplus.masic"]
 
-    for x, call_attempt in enumerate(masic_calls):
+    for call_attempt in masic_calls:
         # print('\nBlob-', x, ' ', end = '')
         if "stdout" in call_attempt:
             # WARNING: ID IS COMING FROM THE RAW FILE NAME:
@@ -277,9 +269,7 @@ def copy_masic(metadata, dest_root_folder, bucket_source, bucket_destination):
             )
 
         write_command_to_file(
-            metadata=metadata,
-            x=x,
-            method="proteomics_msgfplus.masic",
+            call_attempt=call_attempt,
             results_output=masic_output,
             bucket_destination=bucket_destination,
             file_name="masic-command.log",
@@ -342,9 +332,7 @@ def copy_msconvert(metadata, dest_root_folder, bucket_source, bucket_destination
             )
 
         write_command_to_file(
-            metadata=metadata,
-            x=x,
-            method="proteomics_msgfplus.msconvert",
+            call_attempt=call_attempt,
             results_output=msconvert_output,
             bucket_destination=bucket_destination,
             file_name="msconvert-command.log",
@@ -376,7 +364,7 @@ def copy_msgf_identification(
         "proteomics_msgfplus.msgf_identification"
     ]
 
-    for x, call_attempt in enumerate(msgf_identification_calls):
+    for call_attempt in msgf_identification_calls:
         if "stdout" in call_attempt:
             seq_id = call_attempt["inputs"]["sample_id"]
             copy_file_to_new_location(
@@ -389,9 +377,7 @@ def copy_msgf_identification(
             )
 
         write_command_to_file(
-            metadata=metadata,
-            x=x,
-            method="proteomics_msgfplus.msgf_identification",
+            call_attempt=call_attempt,
             results_output=msgf_identification_output,
             bucket_destination=bucket_destination,
             file_name="msgf_identification-command.log",
@@ -421,7 +407,7 @@ def copy_msgf_sequences(metadata, dest_root_folder, bucket_source, bucket_destin
     msgf_sequences_output = dest_root_folder + "msgf_sequences_outputs/"
     msgf_sequences_calls = metadata["calls"]["proteomics_msgfplus.msgf_sequences"]
 
-    for x, call_attempt in enumerate(msgf_sequences_calls):
+    for call_attempt in msgf_sequences_calls:
         # # Get and upload the command
         if "commandLine" in call_attempt:
             msgf_sequences_cmd = call_attempt["commandLine"]
@@ -431,9 +417,7 @@ def copy_msgf_sequences(metadata, dest_root_folder, bucket_source, bucket_destin
             upload_string(bucket_destination, msgf_sequences_cmd, cmd_blob_filename)
 
         write_command_to_file(
-            metadata=metadata,
-            x=x,
-            method="proteomics_msgfplus.msgf_sequences",
+            call_attempt=call_attempt,
             results_output=msgf_sequences_output,
             bucket_destination=bucket_destination,
             file_name="msgf_sequences-command.log",
@@ -463,7 +447,7 @@ def copy_msgf_tryptic(metadata, dest_root_folder, bucket_source, bucket_destinat
     msgf_tryptic_output = dest_root_folder + "msgf_tryptic_outputs/"
     msgf_tryptic_calls = metadata["calls"]["proteomics_msgfplus.msgf_tryptic"]
 
-    for x, call_attempt in enumerate(msgf_tryptic_calls):
+    for call_attempt in msgf_tryptic_calls:
         # STDOUT, which requires to rename the file
         if "stdout" in call_attempt:
             seq_id = call_attempt["inputs"]["sample_id"]
@@ -477,9 +461,7 @@ def copy_msgf_tryptic(metadata, dest_root_folder, bucket_source, bucket_destinat
             )
 
         write_command_to_file(
-            metadata=metadata,
-            x=x,
-            method="proteomics_msgfplus.msgf_tryptic",
+            call_attempt=call_attempt,
             results_output=msgf_tryptic_output,
             bucket_destination=bucket_destination,
             file_name="msgf_tryptic-command.log",
@@ -511,7 +493,7 @@ def copy_phrp(metadata, dest_root_folder, bucket_source, bucket_destination):
     phrp_calls = metadata["calls"]["proteomics_msgfplus.phrp"]
     # print('- Number of files processed:', phrp_length)
 
-    for x, call_attempt in enumerate(phrp_calls):
+    for call_attempt in phrp_calls:
         # print('\nBlob-', x, ' ', end = '')
         if "stdout" in call_attempt:
             # WARNING: ID IS COMING FROM THE RAW FILE NAME:
@@ -527,9 +509,7 @@ def copy_phrp(metadata, dest_root_folder, bucket_source, bucket_destination):
             )
 
         write_command_to_file(
-            metadata=metadata,
-            x=x,
-            method="proteomics_msgfplus.phrp",
+            call_attempt=call_attempt,
             results_output=phrp_output,
             bucket_destination=bucket_destination,
             file_name="phrp-command.log",
@@ -571,7 +551,7 @@ def copy_mzidtotsvconverter(
     mzidtotsvconverter_output = dest_root_folder + "mzidtotsvconverter_outputs/"
     mzidtotsvconverter_calls = metadata["calls"]["proteomics_msgfplus.mzidtotsvconverter"]
 
-    for x, call_attempt in enumerate(mzidtotsvconverter_calls):
+    for call_attempt in mzidtotsvconverter_calls:
         if "stdout" in call_attempt:
             seq_id = call_attempt["inputs"]["sample_id"]
             copy_file_to_new_location(
@@ -584,9 +564,7 @@ def copy_mzidtotsvconverter(
             )
 
         write_command_to_file(
-            metadata=metadata,
-            x=x,
-            method="proteomics_msgfplus.mzidtotsvconverter",
+            call_attempt=call_attempt,
             results_output=mzidtotsvconverter_output,
             bucket_destination=bucket_destination,
             file_name="mzidtotsvconverter-command.log",
@@ -630,7 +608,7 @@ def copy_wrapper_pp(
 
     wrapper_results_calls = metadata["calls"][wrapper_method]
 
-    for x, call_attempt in enumerate(wrapper_results_calls):
+    for call_attempt in wrapper_results_calls:
         if "stdout" in call_attempt:
             copy_file_to_new_location(
                 call_attempt,
@@ -641,9 +619,7 @@ def copy_wrapper_pp(
             )
 
         write_command_to_file(
-            metadata=metadata,
-            x=x,
-            method=wrapper_method,
+            call_attempt=call_attempt,
             results_output=wrapper_results_output,
             bucket_destination=bucket_destination,
             file_name="wrapper_results-command.log",
@@ -706,7 +682,7 @@ def copy_ppinputs(
         )
 
     wrapper_results_calls = metadata["calls"][wrapper_method]
-    for x, call_attempt in enumerate(wrapper_results_calls):
+    for call_attempt in wrapper_results_calls:
         executionStatus = trim_gs_prefix(
             call_attempt["executionStatus"], bucket_source.name
         )
@@ -742,7 +718,7 @@ def copy_maxquant(
     maxquant_output = dest_root_folder + "maxquant_outputs/"
     maxquant_calls = metadata["calls"]["proteomics_maxquant.maxquant"]
 
-    for x, call_attempt in enumerate(maxquant_calls):
+    for call_attempt in maxquant_calls:
         if "stdout" in call_attempt:
             seq_id = "console"
             copy_file_to_new_location(
@@ -755,9 +731,7 @@ def copy_maxquant(
             )
 
         write_command_to_file(
-            metadata=metadata,
-            x=x,
-            method="proteomics_maxquant.maxquant",
+            call_attempt=call_attempt,
             results_output=maxquant_output,
             bucket_destination=bucket_destination,
             file_name="maxquant-command.log",
