@@ -13,6 +13,8 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from functools import wraps
 from pathlib import Path
 from typing import List, Tuple, TypeVar
+from copy import copy
+from logging import Formatter
 
 import dateparser
 from google.cloud import storage
@@ -32,9 +34,34 @@ warnings.filterwarnings(
     "Your application has authenticated using end user credentials",
 )
 
+MAPPING = {
+    'DEBUG': 37,  # white
+    'INFO': 36,  # cyan
+    'WARNING': 33,  # yellow
+    'ERROR': 31,  # red
+    'CRITICAL': 41,  # white on red bg
+}
+
+PREFIX = '\033['
+SUFFIX = '\033[0m'
+
+
+class ColoredFormatter(Formatter):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def format(self, record):
+        colored_record = copy(record)
+        levelname = colored_record.levelname
+        seq = MAPPING.get(levelname, 37)  # default white
+        colored_record.levelname = f'{PREFIX}{seq}m{levelname}{SUFFIX}'
+        return Formatter.format(self, colored_record)
+
+
 base_logger = logging.getLogger("copy_pipeline_results")
 syslog = logging.StreamHandler()
-formatter = logging.Formatter(
+formatter = ColoredFormatter(
     "%(levelname)s :: %(asctime)s.%(msecs)03d :: %(task)s :: %(message)s",
     datefmt="%Y/%M/%d %H:%M:%S",
 )
@@ -415,19 +442,19 @@ class TaskSpec:
     @threadpool
     def copy_single_file(
         self,
-        orig_file_path: str,
+        orig_filename: str,
         new_filename: str,
         output_name: str,
     ) -> None:
         """
         Copy a single file with the original filename to the new_filename.
 
-        :param orig_file_path: The original file's gs://path
+        :param orig_filename: The original file's gs://path
         :param new_filename: The new file's filename
         :param output_name: The name of the output in the outputs dict
         """
         # remove the gs://<bucket>/ prefix from the data
-        orig_file_bucket, orig_filename = parse_bucket_path(orig_file_path)
+        orig_file_bucket, orig_filename = parse_bucket_path(orig_filename)
         # if not supplied with a new filename, use the original base filename
         if new_filename is None:
             new_filename = Path(orig_filename).name
@@ -444,7 +471,7 @@ class TaskSpec:
                 self.logger.error(
                     "----> Unable to copy %s file at %s, bucket does not exist",
                     output_name,
-                    orig_file_path,
+                    orig_filename,
                 )
                 return
             # get the original file from the other bucket
@@ -454,19 +481,20 @@ class TaskSpec:
             if not self.copy_spec.dry_run:
                 self.copy_spec.source_bucket.copy_blob(
                     original_file,
-                    self.copy_spec.destination_bucket.name,
+                    self.copy_spec.destination_bucket,
                     new_file_path,
                 )
             self.logger.info(
-                "- Copied %s file to: %s",
+                "- Copied %s file from %s to %s",
                 output_name,
+                f"gs://{orig_file_bucket}/{orig_filename}",
                 f"gs://{self.copy_spec.destination_bucket.name}/{new_file_path}",
             )
         else:
             self.logger.error(
-                "----> Unable to copy %s at %s to %s",
+                "----> Unable to copy %s from %s to %s",
                 output_name,
-                orig_file_path,
+                orig_filename,
                 f"gs://{self.copy_spec.destination_bucket.name}/{new_file_path}",
             )
 
