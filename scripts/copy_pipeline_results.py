@@ -484,8 +484,12 @@ class TaskSpec:
                     self.copy_spec.destination_bucket,
                     new_file_path,
                 )
+            log_copy = "Copied"
+            if self.copy_spec.dry_run:
+                log_copy = "DRY RUN: Copied"
             self.logger.info(
-                "- Copied %s file from %s to %s",
+                "%s - %s file from %s to %s",
+                log_copy,
                 output_name,
                 f"gs://{orig_file_bucket}/{orig_filename}",
                 f"gs://{self.copy_spec.destination_bucket.name}/{new_file_path}",
