@@ -9,16 +9,16 @@ import re
 import sys
 import warnings
 from collections.abc import Callable
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from copy import copy
 from functools import wraps
+from logging import Formatter
 from pathlib import Path
 from typing import List, Tuple, TypeVar
-from copy import copy
-from logging import Formatter
 
 import dateparser
-from google.cloud import storage
-from google.cloud.storage import Bucket
+from google.api_core.exceptions import GoogleAPICallError, ServiceUnavailable
+from google.cloud.storage import Blob, Bucket, Client
 
 if sys.version_info >= (3, 10):
     from typing import ParamSpec
@@ -35,19 +35,18 @@ warnings.filterwarnings(
 )
 
 MAPPING = {
-    'DEBUG': 37,  # white
-    'INFO': 36,  # cyan
-    'WARNING': 33,  # yellow
-    'ERROR': 31,  # red
-    'CRITICAL': 41,  # white on red bg
+    "DEBUG": 37,  # white
+    "INFO": 36,  # cyan
+    "WARNING": 33,  # yellow
+    "ERROR": 31,  # red
+    "CRITICAL": 41,  # white on red bg
 }
 
-PREFIX = '\033['
-SUFFIX = '\033[0m'
+PREFIX = "\033["
+SUFFIX = "\033[0m"
 
 
 class ColoredFormatter(Formatter):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -55,7 +54,7 @@ class ColoredFormatter(Formatter):
         colored_record = copy(record)
         levelname = colored_record.levelname
         seq = MAPPING.get(levelname, 37)  # default white
-        colored_record.levelname = f'{PREFIX}{seq}m{levelname}{SUFFIX}'
+        colored_record.levelname = f"{PREFIX}{seq}m{levelname}{SUFFIX}"
         return Formatter.format(self, colored_record)
 
 
@@ -186,7 +185,7 @@ class CopySpec:
         destination_bucket, destination_folder = parse_bucket_path(destination_location)
 
         self.wf_id = wf_id
-        self.client = storage.Client(project=project)
+        self.client = Client(project=project)
         self.source_bucket = self.client.get_bucket(source_bucket)
         self.source_folder = source_folder.rstrip("/")
         self.destination_bucket = self.client.get_bucket(destination_bucket)
@@ -199,6 +198,7 @@ class CopySpec:
         self.logger.info("Pipeline Running Time: %s", end_time - start_time)
 
         self.tasks: list[TaskSpec] = []
+        self.running_futures: list[Future[None]] = []
 
     def set_metadata(self) -> dict:
         """
@@ -274,10 +274,12 @@ class CopySpec:
             ),
         )
 
-    def run_tasks(self) -> None:
+    def run_tasks(self) -> List[None]:
         """Run all tasks for the copy job."""
         for task in self.tasks:
             task.run_copy()
+
+        return [f.result() for f in as_completed(self.running_futures)]
 
 
 class TaskSpec:
@@ -356,7 +358,7 @@ class TaskSpec:
         :param call_attempt: The call_attempt metadata object
         :param file_name: the file name
         """
-        cmd_txt = call_attempt["commandLine"]
+        cmd_txt = call_attempt.get("commandLine")
         if cmd_txt is not None:
             cmd_txt_name = f"{self.output_folder}/{file_name}"
             self.logger.info("- Command to file: %s", cmd_txt_name)
@@ -479,11 +481,57 @@ class TaskSpec:
         # copy the original file if it exists, log an error if it doesn't
         if original_file is not None:
             if not self.copy_spec.dry_run:
-                self.copy_spec.source_bucket.copy_blob(
-                    original_file,
-                    self.copy_spec.destination_bucket,
-                    new_file_path,
-                )
+                try:
+                    self.copy_spec.source_bucket.copy_blob(
+                        original_file,
+                        self.copy_spec.destination_bucket,
+                        new_file_path,
+                    )
+                except ServiceUnavailable as e:
+                    if "use the Rewrite method" in e.message:
+                        self.logger.warning(
+                            "----> Unable to copy %s from %s to %s within Google's "
+                            "allowed time. Attempting to copy using the rewrite method.",
+                            output_name,
+                            orig_filename,
+                            f"gs://{self.copy_spec.destination_bucket.name}/"
+                            f"{new_file_path}",
+                        )
+                        try:
+                            new_blob = Blob(
+                                new_file_path, self.copy_spec.destination_bucket
+                            )
+                            new_blob.rewrite(original_file)
+                        except GoogleAPICallError as e:
+                            self.logger.error(
+                                "----> Unable to rewrite %s from %s to %s. "
+                                "Google API error: %s",
+                                output_name,
+                                orig_filename,
+                                f"gs://{self.copy_spec.destination_bucket.name}/"
+                                f"{new_file_path}",
+                                e,
+                            )
+                    else:
+                        self.logger.error(
+                            "----> Unable to copy %s from %s to %s. "
+                            "Google API error: %s",
+                            output_name,
+                            orig_filename,
+                            f"gs://{self.copy_spec.destination_bucket.name}/"
+                            f"{new_file_path}",
+                            e,
+                        )
+                except GoogleAPICallError as e:
+                    self.logger.error(
+                        "----> Unable to copy %s from %s to %s. "
+                        "Google API error: %s",
+                        output_name,
+                        orig_filename,
+                        f"gs://{self.copy_spec.destination_bucket.name}/{new_file_path}",
+                        e,
+                    )
+
             log_copy = "Copied"
             if self.copy_spec.dry_run:
                 log_copy = "DRY RUN: Copied"
@@ -628,7 +676,8 @@ def main():
             if "proteomics_msgfplus.ascore" in copy_job.metadata["calls"]:
                 copy_job.create_task(
                     task_id="ascore",
-                    stdout_filename=lambda x: f"{x['inputs']['seq_file_id']}-ascore-stdout.log",
+                    stdout_filename=lambda x: f"{x['inputs']['seq_file_id']}"
+                                              f"-ascore-stdout.log",
                     command_filename="ascore-command.log",
                     outputs=[
                         "syn_plus_ascore",
@@ -640,21 +689,24 @@ def main():
 
             copy_job.create_task(
                 task_id="msconvert_mzrefiner",
-                stdout_filename=lambda x: f"{x['inputs']['sample_id']}-msconvert_mzrefiner-stdout.log",
+                stdout_filename=lambda x: f"{x['inputs']['sample_id']}"
+                                          f"-msconvert_mzrefiner-stdout.log",
                 command_filename="msconvert_mzrefiner-command.log",
                 outputs=["mzml_fixed"],
             )
 
             copy_job.create_task(
                 task_id="ppm_errorcharter",
-                stdout_filename=lambda x: f"{x['inputs']['sample_id']}-ppm_errorcharter-stdout.log",
+                stdout_filename=lambda x: f"{x['inputs']['sample_id']}"
+                                          f"-ppm_errorcharter-stdout.log",
                 command_filename="ppm_errorcharter-command.log",
                 outputs=["ppm_masserror_png", "ppm_histogram_png"],
             )
 
             copy_job.create_task(
                 task_id="masic",
-                stdout_filename=lambda x: f"{Path(x['inputs']['raw_file']).name.replace('.raw', '')}-masic-stdout.log",
+                stdout_filename=lambda x: f"{Path(x['inputs']['raw_file']).name.replace('.raw', '')}"
+                                          f"-masic-stdout.log",
                 command_filename="masic-command.log",
                 outputs=[
                     "ReporterIons_output_file",
@@ -678,14 +730,16 @@ def main():
 
             copy_job.create_task(
                 task_id="msconvert",
-                stdout_filename=lambda x: f"{Path(x['inputs']['raw_file']).name.replace('.raw', '')}-msconvert-stdout.log",
+                stdout_filename=lambda x: f"{Path(x['inputs']['raw_file']).name.replace('.raw', '')}"
+                                          f"-msconvert-stdout.log",
                 command_filename="msconvert-command.log",
                 outputs=["mzml"],
             )
 
             copy_job.create_task(
                 task_id="msgf_identification",
-                stdout_filename=lambda x: f"{x['inputs']['sample_id']}-msgf_identification-stdout.log",
+                stdout_filename=lambda x: f"{x['inputs']['sample_id']}"
+                                          f"-msgf_identification-stdout.log",
                 command_filename="msgf_identification-command.log",
                 outputs=["rename_mzmlfixed", "mzid_final"],
             )
@@ -699,14 +753,16 @@ def main():
 
             copy_job.create_task(
                 task_id="msgf_tryptic",
-                stdout_filename=lambda x: f"{x['inputs']['sample_id']}-msgf_tryptic-stdout.log",
+                stdout_filename=lambda x: f"{x['inputs']['sample_id']}"
+                                          f"-msgf_tryptic-stdout.log",
                 command_filename="msgf_tryptic-command.log",
                 outputs=["mzid"],
             )
 
             copy_job.create_task(
                 task_id="phrp",
-                stdout_filename=lambda x: f"{Path(x['inputs']['input_tsv']).name.replace('.tsv', '')}-phrp-stdout.log",
+                stdout_filename=lambda x: f"{Path(x['inputs']['input_tsv']).name.replace('.tsv', '')}"
+                                          f"-phrp-stdout.log",
                 command_filename="phrp-command.log",
                 outputs=[
                     "syn_ResultToSeqMap",
@@ -723,7 +779,8 @@ def main():
 
             copy_job.create_task(
                 task_id="mzidtotsvconverter",
-                stdout_filename=lambda x: f"{x['inputs']['sample_id']}-mzidtotsvconverter-stdout.log",
+                stdout_filename=lambda x: f"{x['inputs']['sample_id']}"
+                                          f"-mzidtotsvconverter-stdout.log",
                 command_filename="mzidtotsvconverter-command.log",
                 outputs=["tsv"],
             )
