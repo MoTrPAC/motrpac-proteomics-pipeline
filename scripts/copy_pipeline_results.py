@@ -498,10 +498,30 @@ class TaskSpec:
                             f"{new_file_path}",
                         )
                         try:
-                            new_blob = Blob(
-                                new_file_path, self.copy_spec.destination_bucket
+                            dest_blob = self.copy_spec.destination_bucket.blob(
+                                new_file_path
                             )
-                            new_blob.rewrite(original_file)
+
+                            rewrite_token = False
+
+                            while True:
+                                (
+                                    rewrite_token,
+                                    bytes_rewritten,
+                                    bytes_to_rewrite,
+                                ) = dest_blob.rewrite(
+                                    original_file, token=rewrite_token
+                                )
+                                self.logger.info(
+                                    "%s: Progress so far: %s/%s (%d:.2f%) bytes.",
+                                    bytes_rewritten,
+                                    bytes_to_rewrite,
+                                    bytes_rewritten / bytes_to_rewrite * 100,
+                                    f"gs://{self.copy_spec.destination_bucket.name}/"
+                                    f"{new_file_path}",
+                                )
+                                if not rewrite_token:
+                                    break
                         except GoogleAPICallError as e:
                             self.logger.error(
                                 "----> Unable to rewrite %s from %s to %s. "
@@ -676,8 +696,7 @@ def main():
             if "proteomics_msgfplus.ascore" in copy_job.metadata["calls"]:
                 copy_job.create_task(
                     task_id="ascore",
-                    stdout_filename=lambda x: f"{x['inputs']['seq_file_id']}"
-                                              f"-ascore-stdout.log",
+                    stdout_filename=lambda x: f"{x['inputs']['seq_file_id']}-ascore-stdout.log",
                     command_filename="ascore-command.log",
                     outputs=[
                         "syn_plus_ascore",
@@ -689,24 +708,21 @@ def main():
 
             copy_job.create_task(
                 task_id="msconvert_mzrefiner",
-                stdout_filename=lambda x: f"{x['inputs']['sample_id']}"
-                                          f"-msconvert_mzrefiner-stdout.log",
+                stdout_filename=lambda x: f"{x['inputs']['sample_id']}-msconvert_mzrefiner-stdout.log",
                 command_filename="msconvert_mzrefiner-command.log",
                 outputs=["mzml_fixed"],
             )
 
             copy_job.create_task(
                 task_id="ppm_errorcharter",
-                stdout_filename=lambda x: f"{x['inputs']['sample_id']}"
-                                          f"-ppm_errorcharter-stdout.log",
+                stdout_filename=lambda x: f"{x['inputs']['sample_id']}-ppm_errorcharter-stdout.log",
                 command_filename="ppm_errorcharter-command.log",
                 outputs=["ppm_masserror_png", "ppm_histogram_png"],
             )
 
             copy_job.create_task(
                 task_id="masic",
-                stdout_filename=lambda x: f"{Path(x['inputs']['raw_file']).name.replace('.raw', '')}"
-                                          f"-masic-stdout.log",
+                stdout_filename=lambda x: f"{Path(x['inputs']['raw_file']).name.replace('.raw', '')}-masic-stdout.log",
                 command_filename="masic-command.log",
                 outputs=[
                     "ReporterIons_output_file",
@@ -730,16 +746,14 @@ def main():
 
             copy_job.create_task(
                 task_id="msconvert",
-                stdout_filename=lambda x: f"{Path(x['inputs']['raw_file']).name.replace('.raw', '')}"
-                                          f"-msconvert-stdout.log",
+                stdout_filename=lambda x: f"{Path(x['inputs']['raw_file']).name.replace('.raw', '')}-msconvert-stdout.log",
                 command_filename="msconvert-command.log",
                 outputs=["mzml"],
             )
 
             copy_job.create_task(
                 task_id="msgf_identification",
-                stdout_filename=lambda x: f"{x['inputs']['sample_id']}"
-                                          f"-msgf_identification-stdout.log",
+                stdout_filename=lambda x: f"{x['inputs']['sample_id']}-msgf_identification-stdout.log",
                 command_filename="msgf_identification-command.log",
                 outputs=["rename_mzmlfixed", "mzid_final"],
             )
@@ -754,15 +768,14 @@ def main():
             copy_job.create_task(
                 task_id="msgf_tryptic",
                 stdout_filename=lambda x: f"{x['inputs']['sample_id']}"
-                                          f"-msgf_tryptic-stdout.log",
+                f"-msgf_tryptic-stdout.log",
                 command_filename="msgf_tryptic-command.log",
                 outputs=["mzid"],
             )
 
             copy_job.create_task(
                 task_id="phrp",
-                stdout_filename=lambda x: f"{Path(x['inputs']['input_tsv']).name.replace('.tsv', '')}"
-                                          f"-phrp-stdout.log",
+                stdout_filename=lambda x: f"{Path(x['inputs']['input_tsv']).name.replace('.tsv', '')}-phrp-stdout.log",
                 command_filename="phrp-command.log",
                 outputs=[
                     "syn_ResultToSeqMap",
@@ -779,8 +792,7 @@ def main():
 
             copy_job.create_task(
                 task_id="mzidtotsvconverter",
-                stdout_filename=lambda x: f"{x['inputs']['sample_id']}"
-                                          f"-mzidtotsvconverter-stdout.log",
+                stdout_filename=lambda x: f"{x['inputs']['sample_id']}-mzidtotsvconverter-stdout.log",
                 command_filename="mzidtotsvconverter-command.log",
                 outputs=["tsv"],
             )
