@@ -12,13 +12,12 @@ from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from copy import copy
 from functools import wraps
-from logging import Formatter
 from pathlib import Path
 from typing import List, Tuple, TypeVar
 
 import dateparser
 from google.api_core.exceptions import GoogleAPICallError, ServiceUnavailable
-from google.cloud.storage import Blob, Bucket, Client
+from google.cloud.storage import Bucket, Client
 
 if sys.version_info >= (3, 10):
     from typing import ParamSpec
@@ -46,7 +45,7 @@ PREFIX = "\033["
 SUFFIX = "\033[0m"
 
 
-class ColoredFormatter(Formatter):
+class ColoredFormatter(logging.Formatter):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -55,7 +54,7 @@ class ColoredFormatter(Formatter):
         levelname = colored_record.levelname
         seq = MAPPING.get(levelname, 37)  # default white
         colored_record.levelname = f"{PREFIX}{seq}m{levelname}{SUFFIX}"
-        return Formatter.format(self, colored_record)
+        return super().format(colored_record)
 
 
 base_logger = logging.getLogger("copy_pipeline_results")
@@ -513,12 +512,12 @@ class TaskSpec:
                                     original_file, token=rewrite_token
                                 )
                                 self.logger.info(
-                                    "%s: Progress so far: %s/%s (%d:.2f%) bytes.",
-                                    bytes_rewritten,
-                                    bytes_to_rewrite,
-                                    bytes_rewritten / bytes_to_rewrite * 100,
+                                    "%s: Progress so far: %.2f%% (%d/%d) bytes.",
                                     f"gs://{self.copy_spec.destination_bucket.name}/"
                                     f"{new_file_path}",
+                                    bytes_rewritten / bytes_to_rewrite * 100,
+                                    bytes_rewritten,
+                                    bytes_to_rewrite,
                                 )
                                 if not rewrite_token:
                                     break
