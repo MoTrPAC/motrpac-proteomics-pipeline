@@ -12,8 +12,12 @@ option_list <- list(
               metavar = "character"),
   make_option(c("-i", "--msgf_output_folder"), type = "character", default = NULL, 
               help = "MSGF output folder", metavar = "character"),
+  make_option(c("-b", "--msgf_output_folder2"), type = "character", default = NULL, 
+              help = "MSGF output folder 2", metavar = "character"),
   make_option(c("-j", "--masic_output_folder"), type = "character", default = NULL, 
               help = "MASIC output folder", metavar = "character"),
+  make_option(c("-e", "--masic_output_folder2"), type = "character", default = NULL, 
+              help = "MASIC output folder 2", metavar = "character"),
   make_option(c("-f", "--fasta_file"), type = "character", default = NULL, 
               help = "FASTA file (RefSeq format)", metavar = "character"),
   make_option(c("-s", "--study_design_folder"), type = "character", default = NULL, 
@@ -65,8 +69,10 @@ study_design_folder <- opt$study_design_folder
 results_prefix <- opt$results_prefix
 study_design_folder <- opt$study_design_folder
 msgf_output_folder <- opt$msgf_output_folder
+msgf_output_folder2 <- opt$msgf_output_folder2
 ascore_output_folder <- opt$ascore_output_folder
 masic_output_folder <- opt$masic_output_folder
+masic_output_folder2 <- opt$masic_output_folder2
 species <- opt$species
 annotation <- opt$annotation
 plexedpiper_global_results_ratio <- opt$plexedpiper_global_results_ratio
@@ -75,6 +81,14 @@ fasta_file <- opt$fasta_file
 unique_only <- opt$unique_only
 refine_prior <- opt$refine_prior
 save_env <- opt$save_env
+
+if(!is.null(msgf_output_folder2)){
+  msgf_output_folder <- c(msgf_output_folder, msgf_output_folder2)
+}
+
+if(!is.null(masic_output_folder2)){
+  masic_output_folder <- c(masic_output_folder, masic_output_folder2)
+}
 
 if(refine_prior) {
   message("+ Refine Prior is set to ", refine_prior)
