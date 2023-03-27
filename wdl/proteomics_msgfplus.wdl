@@ -369,8 +369,6 @@ task masic {
         disks: "local-disk ${select_first([disks, 100])} HDD"
     }
 
-    meta {}
-
     parameter_meta {
         sample_id: {
             type: "id"
