@@ -506,10 +506,9 @@ task msconvert_mzrefiner {
         File input_mzid
 
         String sample_id = basename(input_mzml, ".mzML")
+        # Create new output destination
+        String output_name = sample_id + "_FIXED.mzML"
     }
-
-    # Create new output destination
-    String output_name = sample_id + "_FIXED.mzML"
 
     command <<<
         echo "STEP 3A: MSCONVERT-MZREFINE"
