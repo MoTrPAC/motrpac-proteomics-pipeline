@@ -1,7 +1,6 @@
 version 1.0
 
 workflow proteomics_msgfplus {
-
     meta {
         author: "David Jimenez-Morales"
         version: "v0.4.0"
@@ -509,7 +508,7 @@ task msconvert_mzrefiner {
     }
 
     # Create new output destination
-    String output_name = sample_id + "_FIXED.mzML"
+    String output_name = basename(input_mzml, ".mzML") + "_FIXED.mzML"
 
     command <<<
         echo "STEP 3A: MSCONVERT-MZREFINE"
@@ -690,7 +689,7 @@ task mzidtotsvconverter {
     }
 
     # Create new output destination
-    String output_name = sample_id + ".tsv"
+    String output_name = basename(input_mzid_final, "_final.mzid") + ".tsv"
 
     command <<<
         echo "STEP 5:: MzidToTSVConverter"
@@ -743,7 +742,7 @@ task phrp {
     }
 
     # Create new output destination
-    String phrp_logfile = sample_id + "_PHRP_LogFile.txt"
+    String phrp_logfile = basename(input_tsv, ".tsv") + "_PHRP_LogFile.txt"
 
     command <<<
         echo "STEP 6: PeptideHitResultsProcRunner"
@@ -918,6 +917,9 @@ task wrapper_pp {
         Array[File?] syn_ascore = []
     }
 
+    Array[File] ReporterIons_output_file_nonnull = select_all(ReporterIons_output_file)
+    Array[File] syn_ascore_nonnull = select_all(syn_ascore)
+
     command <<<
         echo "FINAL-STEP: COPY ALL THE FILES TO THE SAME PLACE"
 
@@ -925,7 +927,7 @@ task wrapper_pp {
 
         mkdir final_output_masic
 
-        cp ~{sep=" " ReporterIons_output_file} final_output_masic
+        cp ~{sep=" " ReporterIons_output_file_nonnull} final_output_masic
         cp ~{sep=" " SICstats_output_file} final_output_masic
 
         tar -C final_output_masic -zcvf final_output_masic.tar.gz .
@@ -942,7 +944,7 @@ task wrapper_pp {
         then
             echo "ASCORE"
             mkdir final_output_ascore
-            cp ~{sep=" " syn_ascore} final_output_ascore
+            cp ~{sep=" " syn_ascore_nonnull} final_output_ascore
             tar -C final_output_ascore -zcvf final_output_ascore.tar.gz .
         fi
 
@@ -954,7 +956,6 @@ task wrapper_pp {
         cp ~{references} study_design
 
         if ~{isPTM}; then
-
             Rscript /app/pp.R \
             -p ~{proteomics_experiment} \
             -i final_output_phrp \
@@ -1022,7 +1023,7 @@ task wrapper_pp {
             label: "References File"
         }
         fasta_sequence_db: {
-            type: "sequnce_db"
+            type: "sequence_db"
         }
         ReporterIons_output_file: {
             label: "MASIC ReporterIons Output Files"
