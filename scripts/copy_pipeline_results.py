@@ -682,7 +682,13 @@ def main():
         )
         logger.info("PROTEOMICS METHOD: msgfplus")
         if "inputs" in copy_job.metadata:
-            is_ptm = copy_job.metadata["inputs"]["proteomics_msgfplus.isPTM"]
+            is_ptm = copy_job.metadata["inputs"].get(
+                "proteomics_msgfplus.isPTM"
+            ) or copy_job.metadata["inputs"].get("isPTM")
+            if is_ptm is None:
+                logger.warning("Unable to determine if PTM experiment, no key found")
+                is_ptm = False
+
             if is_ptm:
                 logger.info("######## PTM PROTEOMICS EXPERIMENT ########")
             else:
