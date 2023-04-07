@@ -28,6 +28,8 @@ option_list <- list(
               help = "Name of Protein database (either RefSeq or UniProt)", metavar = "character"),
   make_option(c("-a", "--ascore_output_folder"), type = "character", default = NULL, 
               help = "PTM only: AScore output folder", metavar = "character"),
+  make_option(c("-k", "--ascore_output_folder2"), type = "character", default = NULL, 
+              help = "PTM only: AScore output folder 2", metavar = "character"),
   make_option(c("-u", "--unique_only"), type = "character", default = FALSE, 
               help = "Whether to discard peptides that match multiple proteins in the 
               parsimonious protein inference step. It would ignore arguments -g and -r. Default: FALSE", metavar = "logical"),
@@ -71,6 +73,7 @@ study_design_folder <- opt$study_design_folder
 msgf_output_folder <- opt$msgf_output_folder
 msgf_output_folder2 <- opt$msgf_output_folder2
 ascore_output_folder <- opt$ascore_output_folder
+ascore_output_folder2 <- opt$ascore_output_folder2
 masic_output_folder <- opt$masic_output_folder
 masic_output_folder2 <- opt$masic_output_folder2
 species <- opt$species
@@ -88,6 +91,10 @@ if(!is.null(msgf_output_folder2)){
 
 if(!is.null(masic_output_folder2)){
   masic_output_folder <- c(masic_output_folder, masic_output_folder2)
+}
+
+if(!is.null(ascore_output_folder2)){
+  ascore_output_folder <- c(ascore_output_folder, ascore_output_folder2)
 }
 
 if(refine_prior) {
@@ -139,11 +146,6 @@ results <- run_plexedpiper(msgf_output_folder = msgf_output_folder,
                            save_env = save_env,
                            return_results = TRUE,
                            verbose = TRUE)
-
-# Create a barplot using ggplot with the results output and save it to a pdf file
-
-
-
 
 
 unlink(".Rcache", recursive=TRUE)
