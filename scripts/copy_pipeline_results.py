@@ -19,6 +19,7 @@ import dateparser
 from google.api_core.exceptions import GoogleAPICallError, ServiceUnavailable
 from google.cloud.storage import Bucket, Client
 
+
 if sys.version_info >= (3, 10):
     from typing import ParamSpec
 else:
@@ -72,9 +73,7 @@ R = TypeVar("R")
 _DEFAULT_POOL = ThreadPoolExecutor()
 
 
-def threadpool(
-    f: Callable[P, R], pool: ThreadPoolExecutor | None = None
-) -> Callable[P, Future[R]]:
+def threadpool(f: Callable[P, R], pool: ThreadPoolExecutor | None = None) -> Callable[P, Future[R]]:
     """
     Decorator that wraps a function and runs it in a threadpool.
 
@@ -190,6 +189,10 @@ class CopySpec:
         self.destination_bucket = self.client.get_bucket(destination_bucket)
         self.destination_folder = destination_folder.rstrip("/")
         self.metadata = self.set_metadata()
+        self.wf_inputs = {
+            key.removeprefix("proteomics_msgfplus."): value
+            for key, value in self.metadata["inputs"].items()
+        }
         self.dry_run = dry_run
 
         start_time = dateparser.parse(self.metadata["start"])
@@ -209,9 +212,7 @@ class CopySpec:
         metadata = None
         self.logger.info("Searching for metadata.json in file list")
         # assume that the metadata file is called metadata.json
-        metadata_blob = self.source_bucket.get_blob(
-            f"{self.source_folder}/metadata.json"
-        )
+        metadata_blob = self.source_bucket.get_blob(f"{self.source_folder}/metadata.json")
         if metadata_blob is not None:
             self.logger.info("Metadata file location: %s", metadata_blob.name)
             return json.loads(metadata_blob.download_as_string(client=None))
@@ -317,9 +318,7 @@ class TaskSpec:
         self.outputs = outputs
         self.inputs = inputs
         self.copy_spec = copy_spec
-        self.output_folder = (
-            output_folder or f"{copy_spec.destination_folder}/{task_id}_outputs"
-        )
+        self.output_folder = output_folder or f"{copy_spec.destination_folder}/{task_id}_outputs"
 
         self.calls = copy_spec.metadata["calls"][f"{copy_spec.wf_id}.{self.task_id}"]
         self.attempt = {}
@@ -378,9 +377,7 @@ class TaskSpec:
                 self.copy_file_to_new_location(
                     inputs_dict,
                     key,
-                    f"{directory.rstrip('/')}/{Path(inputs_dict[key]).name}".lstrip(
-                        "/"
-                    ),
+                    f"{directory.rstrip('/')}/{Path(inputs_dict[key]).name}".lstrip("/"),
                 )
 
         for call_attempt in self.calls:
@@ -436,9 +433,7 @@ class TaskSpec:
                     type(file_to_copy),
                 )
         else:
-            self.logger.error(
-                "----> Unable to copy %s, key does not exist", output_name
-            )
+            self.logger.error("----> Unable to copy %s, key does not exist", output_name)
 
     @threadpool
     def copy_single_file(
@@ -493,13 +488,10 @@ class TaskSpec:
                             "allowed time. Attempting to copy using the rewrite method.",
                             output_name,
                             orig_filename,
-                            f"gs://{self.copy_spec.destination_bucket.name}/"
-                            f"{new_file_path}",
+                            f"gs://{self.copy_spec.destination_bucket.name}/" f"{new_file_path}",
                         )
                         try:
-                            dest_blob = self.copy_spec.destination_bucket.blob(
-                                new_file_path
-                            )
+                            dest_blob = self.copy_spec.destination_bucket.blob(new_file_path)
 
                             rewrite_token = False
 
@@ -508,9 +500,7 @@ class TaskSpec:
                                     rewrite_token,
                                     bytes_rewritten,
                                     bytes_to_rewrite,
-                                ) = dest_blob.rewrite(
-                                    original_file, token=rewrite_token
-                                )
+                                ) = dest_blob.rewrite(original_file, token=rewrite_token)
                                 self.logger.info(
                                     "%s: Progress so far: %.2f%% (%d/%d) bytes.",
                                     f"gs://{self.copy_spec.destination_bucket.name}/"
@@ -523,8 +513,7 @@ class TaskSpec:
                                     break
                         except GoogleAPICallError as e:
                             self.logger.error(
-                                "----> Unable to rewrite %s from %s to %s. "
-                                "Google API error: %s",
+                                "----> Unable to rewrite %s from %s to %s. " "Google API error: %s",
                                 output_name,
                                 orig_filename,
                                 f"gs://{self.copy_spec.destination_bucket.name}/"
@@ -533,18 +522,15 @@ class TaskSpec:
                             )
                     else:
                         self.logger.error(
-                            "----> Unable to copy %s from %s to %s. "
-                            "Google API error: %s",
+                            "----> Unable to copy %s from %s to %s. " "Google API error: %s",
                             output_name,
                             orig_filename,
-                            f"gs://{self.copy_spec.destination_bucket.name}/"
-                            f"{new_file_path}",
+                            f"gs://{self.copy_spec.destination_bucket.name}/" f"{new_file_path}",
                             e,
                         )
                 except GoogleAPICallError as e:
                     self.logger.error(
-                        "----> Unable to copy %s from %s to %s. "
-                        "Google API error: %s",
+                        "----> Unable to copy %s from %s to %s. " "Google API error: %s",
                         output_name,
                         orig_filename,
                         f"gs://{self.copy_spec.destination_bucket.name}/{new_file_path}",
@@ -772,8 +758,7 @@ def main():
 
             copy_job.create_task(
                 task_id="msgf_tryptic",
-                stdout_filename=lambda x: f"{x['inputs']['sample_id']}"
-                f"-msgf_tryptic-stdout.log",
+                stdout_filename=lambda x: f"{x['inputs']['sample_id']}" f"-msgf_tryptic-stdout.log",
                 command_filename="msgf_tryptic-command.log",
                 outputs=["mzid"],
             )
@@ -833,10 +818,10 @@ def main():
                 ],
                 output_folder=copy_job.destination_folder,
                 inputs=[
-                    ("proteomics_msgfplus.fasta_sequence_db", ""),
-                    ("proteomics_msgfplus.sd_samples", "study_design"),
-                    ("proteomics_msgfplus.sd_fractions", "study_design"),
-                    ("proteomics_msgfplus.sd_references", "study_design"),
+                    ("fasta_sequence_db", ""),
+                    ("sd_samples", "study_design"),
+                    ("sd_fractions", "study_design"),
+                    ("sd_references", "study_design"),
                 ],
             )
 
