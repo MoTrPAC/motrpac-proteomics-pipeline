@@ -372,7 +372,7 @@ class TaskSpec:
         """
         # copy any source files
         if self.inputs is not None:
-            inputs_dict = self.copy_spec.metadata["inputs"]
+            inputs_dict = self.copy_spec.wf_inputs
             for key, directory in self.inputs:
                 self.copy_file_to_new_location(
                     inputs_dict,
@@ -668,9 +668,7 @@ def main():
         )
         logger.info("PROTEOMICS METHOD: msgfplus")
         if "inputs" in copy_job.metadata:
-            is_ptm = copy_job.metadata["inputs"].get(
-                "proteomics_msgfplus.isPTM"
-            ) or copy_job.metadata["inputs"].get("isPTM")
+            is_ptm = copy_job.wf_inputs.get("isPTM")
             if is_ptm is None:
                 logger.warning("Unable to determine if PTM experiment, no key found")
                 is_ptm = False
