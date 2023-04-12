@@ -837,7 +837,7 @@ def main():
                         "final_output_phrp_tar",
                         "final_output_ascore",
                     ],
-                    output_folder="wrapper_results",
+                    output_folder=f"{copy_job.destination_folder}/wrapper_results",
                 )
             else:
                 logger.error("(-) Plexed piper not available")
