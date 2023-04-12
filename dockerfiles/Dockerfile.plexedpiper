@@ -3,6 +3,7 @@ FROM rocker/r-ubuntu:18.04
 
 RUN mkdir -p /app/
 COPY scripts/pp.R /app/
+COPY scripts/combine_study_design.R /app/
 
 # hadolint ignore=DL3008
 RUN apt-get update \
@@ -12,5 +13,6 @@ RUN apt-get update \
 
 # hadolint ignore=DL3059
 RUN R -e 'install.packages("devtools")' \
-    && R -e 'remotes::install_github("PNNL-Comp-Mass-Spec/PlexedPiper@0.3.5", build_vignettes = FALSE)' \
-    && R -e 'install.packages("optparse")'
+    && R -e 'remotes::install_github("PNNL-Comp-Mass-Spec/PlexedPiper@0.4.1", build_vignettes = FALSE)' \
+    && R -e 'install.packages("optparse")' \
+    && R -e 'install.packages("purrr")'

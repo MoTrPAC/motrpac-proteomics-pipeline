@@ -27,6 +27,10 @@ option_list <- list(
   make_option(c("-t", "--tmt"),
               type="character",
               help="tmt11 or tmt16",
+              metavar="character"),
+  make_option(c("-p", "--phase"),
+              type="character",
+              help="MOTRPAC PHASE",
               metavar="character")
 )
 
@@ -37,9 +41,10 @@ if (is.null(opt$file_vial_metadata) |
     is.null(opt$batch_folder) |
     is.null(opt$cas) |
     is.null(opt$raw_source) |
-    is.null(opt$tmt)){
+    is.null(opt$tmt) | 
+    is.null(opt$phase)){
   print_help(opt_parser)
-  stop("4 arguments are required", call.=FALSE)
+  stop("6 arguments are required", call.=FALSE)
 }
 
 validate_batch <- function(input_results_folder){
@@ -56,10 +61,10 @@ validate_batch <- function(input_results_folder){
 # To facilitate debugging
 file_vial_metadata <- opt$file_vial_metadata
 batch_folder <- opt$batch_folder
-output_viallabel_name <- opt$output_viallabel_name
 cas <- opt$cas
 raw_source <- opt$raw_source
 tmt <- opt$tmt
+phase <- opt$phase
 
 message("\n##### GENERATE PlexedPiper study_design  FILES #####")
 message("-f: Vial metadata: ", file_vial_metadata)
@@ -69,11 +74,11 @@ message("-t: tmt experiment: ", tmt)
 
 # Generate vial_label file name (if not provided)------
 batch <- validate_batch(batch_folder)
-phase <- MotrpacBicQC::validate_phase(batch_folder)
+phase_folder <- MotrpacBicQC::validate_phase(batch_folder)
 assay <- MotrpacBicQC::validate_assay(batch_folder)
 assay <- gsub("(PROT_)(.*)", "\\2", assay)
 tissue <- MotrpacBicQC::validate_tissue(batch_folder)
-valid_cas <- c("PN", "BI")
+valid_cas <- c("PN", "BI", "PNBI")
 if(!any(cas %in% valid_cas)){
   stop("<cas> must be one of this: ", paste(valid_cas, collapse = ","))
 }
@@ -91,31 +96,100 @@ if(length(raw_folder) == 0){
   raw_folder <- batch_folder
 }
 
-# Generate samples.txt-----
-message("\n+ Generate samples ", appendLF = FALSE)
-nm_list = list()
-if(file_vial_metadata == "generate"){
-  message("(from tmt details.txt file)... ", appendLF = FALSE)
-  tmt_details <- list.files(file.path(raw_folder),
-                            pattern="details.txt",
-                            ignore.case = TRUE,
-                            full.names=TRUE,
-                            recursive = TRUE)
-                              
-  for (f in tmt_details ){
-    nm_list[[f]] = read.delim(f)
-  }
-  vial_metadata <- bind_rows(nm_list)
-  file_vial_metadata <- paste0("MOTRPAC_", phase, "_", tissue, "_", assay, "_", date, "_vial_metadata.txt")
+if(tmt == "tmt11") {
+  ecolnames <- c("tmt_plex", "tmt11_channel", "vial_label")
+}else if(tmt == "tmt16") {
+  ecolnames <- c("tmt_plex", "tmt16_channel", "vial_label")
 }else{
-  message("(reading existing file_vial_metadata)... ", appendLF = FALSE)
-  vial_metadata <- read.table(file_vial_metadata, 
-                              sep="\t", 
-                              header=TRUE, 
-                              fill=TRUE)
+  stop("<tmt> must be one of this: tmt11, tmt16")
 }
 
+# # Generate samples.txt trusting TMTdetails file-----
+# message("\n+ Generate samples ", appendLF = FALSE)
+# nm_list <- list()
+# if( file_vial_metadata == "generate" ) {
+#   message("(from tmt details.txt file)... ", appendLF = FALSE)
+#   tmt_details <- list.files(file.path(raw_folder),
+#                             pattern = "details.txt",
+#                             ignore.case = TRUE,
+#                             full.names = TRUE,
+#                             recursive = TRUE)
+#   
+#   # validate
+#   for (f in 1:length(tmt_details) ){
+#     temp <- read.delim(tmt_details[f])
+#     if(tmt == "tmt16") {
+#       if(!any("tmt16_channel" %in% colnames(temp)) ) {
+#         stop("\ntmt16_channel column MISSED in this file\n", paste( tmt_details[f] ))
+#       }
+#     }else if(tmt == "tmt11"){
+#       if(!any("tmt11_channel" %in% colnames(temp)) ){
+#         stop("\ntmt11_channel column MISSED in this file\n", paste( tmt_details[f] ))
+#       }
+#     }else{
+#       stop(paste(tmt,": this tmt type not supported yet") )
+#     }
+#     temp$tmt_plex <- paste0("S",f)
+#     temp$vial_label <- ifelse(grepl("Ref", temp$vial_label), paste0("Ref_S",f), temp$vial_label)
+#     
+#     nm_list[[f]] <- temp
+#   }
+#   vial_metadata <- bind_rows(nm_list)
+#   file_vial_metadata <- paste0("MOTRPAC_", phase, "_", tissue, "_", assay, "_", date, "_vial_metadata.txt")
+# } else {
+#   message("(reading existing file_vial_metadata)... ", appendLF = FALSE)
+#   vial_metadata <- read.table( file_vial_metadata,
+#                               sep = "\t",
+#                               header = TRUE,
+#                               fill = TRUE )
+# }
+# 
+# message(" done!")
+
+# Samples independently of the TMTdetails file-----
+nm_list <- list()
+raw_subfolders <- list.dirs(raw_folder)
+# The first folder is the root raw folder: remove
+raw_subfolders <- raw_subfolders[-1]
+raw_subfolders <- raw_subfolders[!grepl("study_design", raw_subfolders)]
+
+if( file_vial_metadata == "generate" ) {
+  message("(from tmt details.txt file)... ", appendLF = FALSE)
+  
+  for(sf in 1:length(raw_subfolders)){
+    tmt_details <- list.files(file.path(raw_subfolders[sf]),
+                              pattern = "details.txt",
+                              ignore.case = TRUE,
+                              full.names = TRUE,
+                              recursive = TRUE)
+    
+    # Only one TMTdetails file in folder allowed
+    if(length(tmt_details) > 1 | length(tmt_details) == 0){
+      stop("None or several TMTdetails files found in this subfolder:\n", raw_subfolders[sf])
+    }
+    
+    temp <- read.delim(tmt_details)
+    if(tmt == "tmt16") {
+      if(!any("tmt16_channel" %in% colnames(temp)) ) {
+        stop("\ntmt16_channel column MISSED in this file\n", paste( tmt_details ))
+      }
+    }else if(tmt == "tmt11"){
+      if(!any("tmt11_channel" %in% colnames(temp)) ){
+        stop("\ntmt11_channel column MISSED in this file\n", paste( tmt_details ))
+      }
+    }else{
+      stop(paste(tmt,": this tmt type not supported yet") )
+    }
+    temp$tmt_plex <- paste0("S",sf)
+    temp$vial_label <- ifelse(grepl("Ref", temp$vial_label), paste0("Ref_S",sf), temp$vial_label)
+    
+    nm_list[[sf]] <- temp
+  }
+  vial_metadata <- dplyr::bind_rows(nm_list)
+  file_vial_metadata <- paste0("MOTRPAC_", phase, "_", tissue, "_", assay, "_", cas,"_", date, "_vial_metadata.txt")
+}
 message(" done!")
+
 
 message("+ Vial label file name: ", file_vial_metadata)
 
@@ -123,14 +197,6 @@ colnames(vial_metadata) <- tolower(colnames(vial_metadata))
 vial_metadata$vial_label <- ifelse(grepl("ref", vial_metadata$vial_label, ignore.case = TRUE), paste0("Ref_", vial_metadata$tmt_plex), vial_metadata$vial_label)
 
 # Validate vial_label file-----
-if(tmt == "tmt11"){
-  ecolnames <- c("tmt_plex", "tmt11_channel", "vial_label")
-}else if(tmt == "tmt16"){
-  ecolnames <- c("tmt_plex", "tmt16_channel", "vial_label")
-}else{
-  stop("<tmt> must be one of this: tmt11, tmt16")
-}
-
 if( !all(ecolnames %in% colnames(vial_metadata)) ){
   stop("Vial Metadata. The expeted column names...\n\t", 
        paste(ecolnames, collapse = ", "), 
@@ -141,25 +207,37 @@ if( !all(ecolnames %in% colnames(vial_metadata)) ){
 # Remove white spaces (known issue for pnnl submissions)
 vial_metadata$vial_label <- gsub(" ", "", vial_metadata$vial_label)
 
+# Function to fix vial_labels
+fix_duplicates <- function(meta) {
+  if (anyDuplicated(meta$vial_label, incomparables = NA)) {
+    warning("Duplicate vial_label ids found. Making unique ids.")
+    meta$vial_label <- make.unique(meta$vial_label)
+  }
+  return(meta)
+}
+
+vial_metadata <- fix_duplicates(meta = vial_metadata)
+
+
 # Generate samples.txt-----
 message("+ Generate samplex.txt... ", appendLF = FALSE)
 if(tmt == "tmt11"){
   samples <- vial_metadata %>%
-  mutate(PlexID = tmt_plex,
-         QuantBlock = 1,
-         ReporterName = tmt11_channel,
-         ReporterAlias = vial_label,
-         MeasurementName = vial_label) %>%
-  dplyr::select(-tmt_plex, -tmt11_channel, -vial_label)
+    mutate(PlexID = tmt_plex,
+           QuantBlock = 1,
+           ReporterName = tmt11_channel,
+           ReporterAlias = vial_label,
+           MeasurementName = vial_label) %>%
+    dplyr::select(-tmt_plex, -tmt11_channel, -vial_label)
   samples <- mutate(samples, MeasurementName = replace(MeasurementName, ReporterName=="131C", NA))
 }else if(tmt == "tmt16"){
   samples <- vial_metadata %>%
-  mutate(PlexID = tmt_plex,
-         QuantBlock = 1,
-         ReporterName = tmt16_channel,
-         ReporterAlias = vial_label,
-         MeasurementName = vial_label) %>%
-  dplyr::select(-tmt_plex, -tmt16_channel, -vial_label)
+    mutate(PlexID = tmt_plex,
+           QuantBlock = 1,
+           ReporterName = tmt16_channel,
+           ReporterAlias = vial_label,
+           MeasurementName = vial_label) %>%
+    dplyr::select(-tmt_plex, -tmt16_channel, -vial_label)
   samples <- mutate(samples, MeasurementName = replace(MeasurementName, ReporterName=="134N", NA))
 }
 samples$ReporterName <- gsub("126C", "126", samples$ReporterName)
@@ -183,7 +261,7 @@ message("+ Generate fractions:", appendLF = FALSE)
 fractions <- NULL
 if(raw_source == "manifest"){
   # use the file_namifest to get information about 
-  if(cas == "pnnl"){
+  if(cas == "PN"){
     raws <- list.files(raw_folder)
     for (i in 1:length(raws)){
       message("\t", i, ". Folder: ", raws[i], appendLF = FALSE)
@@ -213,8 +291,8 @@ if(raw_source == "manifest"){
         fractions <- rbind(fractions, manifest)
       }
     }
-  }else if(cas == "broad"){
-    file_tmt <- list.files(file.path(batch_folder),
+  }else if(cas == "BR"){
+    file_tmt <- list.files(file.path(MotrpacBicQC::validate_batch(batch_folder)),
                            pattern="file_manifest_",
                            ignore.case = TRUE,
                            full.names=TRUE,
@@ -224,7 +302,8 @@ if(raw_source == "manifest"){
     tmt <- tmt[grepl(".*\\.raw", tmt$file_name),]
     tmt <- as.data.frame(apply(tmt, 2, function(x) basename(x)))
     tmt$PlexID <- NA
-    tmt$PlexID <- gsub("^(0)(\\d)(MOTRPAC.*)", "\\2", tmt$Dataset)
+    tmt$PlexID <- gsub("^(\\d{2})(MOTRPAC.*)", "\\1", tmt$file_name)
+    tmt$PlexID <- as.numeric(tmt$PlexID)
     tmt$PlexID <- paste0("S", tmt$PlexID)
     
     tmt <- rename(tmt, Dataset=file_name)
@@ -232,18 +311,25 @@ if(raw_source == "manifest"){
     fractions <- tmt[c('Dataset', 'PlexID')]
   }
 }else if(raw_source == "folder"){
-  message("...from listing raw files in folder...", appendLF = FALSE)
-  # List raw files for each folder
-  fractions <- as.data.frame(list.files(file.path(batch_folder),
-                                       pattern="*.raw$",
-                                       ignore.case = TRUE,
-                                       full.names=TRUE,
-                                       recursive = TRUE))
-  colnames(fractions) <- c("Dataset")
-  fractions <- as.data.frame(fractions)
-  fractions$PlexID <- gsub("(.*/)(0)(\\d)(MOTRPAC.*)", "\\3", fractions$Dataset)
-  fractions$Dataset <- basename(fractions$Dataset)
-  fractions$PlexID <- paste0("S", fractions$PlexID)
+  message(" from listing raw files in folder ", appendLF = FALSE)
+  fr_list <- list()
+  for(sf in 1:length(raw_subfolders)){
+    fr_temp <- as.data.frame(list.files(file.path(raw_subfolders[sf]),
+                                        pattern="*.raw$",
+                                        ignore.case = TRUE,
+                                        full.names=TRUE,
+                                        recursive = TRUE))
+    
+    if(dim(fr_temp)[1] > 0){
+      colnames(fr_temp) <- c("Dataset")
+      fr_temp$PlexID <- paste0("S", sf)
+      fr_temp$Dataset <- basename(fr_temp$Dataset)
+      fr_list[[sf]] <- fr_temp
+    }else{
+      stop("\n\nRaw files not found in this folder:\n", raw_subfolders[sf])
+    }
+  }
+  fractions <- dplyr::bind_rows(fr_list)
   
 }else{
   stop("The -s argument is not right. It should be either `manifest` or `folder`")
@@ -290,4 +376,4 @@ write.table(vial_metadata,
 
 
 message("All files are out! Check it out at: ", file.path(output_viallabel_name))
-  
+
