@@ -17,7 +17,7 @@ option_list <- list(
               metavar="character"),
   make_option(c("-c", "--cas"), 
               type="character", 
-              help="CAS (BR or PN)", 
+              help="CAS (BI or PN)", 
               metavar="character"),
   make_option(c("-s", "--raw_source"), 
               type="character", 
