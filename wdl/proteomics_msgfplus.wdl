@@ -3,7 +3,7 @@ version 1.0
 workflow proteomics_msgfplus {
     meta {
         author: "David Jimenez-Morales"
-        version: "v0.4.0"
+        version: "v1.0.0"
 
         task_labels: {
             msgf_sequences: {
