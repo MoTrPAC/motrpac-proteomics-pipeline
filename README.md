@@ -2,6 +2,8 @@
 
 ***MoTrPAC Proteomics Data Analysis Pipeline***
 
+[![DOI](https://zenodo.org/badge/235450808.svg)](https://zenodo.org/badge/latestdoi/235450808)
+
 ## Overview
 
 This mass-spectrometry based-proteomics data analysis pipeline uses the programming language [WDL](https://openwdl.org/) for describing workflows. The pipeline is run using [caper](https://github.com/ENCODE-DCC/caper), a wrapper Python package for using the workflow management system [Cromwell](https://github.com/broadinstitute/cromwell). It currently supports two different software for the peptide identication and quantification: MSGF+ and MaxQuant.
@@ -75,3 +77,6 @@ caper list
 ### Other utilities
 
 A number of scripts are available in this repo providing additional functionality to interact with GCP. Please, [check this file](scripts/scripts_readme.md) to find out more. 
+
+
+
