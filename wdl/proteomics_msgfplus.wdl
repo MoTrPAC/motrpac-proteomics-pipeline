@@ -802,14 +802,6 @@ task phrp {
             type: "parameter",
             label: "PHRP Parameter File"
         }
-        phrp_synpvalue: {
-            type: "parameter",
-            label: "PHRP Parameter File"
-        }
-        phrp_synprob: {
-            type: "parameter",
-            label: "PHRP Parameter File"
-        }
     }
 }
 
