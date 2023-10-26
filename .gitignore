@@ -16,3 +16,4 @@ pyenv372
 .python-version
 .Rproj.user
 scripts/scripts.Rproj
+scripts/.Rhistory

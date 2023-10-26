@@ -267,6 +267,11 @@ workflow proteomics_msgfplus {
                 isPTM = isPTM
         }
     }
+
+    output {
+        File? results_rii = wrapper_pp.results_rii
+        File? results_ratio = wrapper_pp.results_ratio
+    }
 }
 
 task msgf_sequences {
