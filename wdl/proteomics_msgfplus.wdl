@@ -3,7 +3,7 @@ version 1.0
 workflow proteomics_msgfplus {
     meta {
         author: "David Jimenez-Morales"
-        version: "v1.0.0"
+        version: "v1.0.1"
 
         task_labels: {
             msgf_sequences: {
@@ -266,6 +266,11 @@ workflow proteomics_msgfplus {
                 refine_prior = select_first([refine_prior]),
                 isPTM = isPTM
         }
+    }
+
+    output {
+        File? results_rii = wrapper_pp.results_rii
+        File? results_ratio = wrapper_pp.results_ratio
     }
 }
 
