@@ -218,7 +218,6 @@ fix_duplicates <- function(meta) {
 
 vial_metadata <- fix_duplicates(meta = vial_metadata)
 
-
 # Generate samples.txt-----
 message("+ Generate samplex.txt... ", appendLF = FALSE)
 if(tmt == "tmt11"){
@@ -250,10 +249,21 @@ message(" done")
 # Generate references.txt-----
 message("+ Generate references... ", appendLF = FALSE)
 
-references <- samples %>% 
-  filter(grepl("Ref", ReporterAlias)) %>%
-  dplyr::select(-ReporterName, -MeasurementName) %>%
-  mutate(Reference = if (n() > 0) ReporterAlias else 1)
+# Check if there are any "Ref" samples
+has_ref <- any(grepl("^Ref", samples$ReporterAlias))
+
+# Conditional operation based on the presence of "Ref" samples
+references <- if(has_ref) {
+  samples %>%
+    filter(grepl("^+Ref", ReporterAlias)) %>%
+    dplyr::select(-ReporterName, -MeasurementName) %>%
+    dplyr::rename(Reference = ReporterAlias)
+} else {
+  message(" (no references available: value 1 would be added instead) ")
+  samples %>%
+    dplyr::select(-ReporterName, -MeasurementName) %>%
+    mutate(Reference = 1)
+}
 
 message(" done")
 
