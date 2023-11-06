@@ -259,7 +259,7 @@ references <- if(has_ref) {
     dplyr::select(-ReporterName, -MeasurementName) %>%
     dplyr::rename(Reference = ReporterAlias)
 } else {
-  message(" (no references available: value 1 would be added instead) ")
+  message(" (no references available: value 1 would be added instead) ", appendLF = FALSE)
   samples %>%
     dplyr::select(-ReporterName, -MeasurementName) %>%
     mutate(Reference = 1)
