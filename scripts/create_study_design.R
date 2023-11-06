@@ -250,9 +250,10 @@ message(" done")
 # Generate references.txt-----
 message("+ Generate references... ", appendLF = FALSE)
 
-references <- samples %>% filter(grepl("Ref",ReporterAlias)) %>%
+references <- samples %>% 
+  filter(grepl("Ref", ReporterAlias)) %>%
   dplyr::select(-ReporterName, -MeasurementName) %>%
-  dplyr::rename(Reference = ReporterAlias)
+  mutate(Reference = if (n() > 0) ReporterAlias else 1)
 
 message(" done")
 
