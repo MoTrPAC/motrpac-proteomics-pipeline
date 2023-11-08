@@ -104,54 +104,13 @@ if(tmt == "tmt11") {
   stop("<tmt> must be one of this: tmt11, tmt16")
 }
 
-# # Generate samples.txt trusting TMTdetails file-----
-# message("\n+ Generate samples ", appendLF = FALSE)
-# nm_list <- list()
-# if( file_vial_metadata == "generate" ) {
-#   message("(from tmt details.txt file)... ", appendLF = FALSE)
-#   tmt_details <- list.files(file.path(raw_folder),
-#                             pattern = "details.txt",
-#                             ignore.case = TRUE,
-#                             full.names = TRUE,
-#                             recursive = TRUE)
-#   
-#   # validate
-#   for (f in 1:length(tmt_details) ){
-#     temp <- read.delim(tmt_details[f])
-#     if(tmt == "tmt16") {
-#       if(!any("tmt16_channel" %in% colnames(temp)) ) {
-#         stop("\ntmt16_channel column MISSED in this file\n", paste( tmt_details[f] ))
-#       }
-#     }else if(tmt == "tmt11"){
-#       if(!any("tmt11_channel" %in% colnames(temp)) ){
-#         stop("\ntmt11_channel column MISSED in this file\n", paste( tmt_details[f] ))
-#       }
-#     }else{
-#       stop(paste(tmt,": this tmt type not supported yet") )
-#     }
-#     temp$tmt_plex <- paste0("S",f)
-#     temp$vial_label <- ifelse(grepl("Ref", temp$vial_label), paste0("Ref_S",f), temp$vial_label)
-#     
-#     nm_list[[f]] <- temp
-#   }
-#   vial_metadata <- bind_rows(nm_list)
-#   file_vial_metadata <- paste0("MOTRPAC_", phase, "_", tissue, "_", assay, "_", date, "_vial_metadata.txt")
-# } else {
-#   message("(reading existing file_vial_metadata)... ", appendLF = FALSE)
-#   vial_metadata <- read.table( file_vial_metadata,
-#                               sep = "\t",
-#                               header = TRUE,
-#                               fill = TRUE )
-# }
-# 
-# message(" done!")
-
 # Samples independently of the TMTdetails file-----
 nm_list <- list()
 raw_subfolders <- list.dirs(raw_folder)
 # The first folder is the root raw folder: remove
 raw_subfolders <- raw_subfolders[-1]
 raw_subfolders <- raw_subfolders[!grepl("study_design", raw_subfolders)]
+
 
 if( file_vial_metadata == "generate" ) {
   message("(from tmt details.txt file)... ", appendLF = FALSE)
@@ -196,6 +155,9 @@ message("+ Vial label file name: ", file_vial_metadata)
 colnames(vial_metadata) <- tolower(colnames(vial_metadata))
 vial_metadata$vial_label <- ifelse(grepl("ref", vial_metadata$vial_label, ignore.case = TRUE), paste0("Ref_", vial_metadata$tmt_plex), vial_metadata$vial_label)
 
+# Check if there are any "Ref" samples
+has_ref <- any(grepl("^Ref", vial_metadata$vial_label, ignore.case = TRUE))
+
 # Validate vial_label file-----
 if( !all(ecolnames %in% colnames(vial_metadata)) ){
   stop("Vial Metadata. The expeted column names...\n\t", 
@@ -228,7 +190,6 @@ if(tmt == "tmt11"){
            ReporterAlias = vial_label,
            MeasurementName = vial_label) %>%
     dplyr::select(-tmt_plex, -tmt11_channel, -vial_label)
-  samples <- mutate(samples, MeasurementName = replace(MeasurementName, ReporterName=="131C", NA))
 }else if(tmt == "tmt16"){
   samples <- vial_metadata %>%
     mutate(PlexID = tmt_plex,
@@ -237,9 +198,18 @@ if(tmt == "tmt11"){
            ReporterAlias = vial_label,
            MeasurementName = vial_label) %>%
     dplyr::select(-tmt_plex, -tmt16_channel, -vial_label)
-  samples <- mutate(samples, MeasurementName = replace(MeasurementName, ReporterName=="134N", NA))
 }
+
+# adjustments
 samples$ReporterName <- gsub("126C", "126", samples$ReporterName)
+
+if(has_ref){
+  samples <- dplyr::mutate(samples,
+                           MeasurementName = dplyr::if_else(
+                             stringr::str_detect(ReporterAlias, regex("^ref", ignore_case = TRUE)),
+                             NA,
+                             ReporterAlias))
+}
 
 # Select only required columns
 samples <- samples[c("PlexID", "QuantBlock", "ReporterName", "ReporterAlias", "MeasurementName")]
@@ -248,9 +218,6 @@ message(" done")
 
 # Generate references.txt-----
 message("+ Generate references... ", appendLF = FALSE)
-
-# Check if there are any "Ref" samples
-has_ref <- any(grepl("^Ref", samples$ReporterAlias))
 
 # Conditional operation based on the presence of "Ref" samples
 references <- if(has_ref) {
@@ -261,7 +228,7 @@ references <- if(has_ref) {
 } else {
   message(" (no references available: value 1 would be added instead) ", appendLF = FALSE)
   samples %>%
-    dplyr::select(-ReporterName, -MeasurementName) %>%
+    dplyr::select(-ReporterName, -MeasurementName, -ReporterAlias) %>%
     mutate(Reference = 1)
 }
 
