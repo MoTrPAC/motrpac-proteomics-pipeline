@@ -146,9 +146,12 @@ if( file_vial_metadata == "generate" ) {
   }
   vial_metadata <- dplyr::bind_rows(nm_list)
   file_vial_metadata <- paste0("MOTRPAC_", phase, "_", tissue, "_", assay, "_", cas,"_", date, "_vial_metadata.txt")
+  message(" done!")
+}else{
+  message("+ Reading file vial metadata: ", file_vial_metadata)
+  vial_metadata <- read.delim(file_vial_metadata, stringsAsFactors = FALSE)
+  file_vial_metadata <- paste0("MOTRPAC_", phase, "_", tissue, "_", assay, "_", cas,"_", date, "_vial_metadata.txt")
 }
-message(" done!")
-
 
 message("+ Vial label file name: ", file_vial_metadata)
 
@@ -181,7 +184,7 @@ fix_duplicates <- function(meta) {
 vial_metadata <- fix_duplicates(meta = vial_metadata)
 
 # Generate samples.txt-----
-message("+ Generate samplex.txt... ", appendLF = FALSE)
+message("+ Generate samples.txt... ", appendLF = FALSE)
 if(tmt == "tmt11"){
   samples <- vial_metadata %>%
     mutate(PlexID = tmt_plex,
