@@ -207,11 +207,8 @@ if(tmt == "tmt11"){
 samples$ReporterName <- gsub("126C", "126", samples$ReporterName)
 
 if(has_ref){
-  samples <- dplyr::mutate(samples,
-                           MeasurementName = dplyr::if_else(
-                             stringr::str_detect(ReporterAlias, regex("^ref", ignore_case = TRUE)),
-                             NA,
-                             ReporterAlias))
+  samples$MeasurementName <- samples$ReporterAlias  
+  samples$MeasurementName[grepl("^ref", samples$ReporterAlias, ignore.case = TRUE)] <- NA
 }
 
 # Select only required columns
