@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <sections>
   <section name="MasicDatabaseSettings">
-    <item key="ConnectionString" value="" />
+    <item key="ConnectionString" value="Data Source=gigasax;Initial Catalog=DMS5;User=DMSReader;Password=dms4fun" />
     <item key="DatasetInfoQuerySql" value="Select Dataset, ID FROM V_Dataset_Export" />
   </section>
   <section name="MasicImportOptions">
@@ -10,6 +10,7 @@
   </section>
   <section name="MasicExportOptions">
     <item key="IncludeHeaders" value="True" />
+    <item key="IncludeCustomSICCommentsInSICStatsFile" value="False" />
     <item key="IncludeScanTimesInSICStatsFile" value="False" />
     <item key="SkipMSMSProcessing" value="False" />
     <item key="SkipSICAndRawDataProcessing" value="False" />
@@ -26,6 +27,7 @@
     <item key="WriteMRMDataList" value="False" />
     <item key="WriteMRMIntensityCrosstab" value="True" />
     <item key="FastExistingXMLFileTest" value="False" />
+
     <item key="ReporterIonStatsEnabled" value="True" />
     <item key="ReporterIonMassMode" value="18" />
     <item key="ReporterIonToleranceDa" value="0.003" />
@@ -33,6 +35,9 @@
     <item key="ReporterIonITraq4PlexCorrectionFactorType" value="0" />
     <item key="ReporterIonSaveObservedMasses" value="False" />
     <item key="ReporterIonSaveUncorrectedIntensities" value="True" />
+    <item key="UseMS3ReporterIonsForParentMS2Spectra" value="True" />
+    <item key="AlwaysUseMS3ReporterIonsForParents" value="False" />
+
     <item key="ExportRawSpectraData" value="False" />
     <item key="ExportRawDataFileFormat" value="1" />
     <item key="ExportRawDataIncludeMSMS" value="False" />
@@ -42,7 +47,7 @@
     <item key="ExportRawDataIntensityMinimum" value="0" />
   </section>
   <section name="SICOptions">
-  	<!-- When using narrow SIC tolerances, be sure to also use a narrow value for SimilarIonMZToleranceHalfWidth -->
+    <!-- When using narrow SIC tolerances, be sure to also use a narrow value for SimilarIonMZToleranceHalfWidth -->
     <item key="SICToleranceDa" value="0.0100" />
     <item key="SICTolerance" value="10.0000" />
     <item key="SICToleranceIsPPM" value="True" />
@@ -80,7 +85,7 @@
     <item key="MassSpectraNoiseFractionLowIntensityDataToAverage" value="0.5" />
     <item key="MassSpectraNoiseMinimumSignalToNoiseRatio" value="2" />
     <item key="ReplaceSICZeroesWithMinimumPositiveValueFromMSData" value="True" />
-  	<!-- When using narrow SIC tolerances, be sure to also use a narrow value for SimilarIonMZToleranceHalfWidth -->
+    <!-- When using narrow SIC tolerances, be sure to also use a narrow value for SimilarIonMZToleranceHalfWidth -->
     <item key="SimilarIonMZToleranceHalfWidth" value="0.05" />
     <item key="SimilarIonToleranceHalfWidthMinutes" value="5" />
     <item key="SpectrumSimilarityMinimum" value="0.8" />
