@@ -21,7 +21,7 @@ RUN chmod +x /app/sqlite/Setup/compile-interop-assembly-release.sh \
 
 # Set up the application
 WORKDIR /app/phrp/
-RUN wget -nv https://github.com/PNNL-Comp-Mass-Spec/PHRP/releases/download/v1.5.7458/PeptideHitResultsProcessor_Debian.zip \
+RUN wget -nv https://github.com/PNNL-Comp-Mass-Spec/PHRP/files/15367216/PeptideHitResultsProcessor_Debian.zip \
     && unzip PeptideHitResultsProcessor_Debian.zip \
     && rm -rf PeptideHitResultsProcessor_Debian.zip \
     && cp /app/sqlite/bin/2013/Release/bin/libSQLite.Interop.so ./libSQLite.Interop.so \
