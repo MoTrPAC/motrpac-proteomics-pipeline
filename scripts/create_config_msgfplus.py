@@ -21,6 +21,7 @@ def proteomics_experiments():
     prot_exp = [
         "pr-tmt11",
         "pr-tmt16",
+        "pr-tmt18",
         "ph-tmt11",
         "ph-tmt16",
         "ub-tmt11",

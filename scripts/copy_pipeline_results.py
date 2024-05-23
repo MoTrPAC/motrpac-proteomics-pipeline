@@ -832,12 +832,9 @@ def main():
                     command_filename=None,
                     outputs=[
                         "results_ratio",
-                        "results_rii",
-                        "final_output_masic_tar",
-                        "final_output_phrp_tar",
-                        "final_output_ascore",
+                        "results_rii"
                     ],
-                    output_folder=f"{copy_job.destination_folder}/wrapper_results",
+                    output_folder=f"{copy_job.destination_folder}",
                 )
             else:
                 logger.error("(-) Plexed piper not available")
