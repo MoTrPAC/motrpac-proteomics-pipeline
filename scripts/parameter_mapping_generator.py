@@ -5,23 +5,16 @@ requires.
 """
 
 from pathlib import Path
-from typing import Any, Annotated
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, AliasGenerator, ValidationError
-from pydantic.functional_validators import BeforeValidator
+from pydantic import (
+    BaseModel, ConfigDict, AliasGenerator, ValidationError, field_validator,
+)
 
 TEMPLATE_DIR = Path(__file__).parent.parent / "inputs/templates/msgfplus"
 
 
-def remove_prefix(v: Any) -> str:
-    """Removes the gcp-parameters/ prefix during field value validation."""
-    if isinstance(v, str):
-        if "gcp-parameters" in v:
-            return v.replace("gcp-parameters/", "")
-    return v
-
-
-class RawInputsFile(BaseModel):
+class CromwellInputFile(BaseModel):
     model_config = ConfigDict(
         # Removes "proteomics_msgfplus." during field generation
         alias_generator=AliasGenerator(
@@ -29,13 +22,46 @@ class RawInputsFile(BaseModel):
         ),
     )
 
-    ascore_parameter_p: Annotated[str | None, BeforeValidator(remove_prefix)] = None
-    masic_parameter: Annotated[str, BeforeValidator(remove_prefix)]
-    msgf_identification_parameter: Annotated[str, BeforeValidator(remove_prefix)]
-    msgf_tryptic_mzrefinery_parameter: Annotated[str, BeforeValidator(remove_prefix)]
-    phrp_parameter_m: Annotated[str, BeforeValidator(remove_prefix)]
-    phrp_parameter_n: Annotated[str, BeforeValidator(remove_prefix)]
-    phrp_parameter_t: Annotated[str, BeforeValidator(remove_prefix)]
+
+class DockerImages(CromwellInputFile):
+    ascore_docker: str | None = None
+    masic_docker: str
+    msconvert_docker: str
+    msgf_docker: str
+    mzidtotsvconverter_docker: str
+    phrp_docker: str
+    ppm_errorcharter_docker: str
+    wrapper_docker: str
+
+    @field_validator("*")
+    @classmethod
+    def remove_prefix(cls, data: Any) -> str:
+        """Removes the gcp-parameters/ prefix during field value validation."""
+        if isinstance(data, str):
+            if "docker-repository" in data:
+                return data.replace(
+                    "docker-repository", "us-docker.pkg.dev/motrpac-portal/proteomics"
+                )
+        return data
+
+
+class RawInputsFile(CromwellInputFile):
+    ascore_parameter_p: str | None = None
+    masic_parameter: str
+    msgf_identification_parameter: str
+    msgf_tryptic_mzrefinery_parameter: str
+    phrp_parameter_m: str
+    phrp_parameter_n: str
+    phrp_parameter_t: str
+
+    @field_validator("*")
+    @classmethod
+    def remove_prefix(cls, data: Any) -> str:
+        """Removes the gcp-parameters/ prefix during field value validation."""
+        if isinstance(data, str):
+            if "gcp-parameters" in data:
+                return data.replace("gcp-parameters/", "")
+        return data
 
 
 class QuantMethodMap(BaseModel):
