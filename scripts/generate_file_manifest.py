@@ -56,6 +56,8 @@ def generate_manifest(path, outfile):
 
     for blob in blob_list:
         print(f"Processing {blob.name}")
+        if blob.name.endswith("/") or "file_manifest" in blob.name:
+            continue
         relative_filename = blob.name.removeprefix(prefix)
         decoded_hash = b64decode(blob.md5_hash).hex()
         data += f"{relative_filename},{decoded_hash}\n"
