@@ -2,6 +2,7 @@
 Copy the pipeline result for MSGF+ from the workflow outputs bucket/folder to the
 destination bucket/folder.
 """
+
 import argparse
 import json
 import logging
@@ -18,7 +19,6 @@ from typing import List, Tuple, TypeVar
 import dateparser
 from google.api_core.exceptions import GoogleAPICallError, ServiceUnavailable
 from google.cloud.storage import Bucket, Client
-
 
 if sys.version_info >= (3, 10):
     from typing import ParamSpec
@@ -668,7 +668,9 @@ def main():
         )
         logger.info("PROTEOMICS METHOD: msgfplus")
         if "inputs" in copy_job.metadata:
-            is_ptm = copy_job.wf_inputs.get("isPTM")
+            is_ptm = copy_job.wf_inputs.get("isPTM") or (
+                copy_job.wf_inputs.get("proteomics_experiment") != "pr"
+            )
             if is_ptm is None:
                 logger.warning("Unable to determine if PTM experiment, no key found")
                 is_ptm = False
@@ -830,10 +832,7 @@ def main():
                     task_id="wrapper_pp",
                     stdout_filename=None,
                     command_filename=None,
-                    outputs=[
-                        "results_ratio",
-                        "results_rii"
-                    ],
+                    outputs=["results_ratio", "results_rii"],
                     output_folder=f"{copy_job.destination_folder}",
                 )
             else:
