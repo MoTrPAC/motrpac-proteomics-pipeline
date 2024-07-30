@@ -107,7 +107,6 @@ workflow proteomics_msgfplus {
         Float phrp_synprob
 
         # ASCORE (ONLY PTMs)
-        Boolean isPTM
         String? proteomics_experiment
         Int? ascore_ncpu
         Int? ascore_ramGB
@@ -127,6 +126,8 @@ workflow proteomics_msgfplus {
         Boolean? unique_only # Unique peptides only (default FALSE)
         Boolean? refine_prior # Refine prior probabilities (default TRUE)
     }
+
+    Boolean isPTM = proteomics_experiment != 'pr'
 
     call msgf_sequences {
         input:
