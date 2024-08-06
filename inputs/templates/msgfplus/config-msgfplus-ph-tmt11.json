@@ -46,5 +46,11 @@
   "proteomics_msgfplus.proteomics_experiment": "String",
   "proteomics_msgfplus.refine_prior": true,
   "proteomics_msgfplus.sequence_db_name": "String",
-  "proteomics_msgfplus.unique_only": false
+  "proteomics_msgfplus.unique_only": false,
+  "proteomics_msgfplus.masic_preemptible": 2,
+  "proteomics_msgfplus.msconvert_preemptible": 2,
+  "proteomics_msgfplus.msgf_preemptible": 2,
+  "proteomics_msgfplus.phrp_preemptible": 2,
+  "proteomics_msgfplus.ascore_preemptible": 2,
+  "proteomics_msgfplus.wrapper_preemptible": 2
 }
