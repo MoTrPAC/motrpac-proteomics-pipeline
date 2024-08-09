@@ -25,6 +25,7 @@ workflow proteomics_maxquant {
         Int mq_ramGB
         Int? mq_disk
         String mq_docker
+        Int num_preemptible_attempts = 2
     }
 
     call maxquant {
@@ -35,7 +36,8 @@ workflow proteomics_maxquant {
             disks = mq_disk,
             mq_parameters = mq_parameters,
             fasta_sequence_db = fasta_sequence_db,
-            raw_file = raw_file
+            raw_file = raw_file,
+            preemptible = num_preemptible_attempts
     }
 }
 
@@ -45,6 +47,7 @@ task maxquant {
         Int ramGB
         Int? disks
         String docker
+        Int preemptible
         File mq_parameters
         File fasta_sequence_db
         Array[File] raw_file
@@ -97,10 +100,11 @@ task maxquant {
     }
 
     runtime {
-        docker: "${docker}"
+        cpu: ncpu
         memory: "${ramGB} GB"
-        cpu: "${ncpu}"
         disks: "local-disk ${select_first([disks, 100])} HDD"
+        docker: "${docker}"
+        preemptible: preemptible
     }
     
     parameter_meta {
