@@ -5,6 +5,7 @@
   "proteomics_maxquant.mq_disk": 500,
   "proteomics_maxquant.mq_docker": "docker-repository/maxquant:v1660",
   "proteomics_maxquant.mq_parameters": "gcp-parameters",
-  "proteomics_maxquant.mq_ramGB": 380
+  "proteomics_maxquant.mq_ramGB": 380,
+  "proteomics_maxquant.num_preemptible_attempts": 2
 }
 

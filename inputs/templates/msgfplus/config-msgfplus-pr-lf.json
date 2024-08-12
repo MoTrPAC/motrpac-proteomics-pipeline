@@ -36,10 +36,5 @@
   "proteomics_msgfplus.wrapper_docker": "docker-repository/plexedpiper:v0.4.1",
   "proteomics_msgfplus.wrapper_ncpu": 8,
   "proteomics_msgfplus.wrapper_ramGB": 60,
-  "proteomics_msgfplus.masic_preemptible": 2,
-  "proteomics_msgfplus.msconvert_preemptible": 2,
-  "proteomics_msgfplus.msgf_preemptible": 2,
-  "proteomics_msgfplus.phrp_preemptible": 2,
-  "proteomics_msgfplus.ascore_preemptible": 2,
-  "proteomics_msgfplus.wrapper_preemptible": 2
+  "proteomics_msgfplus.num_preemptible_attempts": 2
 }

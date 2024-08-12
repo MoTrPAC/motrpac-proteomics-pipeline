@@ -53,7 +53,10 @@ workflow proteomics_msgfplus {
         }
     }
 
-    input {    # Quantification method
+    input {
+        Int num_preemptible_attempts = 2
+
+        # Quantification method
         String quant_method
 
         # RAW INPUT FILES
@@ -66,7 +69,6 @@ workflow proteomics_msgfplus {
         Int masic_ramGB
         String masic_docker
         Int? masic_disk
-        Int masic_preemptible = 2
         File masic_parameter
 
         # MSCONVERT
@@ -74,14 +76,12 @@ workflow proteomics_msgfplus {
         Int msconvert_ramGB
         String msconvert_docker
         Int? msconvert_disk
-        Int msconvert_preemptible = 2
 
         # MS-GF+ SHARED OPTIONS
         Int msgf_ncpu
         Int msgf_ramGB
         String msgf_docker
         Int? msgf_disk
-        Int msgf_preemptible = 2
         File fasta_sequence_db
         String sequence_db_name
 
@@ -102,7 +102,6 @@ workflow proteomics_msgfplus {
         Int phrp_ramGB
         String phrp_docker
         Int? phrp_disk
-        Int phrp_preemptible = 2
 
         File phrp_parameter_m
         File phrp_parameter_t
@@ -116,7 +115,6 @@ workflow proteomics_msgfplus {
         Int? ascore_ramGB
         String? ascore_docker
         Int? ascore_disk
-        Int? ascore_preemptible = 2
         File? ascore_parameter_p
 
         # WRAPPER (PlexedPiper)
@@ -124,7 +122,6 @@ workflow proteomics_msgfplus {
         Int? wrapper_ramGB
         String? wrapper_docker
         Int? wrapper_disk
-        Int? wrapper_preemptible = 2
         File? sd_fractions
         File? sd_references
         File? sd_samples
@@ -142,7 +139,7 @@ workflow proteomics_msgfplus {
             docker = msgf_docker,
             disks = msgf_disk,
             fasta_sequence_db = fasta_sequence_db,
-            preemptible = msgf_preemptible
+            preemptible = num_preemptible_attempts
     }
 
     scatter (i in range(length(raw_file))) {
@@ -152,7 +149,7 @@ workflow proteomics_msgfplus {
                 ramGB = masic_ramGB,
                 docker = masic_docker,
                 disks = masic_disk,
-                preemptible = masic_preemptible,
+                preemptible = num_preemptible_attempts,
                 raw_file = raw_file[i],
                 masic_parameter = masic_parameter,
                 quant_method = quant_method
@@ -164,7 +161,7 @@ workflow proteomics_msgfplus {
                 ramGB = msconvert_ramGB,
                 docker = msconvert_docker,
                 disks = msconvert_disk,
-                preemptible = msconvert_preemptible,
+                preemptible = num_preemptible_attempts,
                 raw_file = raw_file[i]
         }
 
@@ -174,7 +171,7 @@ workflow proteomics_msgfplus {
                 ramGB = msgf_ramGB,
                 docker = msgf_docker,
                 disks = msgf_disk,
-                preemptible = msgf_preemptible,
+                preemptible = num_preemptible_attempts,
                 input_mzml = msconvert.mzml,
                 fasta_sequence_db = fasta_sequence_db,
                 sequencedb_files = msgf_sequences.sequencedb_files,
@@ -187,7 +184,7 @@ workflow proteomics_msgfplus {
                 ramGB = msconvert_ramGB,
                 docker = msconvert_docker,
                 disks = msconvert_disk,
-                preemptible = msconvert_preemptible,
+                preemptible = num_preemptible_attempts,
                 input_mzml = msconvert.mzml,
                 input_mzid = msgf_tryptic.mzid
         }
@@ -198,7 +195,7 @@ workflow proteomics_msgfplus {
                 ramGB = msconvert_ramGB,
                 docker = ppm_errorcharter_docker,
                 disks = msconvert_disk,
-                preemptible = msconvert_preemptible,
+                preemptible = num_preemptible_attempts,
                 input_fixed_mzml = msconvert_mzrefiner.mzml_fixed,
                 input_mzid = msgf_tryptic.mzid
         }
@@ -209,7 +206,7 @@ workflow proteomics_msgfplus {
                 ramGB = msgf_ramGB,
                 docker = msgf_docker,
                 disks = msgf_disk,
-                preemptible = msgf_preemptible,
+                preemptible = num_preemptible_attempts,
                 input_fixed_mzml = msconvert_mzrefiner.mzml_fixed,
                 fasta_sequence_db = fasta_sequence_db,
                 sequencedb_files = msgf_sequences.sequencedb_files,
@@ -222,7 +219,7 @@ workflow proteomics_msgfplus {
                 ramGB = msconvert_ramGB,
                 docker = mzidtotsvconverter_docker,
                 disks = msconvert_disk,
-                preemptible = msconvert_preemptible,
+                preemptible = num_preemptible_attempts,
                 input_mzid_final = msgf_identification.mzid_final
         }
 
@@ -232,7 +229,7 @@ workflow proteomics_msgfplus {
                 ramGB = phrp_ramGB,
                 docker = phrp_docker,
                 disks = phrp_disk,
-                preemptible = phrp_preemptible,
+                preemptible = num_preemptible_attempts,
                 input_tsv = mzidtotsvconverter.tsv,
                 phrp_parameter_m = phrp_parameter_m,
                 phrp_parameter_t = phrp_parameter_t,
@@ -249,7 +246,7 @@ workflow proteomics_msgfplus {
                     ramGB = select_first([ascore_ramGB]),
                     docker = select_first([ascore_docker]),
                     disks = ascore_disk,
-                    preemptible = select_first([ascore_preemptible]),
+                    preemptible = num_preemptible_attempts,
                     input_syn = phrp.syn,
                     input_fixed_mzml = msgf_identification.rename_mzmlfixed,
                     ascore_parameter_p = select_first([ascore_parameter_p]),
@@ -266,7 +263,7 @@ workflow proteomics_msgfplus {
                 ramGB = select_first([wrapper_ramGB]),
                 docker = select_first([wrapper_docker]),
                 disks = wrapper_disk,
-                preemptible = select_first([wrapper_preemptible]),
+                preemptible = num_preemptible_attempts,
                 fractions = select_first([sd_fractions]),
                 references = select_first([sd_references]),
                 samples = select_first([sd_samples]),
