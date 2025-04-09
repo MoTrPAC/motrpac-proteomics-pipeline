@@ -10,7 +10,6 @@ from datetime import datetime
 import glob
 import warnings
 
-
 def validate_batch(input_results_folder):
     """
     Extract BATCH_YYYYMMDD folder from input folder path.
@@ -53,12 +52,12 @@ def validate_phase(input_results_folder, return_phase=True):
         ValueError: If phase is not found in the folder structure
     """
     phase = re.search(
-        r"(PASS1A-06|PASS1A-18|PASS1B-06|PASS1B-18|PASS1C-06|PASS1C-18|PASS1AC-06|HUMAN|HUMAN-PRECOVID|HUMAN-MAIN)",
+        r"(PASS1A-06|PASS1A-18|PASS1B-06|PASS1B-18|PASS1C-06|PASS1C-18|PASS1AC-06|HUMAN|HUMAN-PRECOVID|HUMAN-MAIN-TR(?:0[1-9]|1[0-5]))",
         input_results_folder)
 
     if not phase:
         raise ValueError(
-            "- (-) Project phase is not found in the folder structure. Please, check the MoTrPAC control vocabulary guidelines")
+            "- (-) Project phase is not found in the folder structure. Please check the MoTrPAC control vocabulary guidelines")
     else:
         if return_phase:
             return phase.group(1)
@@ -284,12 +283,10 @@ def main():
         tmt11 = ["126C", "127N", "127C", "128N", "128C", "129N", "129C", "130N", "130C", "131N", "131C"]
     elif tmt == "tmt16":
         ecolnames = ["tmt_plex", "tmt16_channel", "vial_label"]
-        tmt16 = ["126C", "127N", "127C", "128N", "128C", "129N", "129C", "130N", "130C", "131N", "131C", "132N", "132C",
-                 "133N", "133C", "134N"]
+        tmt16 = ["126C", "127N", "127C", "128N", "128C", "129N", "129C", "130N", "130C", "131N", "131C", "132N", "132C", "133N", "133C", "134N"]
     elif tmt == "tmt18":
         ecolnames = ["tmt_plex", "tmt18_channel", "vial_label"]
-        tmt18 = ["126C", "127N", "127C", "128N", "128C", "129N", "129C", "130N", "130C", "131N", "131C", "132N", "132C",
-                 "133N", "133C", "134N", "134C", "135N"]
+        tmt18 = ["126C", "127N", "127C", "128N", "128C", "129N", "129C", "130N", "130C", "131N", "131C", "132N", "132C", "133N", "133C", "134N", "134C", "135N"]
     else:
         raise ValueError("<tmt> must be one of this: tmt11, tmt16, tmt18")
 
@@ -307,7 +304,13 @@ def main():
 
         # Process each file
         for i, tmt_details in enumerate(tmt_details_files, 1):
-            temp = pd.read_csv(tmt_details, sep='\t')
+            try:
+                temp = pd.read_csv(tmt_details, sep='\t')
+            except pd.errors.EmptyDataError:
+                raise ValueError(f"ERROR: '{tmt_details}' is empty. Please validate file integrity.")
+
+            if temp.empty or temp.shape[1] == 0:
+                raise ValueError(f"ERROR: '{tmt_details}' contains no data. Please validate file integrity.")
 
             tmt_col = find_unique_tmt_channel(temp.columns.tolist())
 
@@ -327,9 +330,16 @@ def main():
 
         vial_metadata = pd.concat(nm_list, ignore_index=True)
         file_vial_metadata = f"MOTRPAC_{phase}_{tissue}_{assay}_{cas}_{date}_vial_metadata.txt"
+
     else:
         print("+ Reading file vial metadata")
-        vial_metadata = pd.read_csv(file_vial_metadata, sep='\t')
+        try:
+            vial_metadata = pd.read_csv(file_vial_metadata, sep='\t')
+            if vial_metadata.empty:
+                raise ValueError(f"{file_vial_metadata} is empty. Please use generate option to generate vial metadata file.")
+        except pd.errors.EmptyDataError:
+            raise ValueError(f"{file_vial_metadata} is empty. Please use generate option to generate vial metadata file.")
+        
         file_vial_metadata = f"MOTRPAC_{phase}_{tissue}_{assay}_{cas}_{date}_vial_metadata.txt"
 
     print(f"\t - File name: {file_vial_metadata}")
@@ -455,10 +465,71 @@ def main():
         for sf, subfolder in enumerate(raw_subfolders, 1):
             raw_files = glob.glob(os.path.join(subfolder, "**/*.raw"), recursive=True)
 
+            # Check and exclude empty *raw files
+            non_empty_raw_files = []
+            empty_raw_files = []
+
+            for raw_file in raw_files:
+                try:
+                    with open(raw_file, "rb") as f:  # binary mode just in case
+                        first_line = f.readline()
+                        if first_line.strip():  # non-empty
+                            non_empty_raw_files.append(raw_file)
+                        else:
+                            empty_raw_files.append(os.path.basename(raw_file))
+                except Exception as e:
+                    print(f"⚠️ Could not read {raw_file}: {e}")
+                    empty_raw_files.append(os.path.basename(raw_file))
+
+            if empty_raw_files:
+                print(
+                    f"\n🚨 Warning: The following raw files in {subfolder} appears to be empty:\n "
+                    + " \n    ".join(empty_raw_files)
+                    + "\n  Please inspect for issues. Analysis will continue with non-empty files.\n"
+                )
+
+            # Use only non-empty files going forward
+            raw_files = non_empty_raw_files
+
             if raw_files:
+                invalid_files = [f for f in raw_files if not re.search(r"_f\d{2,3}\.raw$", os.path.basename(f))]
+                if invalid_files:
+                    raise ValueError(
+                        f"\nThe following raw files do not follow the format of proposed file name:\n" +
+                        "\n".join(invalid_files) +
+                        "\n\nPlease check the MoTrPAC control vocabulary guidelines.\n"
+                    )
+                
+                # Extract fraction numbers from filenames
+                fraction_nums = []
+                for f in raw_files:
+                    match = re.search(r"_f(\d{2,3})\.raw$", os.path.basename(f))
+                    if match:
+                        fraction_nums.append(int(match.group(1)))
+
+                if fraction_nums:
+                    min_frac = min(fraction_nums)
+                    max_frac = max(fraction_nums)
+                    expected_fracs = set(range(min_frac, max_frac + 1))
+                    actual_fracs = set(fraction_nums)
+                    missing_fracs = sorted(expected_fracs - actual_fracs)
+
+                    if missing_fracs:
+                        all_basenames = set(os.path.basename(f) for f in raw_files)
+                        expected_names = {f for f in [f"{os.path.splitext(os.path.basename(f))[0].split('_f')[0]}_f{str(i).zfill(2)}.raw" for i in range(min_frac, max_frac + 1)]}
+                        missing_names = sorted(expected_names - all_basenames)
+
+                        print(
+                            f"\n🚨 Warning: Missing fraction files in {subfolder}.\n"
+                            f"Expected fractions from f{str(min_frac).zfill(2)} to f{str(max_frac).zfill(2)}.\n"
+                            f"Missing files:\n  " + "\n  ".join(missing_names) +
+                            "\nContinuing with available files.\n"
+                        )
+
                 fr_temp = pd.DataFrame({'Dataset': [os.path.basename(f) for f in raw_files]})
                 fr_temp['PlexID'] = f"S{sf}"
                 fr_list.append(fr_temp)
+        
             else:
                 raise ValueError(f"\n\nRaw files not found in this folder:\n{subfolder}")
 
