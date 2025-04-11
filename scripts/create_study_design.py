@@ -687,7 +687,7 @@ def main():
     logger.info("done")
 
     # Generate references.txt
-    logger.info("+ Generate references... ", end="")
+    logger.info("+ Generate references... ")
 
     # Conditional operation based on the presence of "Ref" samples
     if has_ref:
@@ -706,7 +706,7 @@ def main():
     logger.info("done")
 
     # Generate fractions.txt
-    logger.info("+ Generate fractions.txt file ", end="")
+    logger.info("+ Generate fractions.txt file")
 
     if raw_source == "manifest":
         fractions = process_manifest(raw_folder)
