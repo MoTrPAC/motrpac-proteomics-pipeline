@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(message)s")
 
 
 def validate_batch(input_results_folder: str) -> str:
