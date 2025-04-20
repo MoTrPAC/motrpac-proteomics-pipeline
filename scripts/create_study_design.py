@@ -6,14 +6,62 @@ import logging
 import os
 import re
 from datetime import datetime
-
 import numpy as np
 import pandas as pd
+from google.cloud import storage
+from io import StringIO
+import warnings
 
+# Silence Google's warnings and logs
+logging.getLogger("google.auth").setLevel(logging.ERROR)
+logging.getLogger("google.auth.transport").setLevel(logging.ERROR)
+logging.getLogger("google.cloud").setLevel(logging.ERROR)
+logging.getLogger("google.api_core").setLevel(logging.ERROR)
+logging.getLogger("googleapiclient.discovery_cache").setLevel(logging.ERROR)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
+
+# Suppress UserWarnings from google.auth
+warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
+
+# === Logging Setup === #
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(message)s")
 
+# === GCS Support === #
+def is_gcs_path(input_results_folder: str) -> bool:
+    """Check if provided path is a GCS path."""
+    return input_results_folder.startswith("gs://")
 
+def parse_gcs_path(gcs_path: str) -> tuple[str, str]:
+    """Parse gs://bucket_name/path/to/folder into bucket_name and blob prefix."""
+    if not is_gcs_path(gcs_path):
+        raise ValueError("Not a valid GCS path with prefix 'gs://'")
+    
+    path = gcs_path.replace("gs://", "")
+    parts = path.split("/", 1)
+    bucket_name = parts[0]
+    blob_path = parts[1] if len(parts) > 1 else ""
+
+    return bucket_name, blob_path.rstrip("/")
+
+def list_gcs_files(bucket_name: str, prefix: str, suffix: str = "") -> list[str]:
+    gcs_client = storage.Client()
+    bucket = gcs_client.bucket(bucket_name)
+    return [
+        blob.name
+        for blob in bucket.list_blobs(prefix=prefix)
+        if blob.name.endswith(suffix)
+    ]
+
+def read_gcs_tsv(bucket_name: str, blob_name: str, sep="\t") -> pd.DataFrame:
+    gcs_client = storage.Client()
+    bucket = gcs_client.bucket(bucket_name)
+    blob = bucket.blob(blob_name)
+    content = blob.download_as_text()
+    return pd.read_csv(StringIO(content), sep=sep)
+
+# === Validation Functions === #
 def validate_batch(input_results_folder: str) -> str:
     """Extract BATCH_YYYYMMDD folder from input folder path.
 
@@ -36,9 +84,7 @@ def validate_batch(input_results_folder: str) -> str:
     return batch_match.group(1)
 
 
-def validate_phase(
-    input_results_folder: str, *, return_phase: bool = True
-) -> str | None:
+def validate_phase(input_results_folder: str, *, return_phase: bool = True) -> str | None:
     """Extract PHASE from input folder path.
 
     :param input_results_folder: input_results_folder path
@@ -91,72 +137,15 @@ def validate_tissue(input_results_folder: str) -> str:
     :raises: ValueError: If tissue code is not valid
     """
     # Define the list of valid tissue codes as in bic_animal_tissue_code$bic_tissue_code
-    bic_tissue_codes = [
-        "T01",
-        "T02",
-        "T03",
-        "T04",
-        "T05",
-        "T06",
-        "T07",
-        "T08",
-        "T09",
-        "T10",
-        "T11",
-        "T12",
-        "T13",
-        "T14",
-        "T15",
-        "T16",
-        "T17",
-        "T18",
-        "T19",
-        "T20",
-        "T21",
-        "T30",
-        "T31",
-        "T32",
-        "T33",
-        "T34",
-        "T35",
-        "T36",
-        "T37",
-        "T38",
-        "T39",
-        "T40",
-        "T41",
-        "T42",
-        "T43",
-        "T44",
-        "T45",
-        "T46",
-        "T47",
-        "T48",
-        "T49",
-        "T50",
-        "T51",
-        "T52",
-        "T53",
-        "T54",
-        "T55",
-        "T56",
-        "T57",
-        "T58",
-        "T59",
-        "T60",
-        "T61",
-        "T62",
-        "T63",
-        "T64",
-        "T65",
-        "T66",
-        "T67",
-        "T68",
-        "T69",
-        "T70",
-        "T77",
-        "T99",
-    ]
+    bic_tissue_codes = ["T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08", "T09", 
+                        "T10", "T11", "T12", "T13", "T14", "T15", "T16", "T17", "T18", "T19", 
+                        "T20", "T21",
+                        "T30", "T31", "T32",  "T33", "T34", "T35", "T36", "T37", "T38", "T39",
+                        "T40", "T41", "T42", "T43", "T44", "T45", "T46", "T47", "T48", "T49",
+                        "T50", "T51", "T52", "T53", "T54", "T55", "T56", "T57", "T58", "T59",
+                        "T60", "T61", "T62", "T63", "T64", "T65", "T66", "T67", "T68", "T69",
+                        "T70", "T77",
+                        "T99"]
 
     # Extract tissue code using regex similar to gsub in R
     match = re.search(r"(.*)(T[0-9]{2,3})(.*)", input_results_folder)
@@ -206,13 +195,7 @@ def find_unique_tmt_channel(tempcol: list[str] | np.ndarray | pd.Series) -> str:
     raise ValueError(msg)
 
 
-def check_tmt_channels(
-    tmt_type: str,
-    tmt_expected: list[str],
-    temp: pd.DataFrame,
-    tmt_col: str,
-    tmt_details: str,
-) -> None:
+def check_tmt_channels(tmt_type: str, tmt_expected: list[str], temp: pd.DataFrame, tmt_col: str, tmt_details: str) -> None:
     """Check TMT channel consistency and provide detailed comparison.
 
     :param tmt_type: Type of TMT experiment
@@ -265,12 +248,10 @@ def fix_duplicates(meta: pd.DataFrame) -> pd.DataFrame:
         meta["vial_label"] = unique_names
     return meta
 
-
+# === CLI Argument Parsing === #
 def cli_args() -> argparse.Namespace:
     """Set up command line argument parser."""
-    parser = argparse.ArgumentParser(
-        description="Generate PlexedPiper study_design files",
-    )
+    parser = argparse.ArgumentParser(description="Generate PlexedPiper study_design files")
     parser.add_argument(
         "-f",
         "--file_vial_metadata",
@@ -301,102 +282,145 @@ def cli_args() -> argparse.Namespace:
         help="One of the following options: tmt11, tmt16, tmt18",
     )
     parser.add_argument("-p", "--phase", type=str, required=True, help="MOTRPAC PHASE")
-    # Parse arguments
-    return parser.parse_args()
-
-
-def process_manifest(raw_folder: str) -> pd.DataFrame:
-    """Get fractions from file manifest files."""
-    fractions = None
-    logger.info("(from processing manifest files):")
-    file_manifest = glob.glob(
-        os.path.join(raw_folder, "**/*metadata_file.txt"),
-        recursive=True,
+    
+    parser.add_argument(
+        "-o", "--output_dir", type=str,
+        help="Output directory for study_design files (REQUIRED if --batch_folder is a GCS path)"
     )
-    file_manifest.extend(
-        glob.glob(
-            os.path.join(raw_folder, "**/*raw_metadata_file*"),
-            recursive=True,
-        ),
-    )
-    # Sort the file paths to ensure they are in the correct order
-    file_manifest.sort()
-    for i, manifest_file in enumerate(file_manifest, 1):
-        logger.info("\t%s. File: %s", i, os.path.basename(manifest_file))
 
-        manifest = pd.read_csv(manifest_file, sep="\t")
+    args = parser.parse_args()
 
-        manifest = manifest[["file_name"]]
-        manifest = manifest.rename(columns={"file_name": "Dataset"})
+    # Enforce output_dir if GCS is used
+    if is_gcs_path(args.batch_folder) and not args.output_dir:
+        parser.error("--output_dir is required when --batch_folder is a GCS path")
 
-        manifest["PlexID"] = f"S{i}"
+    return args
 
-        if fractions is None:
-            fractions = manifest
-        else:
-            fractions = pd.concat([fractions, manifest], ignore_index=True)
+# === Main Processing Functions === #
+def process_manifest(raw_folder: str, is_gcs: bool = False, bucket_name: str = None) -> pd.DataFrame:
+    """Get fractions from file manifest files in either local folder or GCS bucket."""
+
+    is_gcs = is_gcs_path(raw_folder)
+    
+    # If the path is a GCS path, parse it
+    if is_gcs:
+        fractions = None
+        logger.info("(from processing manifest files in GCS bucket):")
+        bucket, prefix = parse_gcs_path(raw_folder)
+        # List relevant metadata files in GCS bucket
+        metadata_files = list_gcs_files(bucket, prefix, suffix="metadata_file.txt")
+        metadata_files += list_gcs_files(bucket, prefix, suffix="raw_metadata_file")
+
+        # Sort the GCS blob paths
+        metadata_files.sort()
+
+        for i, blob_name in enumerate(metadata_files, 1):
+            logger.info("\t%s. File: %s", i, os.path.basename(blob_name))
+
+            manifest = read_gcs_tsv(bucket, blob_name, sep="\t")
+            manifest = manifest[["file_name"]].rename(columns={"file_name": "Dataset"})
+            manifest["PlexID"] = f"S{i}"
+            
+            if fractions is None:
+                fractions = manifest
+            else:
+                fractions = pd.concat([fractions, manifest], ignore_index=True)
+
+    else:
+        # If the path is a local folder, process it as before
+        logger.info("(from processing manifest files in local folder):")
+        fractions = None
+
+        # List relevant metadata files in local folder
+        file_manifest = glob.glob(os.path.join(raw_folder, "**/*metadata_file.txt"), recursive=True)
+        file_manifest.extend(glob.glob(os.path.join(raw_folder, "**/*raw_metadata_file*"), recursive=True))
+
+        # Sort the file paths to ensure they are in the correct order
+        file_manifest.sort()
+
+        for i, manifest_file in enumerate(file_manifest, 1):
+            logger.info("\t%s. File: %s", i, os.path.basename(manifest_file))
+
+            manifest = pd.read_csv(manifest_file, sep="\t")
+
+            manifest = manifest[["file_name"]]
+            manifest = manifest.rename(columns={"file_name": "Dataset"})
+
+            manifest["PlexID"] = f"S{i}"
+            
+            if fractions is None:
+                fractions = manifest
+            else:
+                fractions = pd.concat([fractions, manifest], ignore_index=True)
+            
+    if not fractions:
+        raise ValueError("No manifest files found in the provided folder.")
 
     return fractions
 
+def process_folder(raw_folder: str, is_gcs: bool = False, bucket_name: str = None) -> pd.DataFrame:
+    """Get fractions from raw files in either GCS bucket or local folder."""
 
-def process_folder(raw_folder: str) -> pd.DataFrame:
-    """Get fractions from raw files in the folder."""
-    logger.info("(from listing raw files in folder)")
-    # Check subfolders
-    raw_subfolders = [
-        f
-        for f in glob.glob(os.path.join(raw_folder, "**/"))
-        if re.search(r".*/\d{2}.*", f)
-    ]
-    raw_subfolders.sort()
-    if not raw_subfolders:
-        msg = "The number of subfolders with raw data is equal to 0, which might mean that this submission is not according to MoTrPAC guidelines"
-        raise ValueError(msg)
-    fr_list = []
-    for sf, subfolder in enumerate(raw_subfolders, 1):
-        raw_files = glob.glob(os.path.join(subfolder, "**/*.raw"), recursive=True)
+    # If the path is a GCS path, parse it
+    if is_gcs:
+        logger.info("(from listing raw files in GCS bucket)")
+        fr_list = []
+        if not bucket_name:
+            raise ValueError("Bucket name must be provided when using GCS.")
+        prefix = raw_folder
+        gcs_client = storage.Client()
+        bucket = gcs_client.bucket(bucket_name)
 
-        # Check and exclude empty *raw files
-        non_empty_raw_files = []
-        empty_raw_files = []
+        # Collect subdirectories under prefix (match MoTrPAC subfolder format)
+        raw_subfolders = set()
+        for blob in gcs_client.list_blobs(bucket_name, prefix=prefix):
+            match = re.search(r"(.*/\d{2}[^/]*)/.*\.raw$", blob.name)
+            if match:
+                raw_subfolders.add(match.group(1))
+        raw_subfolders = sorted(raw_subfolders)
 
-        for raw_file in raw_files:
-            try:
-                with open(raw_file, "rb") as f:  # binary mode just in case
-                    first_line = f.readline()
-                    if first_line.strip():  # non-empty
-                        non_empty_raw_files.append(raw_file)
-                    else:
-                        empty_raw_files.append(os.path.basename(raw_file))
-            except Exception as err:
-                logger.warning("⚠️ Could not read %s", raw_file, exc_info=err)
-                empty_raw_files.append(os.path.basename(raw_file))
+        if not raw_subfolders:
+            raise ValueError("The number of subfolders with raw data is equal to 0, which might mean that this submission is not according to MoTrPAC guidelinea. Check MoTrPAC submission structure.")
+        
+        for sf, subfolder_prefix in enumerate(raw_subfolders, 1):
+            blobs = list(bucket.list_blobs(prefix=subfolder_prefix))
+            raw_files = [blob for blob in blobs if blob.name.endswith(".raw")]
 
-        if empty_raw_files:
-            logger.warning(
-                "🚨 Warning: The following raw files in %s appears to be empty: %s\n"
-                "Please inspect for issues. Analysis will continue with non-empty files.\n",
-                subfolder,
-                "\n".join(empty_raw_files),
-            )
+            # Filter out empty files
+            non_empty_raw_files = []
+            empty_raw_files = []
 
-        # Use only non-empty files going forward
-        raw_files = non_empty_raw_files
+            for blob in raw_files:
+                if blob.size == 0:
+                    empty_raw_files.append(os.path.basename(blob.name))
+                else:
+                    non_empty_raw_files.append(blob)
 
-        if raw_files:
+            if empty_raw_files:
+                logger.warning(
+                    "🚨 Warning: The following raw files in %s appears to be empty: %s\n"
+                    "Please inspect for issues. Analysis will continue with non-empty files.\n",
+                    subfolder_prefix,
+                    "\n".join(empty_raw_files),
+                )
+
+            if not non_empty_raw_files:
+                raise ValueError(f"No valid .raw files in GCS subfolder: {subfolder_prefix}")
+
+            # Validate filenames
             invalid_files = [
-                f
-                for f in raw_files
-                if not re.search(r"_f\d{2,3}\.raw$", os.path.basename(f))
+                blob.name for blob in non_empty_raw_files
+                if not re.search(r"_f\d{2,3}\.raw$", os.path.basename(blob.name))
             ]
+            
             if invalid_files:
-                msg = f"The following raw files do not follow the format of proposed file name: {'\n'.join(invalid_files)}. \n\nPlease check the MoTrPAC control vocabulary guidelines.\n"
-                raise ValueError(msg)
+                    msg = f"The following raw files do not follow the format of proposed file name: {'\n'.join(invalid_files)}. \n\nPlease check the MoTrPAC control vocabulary guidelines.\n"
+                    raise ValueError(msg)
 
-            # Extract fraction numbers from filenames
+            # Extract fraction numbers
             fraction_nums = []
-            for f in raw_files:
-                match = re.search(r"_f(\d{2,3})\.raw$", os.path.basename(f))
+            for blob in non_empty_raw_files:
+                match = re.search(r"_f(\d{2,3})\.raw$", os.path.basename(blob.name))
                 if match:
                     fraction_nums.append(int(match.group(1)))
 
@@ -408,33 +432,121 @@ def process_folder(raw_folder: str) -> pd.DataFrame:
                 missing_fracs = sorted(expected_fracs - actual_fracs)
 
                 if missing_fracs:
-                    all_basenames = {os.path.basename(f) for f in raw_files}
+                    all_basenames = {os.path.basename(b.name) for b in non_empty_raw_files}
                     expected_names = {
-                        f"{os.path.splitext(os.path.basename(f))[0].split('_f')[0]}_f{str(i).zfill(2)}.raw"
+                        f"{os.path.splitext(os.path.basename(b.name))[0].split('_f')[0]}_f{str(i).zfill(2)}.raw"
                         for i in range(min_frac, max_frac + 1)
                     }
                     missing_names = sorted(expected_names - all_basenames)
 
                     logger.warning(
-                        "🚨 Warning: Missing fraction files in %s. Expected fractions from f%s to f%s."
-                        "Missing files:\n %s \nContinuing with available files.\n",
-                        subfolder,
-                        str(min_frac).zfill(2),
-                        str(max_frac).zfill(2),
-                        "\n ".join(missing_names),
+                        "🚨 Warning: Missing fractions in %s. Expected f%02d to f%02d.\nMissing files:\n%s",
+                        subfolder_prefix, min_frac, max_frac, "\n".join(missing_names)
                     )
+                    
 
-            fr_temp = pd.DataFrame(
-                {"Dataset": [os.path.basename(f) for f in raw_files]},
-            )
+            fr_temp = pd.DataFrame({
+                "Dataset": [os.path.basename(blob.name) for blob in non_empty_raw_files]
+            })
             fr_temp["PlexID"] = f"S{sf}"
             fr_list.append(fr_temp)
+        return pd.concat(fr_list, ignore_index=True)
 
-        else:
-            msg = f"Raw files not found in this folder: {subfolder}"
+    else:
+        logger.info("(from listing raw files in local folder)")
+
+        raw_subfolders = [
+            f
+            for f in glob.glob(os.path.join(raw_folder, "**/"))
+            if re.search(r".*/\d{2}.*", f)
+        ]
+        raw_subfolders.sort()
+        if not raw_subfolders:
+            msg = "The number of subfolders with raw data is equal to 0, which might mean that this submission is not according to MoTrPAC guidelines"
             raise ValueError(msg)
+        fr_list = []
+        for sf, subfolder in enumerate(raw_subfolders, 1):
+            raw_files = glob.glob(os.path.join(subfolder, "**/*.raw"), recursive=True)
 
-    return pd.concat(fr_list, ignore_index=True)
+            # Check and exclude empty *raw files
+            non_empty_raw_files = []
+            empty_raw_files = []
+
+            for raw_file in raw_files:
+                try:
+                    with open(raw_file, "rb") as f:  # binary mode just in case
+                        first_line = f.readline()
+                        if first_line.strip():  # non-empty
+                            non_empty_raw_files.append(raw_file)
+                        else:
+                            empty_raw_files.append(os.path.basename(raw_file))
+                except Exception as err:
+                    logger.warning("⚠️ Could not read %s", raw_file, exc_info=err)
+                    empty_raw_files.append(os.path.basename(raw_file))
+
+            if empty_raw_files:
+                logger.warning(
+                    "🚨 Warning: The following raw files in %s appears to be empty: %s\n"
+                    "Please inspect for issues. Analysis will continue with non-empty files.\n",
+                    subfolder,
+                    "\n".join(empty_raw_files),
+                )
+
+            # Use only non-empty files going forward
+            raw_files = non_empty_raw_files
+
+            if raw_files:
+                invalid_files = [
+                    f
+                    for f in raw_files
+                    if not re.search(r"_f\d{2,3}\.raw$", os.path.basename(f))
+                ]
+                if invalid_files:
+                    msg = f"The following raw files do not follow the format of proposed file name: {'\n'.join(invalid_files)}. \n\nPlease check the MoTrPAC control vocabulary guidelines.\n"
+                    raise ValueError(msg)
+
+                # Extract fraction numbers from filenames
+                fraction_nums = []
+                for f in raw_files:
+                    match = re.search(r"_f(\d{2,3})\.raw$", os.path.basename(f))
+                    if match:
+                        fraction_nums.append(int(match.group(1)))
+
+                if fraction_nums:
+                    min_frac = min(fraction_nums)
+                    max_frac = max(fraction_nums)
+                    expected_fracs = set(range(min_frac, max_frac + 1))
+                    actual_fracs = set(fraction_nums)
+                    missing_fracs = sorted(expected_fracs - actual_fracs)
+
+                    if missing_fracs:
+                        all_basenames = {os.path.basename(f) for f in raw_files}
+                        expected_names = {
+                            f"{os.path.splitext(os.path.basename(f))[0].split('_f')[0]}_f{str(i).zfill(2)}.raw"
+                            for i in range(min_frac, max_frac + 1)
+                        }
+                        missing_names = sorted(expected_names - all_basenames)
+
+                        logger.warning(
+                            "🚨 Warning: Missing fraction files in %s. Expected fractions from f%s to f%s."
+                            "Missing files:\n %s \nContinuing with available files.\n",
+                            subfolder,
+                            str(min_frac).zfill(2),
+                            str(max_frac).zfill(2),
+                            "\n ".join(missing_names),
+                        )
+
+                fr_temp = pd.DataFrame(
+                    {"Dataset": [os.path.basename(f) for f in raw_files]},
+                )
+                fr_temp["PlexID"] = f"S{sf}"
+                fr_list.append(fr_temp)
+
+            else:
+                msg = f"Raw files not found in this folder: {subfolder}"
+                raise ValueError(msg)
+
+        return pd.concat(fr_list, ignore_index=True)
 
 
 def main():
@@ -451,16 +563,14 @@ def main():
     # Debug information
     logger.debug("\n# GENERATE PlexedPiper study_design FILES")
     logger.debug("-f: Vial metadata: %s", file_vial_metadata)
-    logger.debug("-c: Bach folder: %s", batch_folder)
+    logger.debug("-c: Batch folder: %s", batch_folder)
     logger.debug("-u: Get the raw files from: %s", raw_source)
     logger.debug("-t: tmt experiment: %s", tmt)
     logger.debug("-------------------------------------")
 
     # Collect and Generate metadata
     _batch = validate_batch(batch_folder)
-    _phase_folder = validate_phase(
-        batch_folder
-    )  # Placeholder for actual implementation
+    _phase_folder = validate_phase(batch_folder)  # Placeholder for actual implementation
     assay = validate_assay(batch_folder)  # Placeholder for actual implementation
     assay = re.sub(r"(PROT_)(.*)", r"\2", assay)
     tissue = validate_tissue(batch_folder)  # Placeholder for actual implementation
@@ -472,85 +582,55 @@ def main():
 
     date = datetime.now().strftime("%Y%m%d")
 
-    # Process batch folder
-    batch_folder = os.path.abspath(batch_folder)
+    # Process batch folder from either local folder or GCS bucket
+    is_gcs = is_gcs_path(batch_folder)
+    if is_gcs:
+        bucket_name, batch_blob_prefix = parse_gcs_path(batch_folder)
+    else:
+        batch_folder = os.path.abspath(batch_folder)
 
-    # Get RAW files folder name
-    raw_folders = glob.glob(os.path.join(batch_folder, "RAW*"))
+    # Get RAW folder from GCS bucket
+    if is_gcs:
+        # Look for "RAW*" folder under batch_blob_prefix
+        raw_folders = list_gcs_files(bucket_name, batch_blob_prefix, suffix="")
+        raw_folder_paths = [
+            re.search(r"(.*RAW[^/]+)/\d{2}MOTRPAC_", blob).group(1)
+            for blob in raw_folders
+            if re.search(r"(.*RAW[^/]+)/\d{2}MOTRPAC_", blob)
+        ]
+        if not raw_folder_paths:
+            raise ValueError("Could not detect top-level RAW folder.")
 
-    # if There is no raw folder, then use BATCH folder
-    raw_folder = batch_folder if not raw_folders else raw_folders[0]
+        raw_folder = sorted(set(raw_folder_paths))[0]
+
+    else:
+        raw_folders = glob.glob(os.path.join(batch_folder, "RAW*"))
+        raw_folder = batch_folder if not raw_folders else raw_folders[0]
 
     # Details about the tmt experiment
     if tmt == "tmt11":
         ecolnames = ["tmt_plex", "tmt11_channel", "vial_label"]
-        tmt_channels = [
-            "126C",
-            "127N",
-            "127C",
-            "128N",
-            "128C",
-            "129N",
-            "129C",
-            "130N",
-            "130C",
-            "131N",
-            "131C",
-        ]
+        tmt_channels = ["126C", "127N", "127C", "128N", "128C", "129N", "129C", "130N", "130C", "131N", "131C"]
     elif tmt == "tmt16":
         ecolnames = ["tmt_plex", "tmt16_channel", "vial_label"]
-        tmt_channels = [
-            "126C",
-            "127N",
-            "127C",
-            "128N",
-            "128C",
-            "129N",
-            "129C",
-            "130N",
-            "130C",
-            "131N",
-            "131C",
-            "132N",
-            "132C",
-            "133N",
-            "133C",
-            "134N",
-        ]
+        tmt_channels = ["126C", "127N", "127C", "128N",  "128C", "129N", "129C", "130N", "130C", "131N", "131C",
+                        "132N", "132C", "133N", "133C", "134N"]
     elif tmt == "tmt18":
         ecolnames = ["tmt_plex", "tmt18_channel", "vial_label"]
-        tmt_channels = [
-            "126C",
-            "127N",
-            "127C",
-            "128N",
-            "128C",
-            "129N",
-            "129C",
-            "130N",
-            "130C",
-            "131N",
-            "131C",
-            "132N",
-            "132C",
-            "133N",
-            "133C",
-            "134N",
-            "134C",
-            "135N",
-        ]
+        tmt_channels = ["126C", "127N", "127C", "128N", "128C", "129N", "129C", "130N", "130C", "131N", "131C",
+                        "132N", "132C", "133N", "133C", "134N",
+                        "134C", "135N"]
     else:
         msg = "<tmt> must be one of this: tmt11, tmt16, tmt18"
         raise ValueError(msg)
 
     # List all details.txt files recursively from the raw_folder
-    tmt_details_files = glob.glob(
-        os.path.join(raw_folder, "**/*details.txt"),
-        recursive=True,
-    )
-
-    # Sort the file paths to ensure they are in the correct order
-    tmt_details_files.sort()
+    if is_gcs:
+        tmt_details_files = list_gcs_files(bucket_name, raw_folder, suffix="details.txt")
+        tmt_details_files.sort()
+    else:
+        tmt_details_files = glob.glob(os.path.join(raw_folder, "**/*details.txt"), recursive=True)
+        tmt_details_files.sort()
 
     # Initialize an empty list to store data
     nm_list = []
@@ -561,7 +641,11 @@ def main():
         # Process each file
         for i, tmt_details in enumerate(tmt_details_files, 1):
             try:
-                temp = pd.read_csv(tmt_details, sep="\t")
+                if is_gcs:
+                    temp = read_gcs_tsv(bucket_name, tmt_details)
+                else:
+                    temp = pd.read_csv(tmt_details, sep="\t")
+
             except pd.errors.EmptyDataError as err:
                 msg = f"'{tmt_details}' is empty. Please validate file integrity."
                 raise ValueError(msg) from err
@@ -593,7 +677,10 @@ def main():
     else:
         logger.info("+ Reading file vial metadata")
         try:
-            vial_metadata = pd.read_csv(file_vial_metadata, sep="\t")
+            if is_gcs:
+                vial_metadata = read_gcs_tsv(bucket_name, file_vial_metadata)
+            else:
+                vial_metadata = pd.read_csv(file_vial_metadata, sep="\t")
             if vial_metadata.empty:
                 msg = f"{file_vial_metadata} is empty. Please use generate option to generate vial metadata file."
                 raise ValueError(msg)
@@ -712,11 +799,12 @@ def main():
         fractions = process_manifest(raw_folder)
 
     elif raw_source == "folder":
-        fractions = process_folder(raw_folder)
+        fractions = process_folder(raw_folder, is_gcs=is_gcs, bucket_name=bucket_name if is_gcs else None)
+
     else:
         msg = "The -s argument is not right. It should be either `manifest` or `folder`"
         raise ValueError(msg)
-
+    
     fractions["Dataset"] = fractions["Dataset"].str.replace(".raw", "")
 
     logger.info("+ Checking PlexID notations")
@@ -749,7 +837,10 @@ def main():
     # The study_design folder should be in the RAW folder, but given that in
     # some cases the RAW files were not given in the RAW folder, it might be
     # located in the BATCH folder.
-    output_viallabel_name = os.path.join(raw_folder, "study_design")
+    if is_gcs:
+        output_viallabel_name = os.path.join(args.output_dir, "study_design")
+    else:
+        output_viallabel_name = os.path.join(raw_folder, "study_design")
 
     if not os.path.exists(output_viallabel_name):
         os.makedirs(output_viallabel_name, exist_ok=True)
