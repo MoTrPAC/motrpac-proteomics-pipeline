@@ -594,12 +594,12 @@ def main():
         # Look for "RAW*" folder under batch_blob_prefix
         raw_folders = list_gcs_files(bucket_name, batch_blob_prefix, suffix="")
         raw_folder_paths = [
-            re.search(r"(.*RAW[^/]+)/\d{2}MOTRPAC_", blob).group(1)
+            re.search(r"(.*RAW[^/]*)/\d{2}MOTRPAC_", blob).group(1)
             for blob in raw_folders
-            if re.search(r"(.*RAW[^/]+)/\d{2}MOTRPAC_", blob)
+            if re.search(r"(.*RAW[^/]*)/\d{2}MOTRPAC_", blob)
         ]
         if not raw_folder_paths:
-            raise ValueError("Could not detect top-level RAW folder.")
+            raise ValueError("Could not detect RAW folder.")
 
         raw_folder = sorted(set(raw_folder_paths))[0]
 
