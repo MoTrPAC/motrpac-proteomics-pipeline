@@ -410,9 +410,9 @@ def process_folder(raw_folder: str, is_gcs: bool = False, bucket_name: str = Non
             # Validate filenames
             invalid_files = [
                 blob.name for blob in non_empty_raw_files
-                if not re.search(r"_f\d{2,3}\.raw$", os.path.basename(blob.name))
+                if not re.search(r"_f(r)?\d{2,3}\.raw$", os.path.basename(blob.name))
             ]
-            
+
             if invalid_files:
                     msg = f"The following raw files do not follow the format of proposed file name: {'\n'.join(invalid_files)}. \n\nPlease check the MoTrPAC control vocabulary guidelines.\n"
                     raise ValueError(msg)
@@ -420,7 +420,7 @@ def process_folder(raw_folder: str, is_gcs: bool = False, bucket_name: str = Non
             # Extract fraction numbers
             fraction_nums = []
             for blob in non_empty_raw_files:
-                match = re.search(r"_f(\d{2,3})\.raw$", os.path.basename(blob.name))
+                match = re.search(r"_f(?:r)?(\d{2,3})\.raw$", os.path.basename(blob.name))
                 if match:
                     fraction_nums.append(int(match.group(1)))
 
@@ -433,8 +433,11 @@ def process_folder(raw_folder: str, is_gcs: bool = False, bucket_name: str = Non
 
                 if missing_fracs:
                     all_basenames = {os.path.basename(b.name) for b in non_empty_raw_files}
+                    sample_prefix = os.path.splitext(os.path.basename(non_empty_raw_files[0].name))[0].rsplit("_f", 1)[0]
+                    has_fr = "_fr" in os.path.basename(non_empty_raw_files[0].name)
+                    suffix = "fr" if has_fr else "f"
                     expected_names = {
-                        f"{os.path.splitext(os.path.basename(b.name))[0].split('_f')[0]}_f{str(i).zfill(2)}.raw"
+                        f"{sample_prefix}_{suffix}{str(i).zfill(2)}.raw"
                         for i in range(min_frac, max_frac + 1)
                     }
                     missing_names = sorted(expected_names - all_basenames)
@@ -497,9 +500,8 @@ def process_folder(raw_folder: str, is_gcs: bool = False, bucket_name: str = Non
 
             if raw_files:
                 invalid_files = [
-                    f
-                    for f in raw_files
-                    if not re.search(r"_f\d{2,3}\.raw$", os.path.basename(f))
+                    f for f in raw_files
+                    if not re.search(r"_f(r)?\d{2,3}\.raw$", os.path.basename(f))
                 ]
                 if invalid_files:
                     msg = f"The following raw files do not follow the format of proposed file name: {'\n'.join(invalid_files)}. \n\nPlease check the MoTrPAC control vocabulary guidelines.\n"
@@ -508,7 +510,7 @@ def process_folder(raw_folder: str, is_gcs: bool = False, bucket_name: str = Non
                 # Extract fraction numbers from filenames
                 fraction_nums = []
                 for f in raw_files:
-                    match = re.search(r"_f(\d{2,3})\.raw$", os.path.basename(f))
+                    match = re.search(r"_f(?:r)?(\d{2,3})\.raw$", os.path.basename(f))
                     if match:
                         fraction_nums.append(int(match.group(1)))
 
@@ -521,14 +523,17 @@ def process_folder(raw_folder: str, is_gcs: bool = False, bucket_name: str = Non
 
                     if missing_fracs:
                         all_basenames = {os.path.basename(f) for f in raw_files}
+                        sample_prefix = os.path.splitext(os.path.basename(raw_files[0]))[0].rsplit("_f", 1)[0]
+                        has_fr = "_fr" in os.path.basename(raw_files[0])
+                        suffix = "fr" if has_fr else "f"
                         expected_names = {
-                            f"{os.path.splitext(os.path.basename(f))[0].split('_f')[0]}_f{str(i).zfill(2)}.raw"
+                            f"{sample_prefix}_{suffix}{str(i).zfill(2)}.raw"
                             for i in range(min_frac, max_frac + 1)
                         }
                         missing_names = sorted(expected_names - all_basenames)
 
                         logger.warning(
-                            "🚨 Warning: Missing fraction files in %s. Expected fractions from f%s to f%s."
+                            "🚨 Warning: Missing fraction files in %s. Expected fractions from f%s to f%s.\n"
                             "Missing files:\n %s \nContinuing with available files.\n",
                             subfolder,
                             str(min_frac).zfill(2),
