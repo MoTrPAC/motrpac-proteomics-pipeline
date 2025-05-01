@@ -672,6 +672,15 @@ def main():
                 lambda x: f"Ref_S{i}" if "Ref" in str(x) else x,
             )
 
+            # Check for multiple Ref entries in a single TMTdetails file
+            num_ref = temp["vial_label"].str.startswith("Ref_S").sum()
+            if num_ref > 1:
+                raise ValueError(
+                    f"❌ '{tmt_details}' contains {num_ref} vial_label entries starting with 'Ref'.\n"
+                    f"Only one reference sample is allowed per TMTdetails file.\n"
+                    f"Please check the file: {tmt_details}"
+                )
+
             nm_list.append(temp)
 
         vial_metadata = pd.concat(nm_list, ignore_index=True)
