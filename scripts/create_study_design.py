@@ -11,22 +11,38 @@ import pandas as pd
 from google.cloud import storage
 from io import StringIO
 import warnings
+import http.client
+
+# Disable low-level HTTP debug logs
+http.client.HTTPConnection.debuglevel = 0
 
 # Silence Google's warnings and logs
-logging.getLogger("google.auth").setLevel(logging.ERROR)
-logging.getLogger("google.auth.transport").setLevel(logging.ERROR)
-logging.getLogger("google.cloud").setLevel(logging.ERROR)
-logging.getLogger("google.api_core").setLevel(logging.ERROR)
-logging.getLogger("googleapiclient.discovery_cache").setLevel(logging.ERROR)
-logging.getLogger("urllib3").setLevel(logging.WARNING)
-logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
-
-# Suppress UserWarnings from google.auth
-warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
-
-# === Logging Setup === #
+# Set up your script-level logger
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(message)s")
+logger.setLevel(logging.INFO)
+
+# Basic config (don't use DEBUG level here unless needed)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(message)s"
+)
+
+# Silence noisy loggers
+for lib in [
+    "google.auth",
+    "google.auth.transport",
+    "google.auth.transport.requests",
+    "google.api_core",
+    "google.cloud",
+    "google.cloud.storage",
+    "google.resumable_media",
+    "urllib3",
+    "urllib3.connectionpool",
+]:
+    logging.getLogger(lib).setLevel(logging.WARNING)
+
+# Suppress specific UserWarnings
+warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
 
 # === GCS Support === #
 def is_gcs_path(input_results_folder: str) -> bool:
@@ -773,12 +789,9 @@ def main():
 
     if has_ref:
         samples["MeasurementName"] = samples["ReporterAlias"]
-        ref_mask = samples["ReporterAlias"].str.contains(
-            r"^ref",
-            case=False,
-            regex=True,
-        )
-        samples.loc[ref_mask, "MeasurementName"] = None
+        # Matches values in the "ReporterAlias" column that start with "Ref" or "ref" (case-insensitive)
+        ref_mask = samples["ReporterAlias"].str.contains(r"^ref", case=False, regex=True)
+        samples.loc[ref_mask, "MeasurementName"] = "NA"
 
     # Select only required columns
     samples = samples[
