@@ -423,46 +423,74 @@ def process_folder(raw_folder: str, is_gcs: bool = False, bucket_name: str = Non
             if not non_empty_raw_files:
                 raise ValueError(f"No valid .raw files in GCS subfolder: {subfolder_prefix}")
 
-            # Validate filenames
-            invalid_files = [
-                blob.name for blob in non_empty_raw_files
-                if not re.search(r"_f(r)?\d{2,3}\.raw$", os.path.basename(blob.name))
-            ]
+            # Validate filenames (accept *_f{nn}.raw, *_fr{nn}.raw, *_f{nn}_{x}.raw, *_fr{nn}_{x}.raw)
+            invalid_files = []
+            nonstandard_files = []
 
+            for blob in non_empty_raw_files:
+                filename = os.path.basename(blob.name)
+                if re.search(r"_f(r)?\d{2,3}\.raw$", filename):
+                    continue  # standard
+                elif re.search(r"_f(r)?\d{2,3}_.+\.raw$", filename):
+                    nonstandard_files.append(blob.name)  # accepted, but nonstandard
+                else:
+                    invalid_files.append(blob.name)  # invalid
+            
+            # Raise error if any file is truly invalid
             if invalid_files:
-                    msg = f"The following raw files do not follow the format of proposed file name: {'\n'.join(invalid_files)}. \n\nPlease check the MoTrPAC control vocabulary guidelines.\n"
-                    raise ValueError(msg)
+                msg = (
+                    f"The following raw files do not follow any accepted naming format:\n"
+                    f"{chr(10).join(invalid_files)}\n\n"
+                    f"Please check the MoTrPAC control vocabulary guidelines.\n"
+                )
+                raise ValueError(msg)
+
+            # Warn if nonstandard files are used
+            if nonstandard_files:
+                logger.warning(
+                    "⚠️ The following raw files use nonstandard naming (e.g. *_f{nn}_{x}.raw):\n%s\n"
+                    "These will be processed, but it's recommended to rename them to *_f{nn}.raw or *_fr{nn}.raw for future submissions.\n",
+                    "\n".join(nonstandard_files)
+                )
 
             # Extract fraction numbers
             fraction_nums = []
             for blob in non_empty_raw_files:
-                match = re.search(r"_f(?:r)?(\d{2,3})\.raw$", os.path.basename(blob.name))
+                filename = os.path.basename(blob.name)
+                match = re.search(r"_f(?:r)?(\d{2,3})(?:_.+)?\.raw$", filename)
                 if match:
                     fraction_nums.append(int(match.group(1)))
-
+            
             if fraction_nums:
                 min_frac = min(fraction_nums)
                 max_frac = max(fraction_nums)
                 expected_fracs = set(range(min_frac, max_frac + 1))
                 actual_fracs = set(fraction_nums)
                 missing_fracs = sorted(expected_fracs - actual_fracs)
-
+                    
                 if missing_fracs:
                     all_basenames = {os.path.basename(b.name) for b in non_empty_raw_files}
-                    sample_prefix = os.path.splitext(os.path.basename(non_empty_raw_files[0].name))[0].rsplit("_f", 1)[0]
+                    
+                    # Extract sample_prefix from first file (remove _f{nn} or _fr{nn} and optional _{timestamp})
+                    first_base = os.path.splitext(os.path.basename(non_empty_raw_files[0].name))[0]
+                    match = re.search(r"(.*)_f(r)?\d{2,3}(?:_.+)?$", first_base)
+                    sample_prefix = match.group(1) if match else first_base
                     has_fr = "_fr" in os.path.basename(non_empty_raw_files[0].name)
                     suffix = "fr" if has_fr else "f"
+
+                    # Build expected filenames (standard naming only)
                     expected_names = {
                         f"{sample_prefix}_{suffix}{str(i).zfill(2)}.raw"
                         for i in range(min_frac, max_frac + 1)
                     }
+
+                    # Compare against raw file basenames
                     missing_names = sorted(expected_names - all_basenames)
 
                     logger.warning(
                         "🚨 Warning: Missing fractions in %s. Expected f%02d to f%02d.\nMissing files:\n%s",
                         subfolder_prefix, min_frac, max_frac, "\n".join(missing_names)
                     )
-                    
 
             fr_temp = pd.DataFrame({
                 "Dataset": [os.path.basename(blob.name) for blob in non_empty_raw_files]
@@ -515,18 +543,38 @@ def process_folder(raw_folder: str, is_gcs: bool = False, bucket_name: str = Non
             raw_files = non_empty_raw_files
 
             if raw_files:
-                invalid_files = [
-                    f for f in raw_files
-                    if not re.search(r"_f(r)?\d{2,3}\.raw$", os.path.basename(f))
-                ]
+                invalid_files = []
+                nonstandard_files = []
+
+                for f in raw_files:
+                    filename = os.path.basename(f)
+                    if re.search(r"_f(r)?\d{2,3}\.raw$", filename):
+                        continue  # Standard
+                    elif re.search(r"_f(r)?\d{2,3}_.+\.raw$", filename):
+                        nonstandard_files.append(f)
+                    else:
+                        invalid_files.append(f)
+
                 if invalid_files:
-                    msg = f"The following raw files do not follow the format of proposed file name: {'\n'.join(invalid_files)}. \n\nPlease check the MoTrPAC control vocabulary guidelines.\n"
+                    msg = (
+                        f"The following raw files do not follow any accepted naming format:\n"
+                        f"{chr(10).join(invalid_files)}\n\n"
+                        f"Please check the MoTrPAC control vocabulary guidelines.\n"
+                    )
                     raise ValueError(msg)
+
+                if nonstandard_files:
+                    logger.warning(
+                        "⚠️ The following raw files use nonstandard naming (e.g. *_f{nn}_{x}.raw):\n%s\n"
+                        "These will be processed, but should be renamed to *_f{nn}.raw or *_fr{nn}.raw in future.\n",
+                        "\n".join(nonstandard_files)
+                    )
 
                 # Extract fraction numbers from filenames
                 fraction_nums = []
                 for f in raw_files:
-                    match = re.search(r"_f(?:r)?(\d{2,3})\.raw$", os.path.basename(f))
+                    filename = os.path.basename(f)
+                    match = re.search(r"_f(?:r)?(\d{2,3})(?:_.+)?\.raw$", filename)
                     if match:
                         fraction_nums.append(int(match.group(1)))
 
@@ -537,32 +585,40 @@ def process_folder(raw_folder: str, is_gcs: bool = False, bucket_name: str = Non
                     actual_fracs = set(fraction_nums)
                     missing_fracs = sorted(expected_fracs - actual_fracs)
 
+
                     if missing_fracs:
                         all_basenames = {os.path.basename(f) for f in raw_files}
-                        sample_prefix = os.path.splitext(os.path.basename(raw_files[0]))[0].rsplit("_f", 1)[0]
+
+                        # Extract sample prefix, stripping suffix _fNN_{x} or _frNN_{x}
+                        first_base = os.path.splitext(os.path.basename(raw_files[0]))[0]
+                        match = re.search(r"(.*)_f(r)?\d{2,3}(?:_.+)?$", first_base)
+                        sample_prefix = match.group(1) if match else first_base
                         has_fr = "_fr" in os.path.basename(raw_files[0])
                         suffix = "fr" if has_fr else "f"
+
+                        # Expected names use only standard format
                         expected_names = {
                             f"{sample_prefix}_{suffix}{str(i).zfill(2)}.raw"
                             for i in range(min_frac, max_frac + 1)
                         }
+
                         missing_names = sorted(expected_names - all_basenames)
 
                         logger.warning(
                             "🚨 Warning: Missing fraction files in %s. Expected fractions from f%s to f%s.\n"
-                            "Missing files:\n %s \nContinuing with available files.\n",
+                            "Missing files:\n%s\nContinuing with available files.\n",
                             subfolder,
                             str(min_frac).zfill(2),
                             str(max_frac).zfill(2),
-                            "\n ".join(missing_names),
+                            "\n".join(missing_names),
                         )
 
-                fr_temp = pd.DataFrame(
-                    {"Dataset": [os.path.basename(f) for f in raw_files]},
-                )
+                # Construct dataframe of observed files
+                fr_temp = pd.DataFrame({
+                    "Dataset": [os.path.basename(f) for f in raw_files]
+                })
                 fr_temp["PlexID"] = f"S{sf}"
                 fr_list.append(fr_temp)
-
             else:
                 msg = f"Raw files not found in this folder: {subfolder}"
                 raise ValueError(msg)
@@ -789,7 +845,7 @@ def main():
 
     if has_ref:
         samples["MeasurementName"] = samples["ReporterAlias"]
-        # Matches values in the "ReporterAlias" column that start with "Ref" or "ref" (case-insensitive)
+        # Matches values in the "ReporterAlias" column that starts with "Ref" or "ref" (case-insensitive)
         ref_mask = samples["ReporterAlias"].str.contains(r"^ref", case=False, regex=True)
         samples.loc[ref_mask, "MeasurementName"] = "NA"
 
