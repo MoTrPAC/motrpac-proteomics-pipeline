@@ -369,7 +369,7 @@ def process_manifest(raw_folder: str, is_gcs: bool = False, bucket_name: str = N
             else:
                 fractions = pd.concat([fractions, manifest], ignore_index=True)
             
-    if not fractions:
+    if fractions is None or fractions.empty:
         raise ValueError("No manifest files found in the provided folder.")
 
     return fractions
