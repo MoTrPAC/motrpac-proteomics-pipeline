@@ -641,7 +641,8 @@ def main():
             src_bucket = client.get_bucket(src_bucket_name)
             src_blob = src_bucket.get_blob(src_blob_path)
             if src_blob is None:
-                logger.warning("Vial metadata file does not exist: %s", args.vial_metadata_path)
+                logger.error("Vial metadata file does not exist: %s. Exiting.", args.vial_metadata_path)
+                sys.exit(1)
             else:
                 logger.info("Vial metadata file found: %s", args.vial_metadata_path)
                 # Prepare destination path
