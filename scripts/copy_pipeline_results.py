@@ -606,6 +606,13 @@ def create_args():
         action="store_true",
         help="Don't actually copy the files, just print what it's going to do",
     )
+    parser.add_argument(
+        "-v",
+        "--vial_metadata_path",
+        required=False,
+        type=str,
+        help="Full GCS path to vial metadata file (e.g. gs://bucket-name/full/path/file_name_vial_manifest.txt)",
+    )
     return parser
 
 
@@ -625,6 +632,33 @@ def main():
 
     if args.dry_run:
         logger.info("This is a dry run, no files will be copied")
+
+    # Validate and (optionally) copy vial metadata file before any other operation
+    if hasattr(args, "vial_metadata_path") and args.vial_metadata_path:
+        try:
+            src_bucket_name, src_blob_path = parse_bucket_path(args.vial_metadata_path)
+            client = Client(project=args.project)
+            src_bucket = client.get_bucket(src_bucket_name)
+            src_blob = src_bucket.get_blob(src_blob_path)
+            if src_blob is None:
+                logger.warning("Vial metadata file does not exist: %s", args.vial_metadata_path)
+            else:
+                logger.info("Vial metadata file found: %s", args.vial_metadata_path)
+                # Prepare destination path
+                dest_bucket_name, dest_prefix = parse_bucket_path(args.destination)
+                dest_bucket = client.get_bucket(dest_bucket_name)
+                dest_file_name = Path(src_blob_path).name
+                dest_blob_path = f"{dest_prefix.rstrip('/')}/{dest_file_name}" if dest_prefix else dest_file_name
+                if args.dry_run:
+                    logger.info(
+                        "DRY RUN: Would copy vial metadata to gs://%s/%s", dest_bucket_name, dest_blob_path
+                    )
+                else:
+                    # Perform copy
+                    src_bucket.copy_blob(src_blob, dest_bucket, new_name=dest_blob_path)
+                    logger.info("Copied vial metadata to gs://%s/%s", dest_bucket_name, dest_blob_path)
+        except Exception as e:
+            logger.warning("Could not validate or copy vial metadata file: %s", e)
 
     if method_proteomics == "maxquant":
         logger.info("PROTEOMICS METHOD: maxquant")
