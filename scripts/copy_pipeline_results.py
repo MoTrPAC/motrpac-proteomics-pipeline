@@ -658,7 +658,7 @@ def main():
                     # Perform copy
                     src_bucket.copy_blob(src_blob, dest_bucket, new_name=dest_blob_path)
                     logger.info("Copied vial metadata to gs://%s/%s", dest_bucket_name, dest_blob_path)
-        except Exception as e:
+        except (GoogleAPICallError, ValueError) as e:
             logger.warning("Could not validate or copy vial metadata file: %s", e)
 
     if method_proteomics == "maxquant":
