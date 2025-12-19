@@ -634,7 +634,7 @@ def main():
         logger.info("This is a dry run, no files will be copied")
 
     # Validate and (optionally) copy vial metadata file before any other operation
-    if hasattr(args, "vial_metadata_path") and args.vial_metadata_path:
+    if args.vial_metadata_path:
         try:
             src_bucket_name, src_blob_path = parse_bucket_path(args.vial_metadata_path)
             client = Client(project=args.project)
