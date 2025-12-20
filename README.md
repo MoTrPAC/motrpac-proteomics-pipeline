@@ -26,7 +26,7 @@
 
 ## Overview
 
-This mass-spectrometry based-proteomics data analysis pipeline uses the programming language [WDL](https://openwdl.org/) for describing workflows. The pipeline is run using [caper](https://github.com/ENCODE-DCC/caper), a wrapper Python package for using the workflow management system [Cromwell](https://github.com/broadinstitute/cromwell).
+This mass-spectrometry based-proteomics data analysis pipeline uses the programming language [WDL](https://openwdl.org/) for describing workflows. The pipeline is run using [caper](https://github.com/MoTrPAC/caper), a wrapper Python package for using the workflow management system [Cromwell](https://github.com/broadinstitute/cromwell).
 
 ### Supported Software Pipelines
 
@@ -107,7 +107,7 @@ python3 scripts/create_config_msgfplus.py \
   -y experiment_config.json \
   -e pr-tmt11 \
   -r experiment_results \
-  -d gcr.io/your-project/ \
+  -d us-docker.pkg.dev/your-project/your-repo/ \
   -m tmt \
   -c "Rattus norvegicus" \
   -a RefSeq
@@ -196,7 +196,7 @@ Ensure the following APIs are enabled in your GCP project:
 
 The WDL/Cromwell framework is optimized to run pipelines in high-performance computing environments. The MoTrPAC Bioinformatics Center runs pipelines on Google Cloud Platform (GCP). We used a number of fantastic tools developed by our colleagues from the [ENCODE project](https://github.com/ENCODE-DCC) to run pipelines on GCP (and other HPC platforms).
 
-A brief summary of the steps to set-up a VM to run the Motrpac pipelines on GCP (**for details, please, check the [caper repo](https://github.com/ENCODE-DCC/caper/blob/master/scripts/gcp_caper_server/README.md)**):
+A brief summary of the steps to set-up a VM to run the Motrpac pipelines on GCP (**for details, please, check the [caper repo](https://github.com/MoTrPAC/caper/blob/master/scripts/gcp_caper_server/README.md)**):
 
 ### Step-by-Step Setup
 
@@ -220,7 +220,7 @@ A brief summary of the steps to set-up a VM to run the Motrpac pipelines on GCP 
 
 **6. Set up a VM instance**
 - Create a Virtual Machine (VM) instance from where pipelines will be run
-- Use the script available in the [caper repo](https://github.com/ENCODE-DCC/caper)
+- Use the script available in the [caper repo](https://github.com/MoTrPAC/caper)
 - Clone the caper repo on your local machine and run:
 
 ```bash
@@ -239,7 +239,7 @@ $ bash create_instance.sh [INSTANCE_NAME] [PROJECT_ID] [GCP_SERVICE_ACCOUNT_KEY_
 mkdir -p ~/proteomics-pipeline
 
 # Mount the bucket
-gcsfuse --implicit-dirs proteomics-pipeline ~/proteomics-pipeline
+gcsfuse --implicit-dirs your-bucket-name ~/proteomics-pipeline
 ```
 
 **8. Clone this repository**
@@ -369,7 +369,7 @@ python3 scripts/create_config_msgfplus.py \
 
 ```bash
 python3 scripts/create_config_msgfplus.py \
-  -g motrpac-project \
+  -g your-gcp-project \
   -b proteomics-pipeline \
   -p parameters/msgfplus \
   -s study_design/batch1/ \
@@ -379,8 +379,8 @@ python3 scripts/create_config_msgfplus.py \
   -y batch1-phospho-tmt16.json \
   -e ph-tmt16 \
   -r batch1-phospho-results \
-  -d gcr.io/motrpac-project/ \
-  -x gs://proteomics-pipeline/results/global/batch1-global-results_ratio.txt \
+  -d us-docker.pkg.dev/motrpac-project/proteomics/ \
+  -x gs://your-bucket-name/results/global/batch1-global-results_ratio.txt \
   -m tmt \
   -c "Rattus norvegicus" \
   -a UniProt
@@ -391,7 +391,7 @@ python3 scripts/create_config_msgfplus.py \
 ```bash
 python3 scripts/create_config_msgfplus.py \
   -g motrpac-project \
-  -b proteomics-pipeline \
+  -b your-bucket-name \
   -p parameters/msgfplus \
   -s study_design/batch2/ \
   -q sequences_db/refseq_rat_2023.fasta \
@@ -400,7 +400,7 @@ python3 scripts/create_config_msgfplus.py \
   -y batch2-global-lf.json \
   -e pr-lf \
   -r batch2-global-lf-results \
-  -d gcr.io/motrpac-project/ \
+  -d us-docker.pkg.dev/motrpac-project/proteomics/ \
   -m label-free \
   -c "Rattus norvegicus" \
   -a RefSeq
@@ -487,9 +487,9 @@ The MS-GF+ pipeline generates numerous output files at each processing step:
 - `*.tsv` - Tab-separated peptide IDs
 
 **PHRP Output:**
-- `*_syn.txt` - Peptide synthesis information
+- `*_syn.txt` - Synopsis file with peptide IDs, unique sequence info, and modification details
 - `*_syn_ModSummary.txt` - Modification summary
-- `*_syn_ResultToSeqMap.txt` - Sequence mapping
+- `*_syn_ResultToSeqMap.txt` - Result to sequence mapping
 
 **AScore Output** (PTM experiments):
 - `*_syn_plus_ascore.txt` - PTM localization scores
@@ -524,7 +524,7 @@ Use the provided utility script to copy results to a desired location:
 ```bash
 python3 scripts/copy_pipeline_results.py \
   -p your-gcp-project \
-  -b proteomics-pipeline \
+  -b your-bucket-name \
   -m msgfplus \
   -r results/proteomics_msgfplus/[WORKFLOW_ID] \
   -o final_results/batch1/ \
@@ -574,7 +574,7 @@ Use the pipeline job summary script to get completion time and errors:
 ```bash
 python3 scripts/pipeline_job_summary.py \
   -p your-gcp-project \
-  -b proteomics-pipeline \
+  -b your-bucket-name \
   -r results/proteomics_msgfplus \
   -i [WORKFLOW_ID]
 ```
@@ -726,7 +726,7 @@ cd cromwell-executions/proteomics_msgfplus/[WORKFLOW_ID]/
 
 If issues persist:
 1. Check the Cromwell documentation: https://cromwell.readthedocs.io/
-2. Review the Caper documentation: https://github.com/ENCODE-DCC/caper
+2. Review the Caper documentation: https://github.com/MoTrPAC/caper
 3. Consult MS-GF+ documentation: https://github.com/MSGFPlus/msgfplus
 4. Review PlexedPiper documentation: https://github.com/PNNL-Comp-Mass-Spec/PlexedPiper
 5. Open an issue on the GitHub repository with:
@@ -741,36 +741,38 @@ A number of utility scripts are available providing additional functionality to 
 
 ### Available Utility Scripts
 
-#### 1. `create_config_msgfplus.py`
+#### `create_config_msgfplus.py`
 Creates MS-GF+ pipeline configuration JSON file required to submit jobs with caper.
 
 [See Configuration Files section](#configuration-files)
 
-#### 2. `create_config_maxquant.py`
+#### `create_config_maxquant.py`
 Creates MaxQuant pipeline configuration JSON file.
 
 [See Configuration Files section](#configuration-files)
 
-#### 3. `pipeline_job_summary.py`
+#### `pipeline_job_summary.py`
 Pulls job completion time and errors (if any).
 
 **Usage:**
+
 ```bash
 python3 scripts/pipeline_job_summary.py \
   -p your-gcp-project \
-  -b proteomics-pipeline \
+  -b your-bucket-name \
   -r results/proteomics_msgfplus \
   -i [WORKFLOW_ID]
 ```
 
-#### 4. `copy_pipeline_results.py`
+#### `copy_pipeline_results.py`
 Copies relevant pipeline outputs from Cromwell folder to user-defined folder.
 
 **Usage:**
+
 ```bash
 python3 scripts/copy_pipeline_results.py \
   -p your-gcp-project \
-  -b proteomics-pipeline \
+  -b your-bucket-name \
   -m msgfplus \
   -r results/proteomics_msgfplus/[WORKFLOW_ID] \
   -o final_results/batch1/ \
@@ -778,22 +780,23 @@ python3 scripts/copy_pipeline_results.py \
 ```
 
 Options:
+
 - `-c full` - Copy all MS-GF+ outputs
 - `-c results` - Copy only PlexedPiper results
 
-#### 5. `generate_file_manifest.py`
+#### `generate_file_manifest.py`
 Generates a manifest of files in a GCS bucket.
 
-#### 6. `parameter_mapping_generator.py`
+#### `parameter_mapping_generator.py`
 Helps create parameter mapping files for the pipeline.
 
-#### 7. `create_study_design.R`
+#### `create_study_design.R`
 R script to create study design files from sample metadata.
 
 #### 8. `combine_study_design.R`
 Combines multiple study design files.
 
-#### 9. `pp.R`
+#### `pp.R`
 PlexedPiper wrapper script used in the pipeline (called internally).
 
 For detailed usage of all scripts, see the [scripts README](scripts/scripts_readme.md).
@@ -805,7 +808,7 @@ For detailed usage of all scripts, see the [scripts README](scripts/scripts_read
 
 ### Workflow Management
 - [Cromwell](https://cromwell.readthedocs.io/en/stable/) - Workflow management system
-- [Caper](https://github.com/ENCODE-DCC/caper) - Cromwell wrapper for easy workflow execution
+- [Caper](https://github.com/MoTrPAC/caper) - Cromwell wrapper for easy workflow execution
 - [WDL](https://openwdl.org/) - Workflow Description Language specification
 
 ### Proteomics Software
@@ -881,12 +884,18 @@ If you use this pipeline in your research, please cite:
 
 ### Software Versions
 
-Current versions (see dockerfiles for details):
-- MS-GF+: Latest version in prot-msgfplus container
-- MASIC: Check Dockerfile.masic
-- ProteoWizard: 3.0.22132 (pwiz-skyline)
-- PlexedPiper: Check Dockerfile.plexedpiper
-- MaxQuant: Check Dockerfile for version
+Current versions in Docker containers:
+
+| Software | Version | Container |
+|:---------|:--------|:----------|
+| MS-GF+ | v2024.03.26 | prot-msgfplus |
+| MASIC | v3.2.8286 | prot-masic |
+| PlexedPiper | v0.4.2 | prot-plexedpiper |
+| AScore | v1.0.8315 | prot-ascore |
+| MzidToTsvConverter | v1.5.1 | prot-mzid2tsv |
+| PPMErrorCharter | v1.2.7763 | prot-ppmerror |
+| ProteoWizard/MSConvert | 3.0.22132 | pwiz-skyline |
+| Mono | 6.12.0 | Base image |
 
 ### Compatibility Notes
 
