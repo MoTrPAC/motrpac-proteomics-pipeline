@@ -793,7 +793,7 @@ Helps create parameter mapping files for the pipeline.
 #### `create_study_design.R`
 R script to create study design files from sample metadata.
 
-#### 8. `combine_study_design.R`
+#### `combine_study_design.R`
 Combines multiple study design files.
 
 #### `pp.R`
