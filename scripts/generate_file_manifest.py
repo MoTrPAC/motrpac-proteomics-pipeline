@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import sys
 from base64 import b64decode
 from typing import Iterator, Tuple
@@ -56,10 +57,20 @@ def generate_manifest(path, outfile):
 
     for blob in blob_list:
         print(f"Processing {blob.name}")
-        if blob.name.endswith("/") or "file_manifest" in blob.name:
+        if (
+            blob.name.endswith("/")
+            or "file_manifest" in blob.name
+            or "/backup_annotation_fix/" in blob.name
+        ):
             continue
         relative_filename = blob.name.removeprefix(prefix)
-        decoded_hash = b64decode(blob.md5_hash).hex()
+
+        if blob.md5_hash:
+            decoded_hash = b64decode(blob.md5_hash).hex()
+        else:
+            print(f"No md5 metadata found for {blob.name}; computing md5 from blob contents")
+            decoded_hash = hashlib.md5(blob.download_as_bytes()).hexdigest()
+
         data += f"{relative_filename},{decoded_hash}\n"
         lines += 1
 
