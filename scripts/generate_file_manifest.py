@@ -104,6 +104,19 @@ def read_gcs_tsv(bucket_name: str, blob_name: str, sep="\t") -> pd.DataFrame:
     content = blob.download_as_text()
     return pd.read_csv(StringIO(content), sep=sep)
 
+def write_gcs_tsv(bucket_name: str, blob_name: str, df: pd.DataFrame, sep: str = "\t") -> None:
+    """Write a pandas DataFrame as a delimited file to GCS.
+
+    :param bucket_name: Name of the GCS bucket.
+    :param blob_name: Full blob path within the bucket.
+    :param df: DataFrame to write.
+    :param sep: Column delimiter (default: tab).
+    """
+    gcs_client = storage.Client()
+    bucket = gcs_client.bucket(bucket_name)
+    blob = bucket.blob(blob_name)
+    blob.upload_from_string(df.to_csv(sep=sep, index=False), content_type="text/plain")
+
 # === Validation Functions === #
 def validate_batch(input_results_folder: str) -> str:
     """Extract BATCH_YYYYMMDD folder from input folder path.
@@ -332,14 +345,11 @@ def cli_args() -> argparse.Namespace:
     
     parser.add_argument(
         "-o", "--output_dir", type=str,
-        help="Output directory for study_design files (REQUIRED if --batch_folder is a GCS path)"
+        help="Output directory for study_design files (local path or gs:// path). "
+             "Defaults to the RAW folder in the bucket when --batch_folder is a GCS path."
     )
 
     args = parser.parse_args()
-
-    # Enforce output_dir if GCS is used
-    if is_gcs_path(args.batch_folder) and not args.output_dir:
-        parser.error("--output_dir is required when --batch_folder is a GCS path")
 
     return args
 
@@ -695,6 +705,13 @@ def main():
     tmt = args.tmt
     phase = args.phase
 
+    # Warn user about GCS output when no --output_dir is provided
+    if is_gcs_path(batch_folder) and not args.output_dir:
+        logger.info(
+            "No --output_dir specified. Study design files will be written directly "
+            "to the GCS bucket (RAW/study_design/). Use -o <local_path> to write locally instead."
+        )
+
     # Debug information
     logger.debug("\n# GENERATE PlexedPiper study_design FILES")
     logger.debug("-f: Vial metadata: %s", file_vial_metadata)
@@ -988,27 +1005,46 @@ def main():
     # The study_design folder should be in the RAW folder, but given that in
     # some cases the RAW files were not given in the RAW folder, it might be
     # located in the BATCH folder.
+    output_dir = args.output_dir
+
     if is_gcs:
-        output_viallabel_name = os.path.join(args.output_dir, "study_design")
+        if output_dir and is_gcs_path(output_dir):
+            # User explicitly provided a GCS output path
+            gcs_output_bucket, gcs_output_prefix = parse_gcs_path(output_dir)
+            gcs_output_prefix = f"{gcs_output_prefix}study_design/"
+            write_to_gcs = True
+        elif output_dir:
+            # User provided a local output path
+            write_to_gcs = False
+        else:
+            # Default: write to RAW/study_design/ in the same bucket
+            gcs_output_bucket = bucket_name
+            gcs_output_prefix = f"{raw_folder}/study_design/"
+            write_to_gcs = True
     else:
-        output_viallabel_name = os.path.join(raw_folder, "study_design")
+        write_to_gcs = False
 
-    if not os.path.exists(output_viallabel_name):
-        os.makedirs(output_viallabel_name, exist_ok=True)
+    if write_to_gcs:
+        output_viallabel_name = f"gs://{gcs_output_bucket}/{gcs_output_prefix}"
+        logger.info("+ Writing study_design files to GCS: %s", output_viallabel_name)
 
-    fractions_path = os.path.join(os.path.join(output_viallabel_name, "fractions.txt"))
-    fractions.to_csv(fractions_path, sep="\t", index=False)
+        write_gcs_tsv(gcs_output_bucket, f"{gcs_output_prefix}fractions.txt", fractions)
+        write_gcs_tsv(gcs_output_bucket, f"{gcs_output_prefix}references.txt", references)
+        write_gcs_tsv(gcs_output_bucket, f"{gcs_output_prefix}samples.txt", samples)
+        write_gcs_tsv(gcs_output_bucket, f"{gcs_output_prefix}{file_vial_metadata}", vial_metadata)
+    else:
+        if output_dir:
+            output_viallabel_name = os.path.join(output_dir, "study_design")
+        else:
+            output_viallabel_name = os.path.join(raw_folder, "study_design")
 
-    references_path = os.path.join(
-        os.path.join(output_viallabel_name, "references.txt"),
-    )
-    references.to_csv(references_path, sep="\t", index=False)
+        if not os.path.exists(output_viallabel_name):
+            os.makedirs(output_viallabel_name, exist_ok=True)
 
-    samples_path = os.path.join(output_viallabel_name, "samples.txt")
-    samples.to_csv(samples_path, sep="\t", index=False)
-
-    vial_metadata_path = os.path.join(output_viallabel_name, file_vial_metadata)
-    vial_metadata.to_csv(vial_metadata_path, sep="\t", index=False)
+        fractions.to_csv(os.path.join(output_viallabel_name, "fractions.txt"), sep="\t", index=False)
+        references.to_csv(os.path.join(output_viallabel_name, "references.txt"), sep="\t", index=False)
+        samples.to_csv(os.path.join(output_viallabel_name, "samples.txt"), sep="\t", index=False)
+        vial_metadata.to_csv(os.path.join(output_viallabel_name, file_vial_metadata), sep="\t", index=False)
 
     logger.info("")
     logger.info("=" * 50)
