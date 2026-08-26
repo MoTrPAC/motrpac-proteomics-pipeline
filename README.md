@@ -790,6 +790,9 @@ Generates a manifest of files in a GCS bucket.
 #### `parameter_mapping_generator.py`
 Helps create parameter mapping files for the pipeline.
 
+#### `create_study_design.py`
+Generates PlexedPiper study_design files (fractions.txt, samples.txt, references.txt, and vial metadata) from raw proteomics data stored locally or in a GCS bucket.
+
 #### `create_study_design.R`
 R script to create study design files from sample metadata.
 
