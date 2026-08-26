@@ -23,6 +23,7 @@
 - [Citations and References](#citations-and-references)
 - [Contributing and Support](#contributing-and-support)
 - [Version Information](#version-information)
+- [License](#license)
 
 ## Overview
 
