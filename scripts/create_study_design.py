@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+"""Generate PlexedPiper study_design files for MoTrPAC proteomics data.
+
+This script creates the four study_design files required by PlexedPiper
+(fractions.txt, samples.txt, references.txt, and vial_metadata) from
+raw proteomics data stored locally or in a Google Cloud Storage bucket.
+
+It validates folder structure, TMT channel assignments, and raw file naming
+conventions against MoTrPAC controlled vocabulary guidelines.
+
+Usage:
+    python create_study_design.py -b <batch_folder> -c <cas> -t <tmt> -p <phase>
+        [-f <vial_metadata>] [-s <raw_source>] [-o <output_dir>]
+"""
 
 import argparse
 import glob
@@ -62,6 +75,13 @@ def parse_gcs_path(gcs_path: str) -> tuple[str, str]:
     return bucket_name, blob_path.rstrip("/")
 
 def list_gcs_files(bucket_name: str, prefix: str, suffix: str = "") -> list[str]:
+    """List blob names in a GCS bucket filtered by prefix and optional suffix.
+
+    :param bucket_name: Name of the GCS bucket.
+    :param prefix: Blob name prefix to filter on.
+    :param suffix: Only return blobs whose names end with this string.
+    :returns: List of matching blob name strings.
+    """
     gcs_client = storage.Client()
     bucket = gcs_client.bucket(bucket_name)
     return [
@@ -71,11 +91,31 @@ def list_gcs_files(bucket_name: str, prefix: str, suffix: str = "") -> list[str]
     ]
 
 def read_gcs_tsv(bucket_name: str, blob_name: str, sep="\t") -> pd.DataFrame:
+    """Read a delimited file from GCS into a pandas DataFrame.
+
+    :param bucket_name: Name of the GCS bucket.
+    :param blob_name: Full blob path within the bucket.
+    :param sep: Column delimiter (default: tab).
+    :returns: DataFrame with the file contents.
+    """
     gcs_client = storage.Client()
     bucket = gcs_client.bucket(bucket_name)
     blob = bucket.blob(blob_name)
     content = blob.download_as_text()
     return pd.read_csv(StringIO(content), sep=sep)
+
+def write_gcs_tsv(bucket_name: str, blob_name: str, df: pd.DataFrame, sep: str = "\t") -> None:
+    """Write a pandas DataFrame as a delimited file to GCS.
+
+    :param bucket_name: Name of the GCS bucket.
+    :param blob_name: Full blob path within the bucket.
+    :param df: DataFrame to write.
+    :param sep: Column delimiter (default: tab).
+    """
+    gcs_client = storage.Client()
+    bucket = gcs_client.bucket(bucket_name)
+    blob = bucket.blob(blob_name)
+    blob.upload_from_string(df.to_csv(sep=sep, index=False), content_type="text/plain")
 
 # === Validation Functions === #
 def validate_batch(input_results_folder: str) -> str:
@@ -250,7 +290,11 @@ def check_tmt_channels(tmt_type: str, tmt_expected: list[str], temp: pd.DataFram
 def fix_duplicates(meta: pd.DataFrame) -> pd.DataFrame:
     """Fix duplicated vial_labels by making them unique."""
     if meta["vial_label"].duplicated().any():
-        logger.warning("Duplicate vial_label ids found. Making unique ids.")
+        dup_labels = meta.loc[meta["vial_label"].duplicated(keep=False), "vial_label"].unique().tolist()
+        logger.warning(
+            "Duplicate vial_label(s) found: %s. Renaming to make unique (e.g. label.1, label.2).",
+            ", ".join(dup_labels)
+        )
         # Equivalent to R's make.unique
         seen = {}
         unique_names = []
@@ -301,20 +345,28 @@ def cli_args() -> argparse.Namespace:
     
     parser.add_argument(
         "-o", "--output_dir", type=str,
-        help="Output directory for study_design files (REQUIRED if --batch_folder is a GCS path)"
+        help="Output directory for study_design files (local path or gs:// path). "
+             "Defaults to the RAW folder in the bucket when --batch_folder is a GCS path."
     )
 
     args = parser.parse_args()
-
-    # Enforce output_dir if GCS is used
-    if is_gcs_path(args.batch_folder) and not args.output_dir:
-        parser.error("--output_dir is required when --batch_folder is a GCS path")
 
     return args
 
 # === Main Processing Functions === #
 def process_manifest(raw_folder: str, is_gcs: bool = False, bucket_name: str = None) -> pd.DataFrame:
-    """Get fractions from file manifest files in either local folder or GCS bucket."""
+    """Build a fractions DataFrame from file manifest metadata files.
+
+    Reads ``*metadata_file.txt`` and ``*raw_metadata_file`` files from either
+    a local directory or a GCS bucket, extracts the ``file_name`` column, and
+    assigns sequential PlexIDs (S1, S2, ...).
+
+    :param raw_folder: Path to the folder containing raw data (local or GCS).
+    :param is_gcs: Whether *raw_folder* is a GCS path (auto-detected internally).
+    :param bucket_name: GCS bucket name (unused; bucket is parsed from *raw_folder*).
+    :returns: DataFrame with columns ``Dataset`` and ``PlexID``.
+    :raises ValueError: If no manifest files are found.
+    """
 
     is_gcs = is_gcs_path(raw_folder)
     
@@ -369,13 +421,24 @@ def process_manifest(raw_folder: str, is_gcs: bool = False, bucket_name: str = N
             else:
                 fractions = pd.concat([fractions, manifest], ignore_index=True)
             
-    if fractions is None or fractions.empty:
+    if not fractions:
         raise ValueError("No manifest files found in the provided folder.")
 
     return fractions
 
 def process_folder(raw_folder: str, is_gcs: bool = False, bucket_name: str = None) -> pd.DataFrame:
-    """Get fractions from raw files in either GCS bucket or local folder."""
+    """Build a fractions DataFrame by listing ``.raw`` files in subfolders.
+
+    Scans subfolders (named with a leading two-digit number per MoTrPAC
+    convention) for ``.raw`` files. Validates file naming, checks for empty
+    files and missing fractions, and assigns sequential PlexIDs.
+
+    :param raw_folder: Path (local) or blob prefix (GCS) to the raw data folder.
+    :param is_gcs: Whether the path refers to a GCS location.
+    :param bucket_name: GCS bucket name (required when *is_gcs* is True).
+    :returns: DataFrame with columns ``Dataset`` and ``PlexID``.
+    :raises ValueError: If no subfolders or valid raw files are found.
+    """
 
     # If the path is a GCS path, parse it
     if is_gcs:
@@ -627,6 +690,11 @@ def process_folder(raw_folder: str, is_gcs: bool = False, bucket_name: str = Non
 
 
 def main():
+    """Entry point: parse CLI arguments and generate study_design files.
+
+    Orchestrates validation, vial metadata generation, and output of
+    fractions.txt, samples.txt, references.txt, and the vial metadata file.
+    """
     args = cli_args()
 
     # Extract arguments for easier access
@@ -636,6 +704,13 @@ def main():
     raw_source = args.raw_source
     tmt = args.tmt
     phase = args.phase
+
+    # Warn user about GCS output when no --output_dir is provided
+    if is_gcs_path(batch_folder) and not args.output_dir:
+        logger.info(
+            "No --output_dir specified. Study design files will be written directly "
+            "to the GCS bucket (RAW/study_design/). Use -o <local_path> to write locally instead."
+        )
 
     # Debug information
     logger.debug("\n# GENERATE PlexedPiper study_design FILES")
@@ -713,7 +788,7 @@ def main():
     nm_list = []
 
     if file_vial_metadata == "generate":
-        logger.info("+ Generate vial metadata file")
+        logger.info("+ Generating vial metadata from %d TMT details file(s)", len(tmt_details_files))
 
         # Process each file
         for i, tmt_details in enumerate(tmt_details_files, 1):
@@ -756,12 +831,15 @@ def main():
             nm_list.append(temp)
 
         vial_metadata = pd.concat(nm_list, ignore_index=True)
+        n_plexes = vial_metadata["tmt_plex"].nunique()
+        n_samples = len(vial_metadata)
+        logger.info("  Vial metadata generated: %d samples across %d plex(es)", n_samples, n_plexes)
         file_vial_metadata = (
             f"MOTRPAC_{phase}_{tissue}_{assay}_{cas}_{date}_vial_metadata.txt"
         )
 
     else:
-        logger.info("+ Reading file vial metadata")
+        logger.info("+ Reading vial metadata from file: %s", file_vial_metadata)
         try:
             if is_gcs:
                 vial_metadata = read_gcs_tsv(bucket_name, file_vial_metadata)
@@ -778,7 +856,7 @@ def main():
             f"MOTRPAC_{phase}_{tissue}_{assay}_{cas}_{date}_vial_metadata.txt"
         )
 
-    logger.info("File name: %s", file_vial_metadata)
+    logger.info("  Output vial metadata file: %s", file_vial_metadata)
 
     # Make adjustments: make sure that the Reference channel is "Ref_S#"
     vial_metadata.columns = vial_metadata.columns.str.lower()
@@ -810,7 +888,7 @@ def main():
     vial_metadata = fix_duplicates(meta=vial_metadata)
 
     # Generate samples.txt
-    logger.info("+ Generate samples.txt... ")
+    logger.info("+ Generating samples.txt")
 
     if tmt == "tmt11":
         samples = vial_metadata.copy()
@@ -854,10 +932,12 @@ def main():
         ["PlexID", "QuantBlock", "ReporterName", "ReporterAlias", "MeasurementName"]
     ]
 
-    logger.info("done")
+    n_measurement = samples["MeasurementName"].ne("NA").sum()
+    logger.info("  samples.txt: %d rows (%d measurements, %d plexes)",
+                len(samples), n_measurement, samples["PlexID"].nunique())
 
     # Generate references.txt
-    logger.info("+ Generate references... ")
+    logger.info("+ Generating references.txt")
 
     # Conditional operation based on the presence of "Ref" samples
     if has_ref:
@@ -868,15 +948,16 @@ def main():
         references = references.rename(columns={"ReporterAlias": "Reference"})
     else:
         logger.warning(
-            "(no references available: value 1 would be added instead) ", end=""
+            "No reference channels found in vial metadata. Using QuantBlock=1 as reference placeholder."
         )
         references = samples[["PlexID", "QuantBlock"]].copy()
         references["Reference"] = 1
 
-    logger.info("done")
+    logger.info("  references.txt: %d reference(s) across %d plex(es)",
+                len(references), references["PlexID"].nunique())
 
     # Generate fractions.txt
-    logger.info("+ Generate fractions.txt file")
+    logger.info("+ Generating fractions.txt")
 
     if raw_source == "manifest":
         fractions = process_manifest(raw_folder)
@@ -890,7 +971,10 @@ def main():
     
     fractions["Dataset"] = fractions["Dataset"].str.replace(".raw", "")
 
-    logger.info("+ Checking PlexID notations")
+    logger.info("  fractions.txt: %d datasets across %d plex(es)",
+                len(fractions), fractions["PlexID"].nunique())
+
+    logger.info("+ Cross-validating PlexIDs across all study_design tables")
     # Extract unique and sorted values from each data frame's relevant variable
     unique_fractions = sorted(fractions["PlexID"].unique())
     unique_samples = sorted(samples["PlexID"].unique())
@@ -906,9 +990,10 @@ def main():
 
     # Output the result
     if are_equal:
-        logger.info("+ Validations: All PlexID lists are identical.")
+        logger.info("  PlexIDs match across fractions, samples, references, and vial_metadata: %s",
+                    ", ".join(unique_fractions))
     else:
-        logger.error("Not all PlexID lists are identical. Detailed comparison needed.")
+        logger.error("PlexID mismatch detected across study_design tables:")
         logger.error("Fractions PlexID: %s", ",".join(unique_fractions))
         logger.error("Samples PlexID: %s", ",".join(unique_samples))
         logger.error("References PlexID: %s", ",".join(unique_references))
@@ -920,29 +1005,55 @@ def main():
     # The study_design folder should be in the RAW folder, but given that in
     # some cases the RAW files were not given in the RAW folder, it might be
     # located in the BATCH folder.
+    output_dir = args.output_dir
+
     if is_gcs:
-        output_viallabel_name = os.path.join(args.output_dir, "study_design")
+        if output_dir and is_gcs_path(output_dir):
+            # User explicitly provided a GCS output path
+            gcs_output_bucket, gcs_output_prefix = parse_gcs_path(output_dir)
+            gcs_output_prefix = f"{gcs_output_prefix}study_design/"
+            write_to_gcs = True
+        elif output_dir:
+            # User provided a local output path
+            write_to_gcs = False
+        else:
+            # Default: write to RAW/study_design/ in the same bucket
+            gcs_output_bucket = bucket_name
+            gcs_output_prefix = f"{raw_folder}/study_design/"
+            write_to_gcs = True
     else:
-        output_viallabel_name = os.path.join(raw_folder, "study_design")
+        write_to_gcs = False
 
-    if not os.path.exists(output_viallabel_name):
-        os.makedirs(output_viallabel_name, exist_ok=True)
+    if write_to_gcs:
+        output_viallabel_name = f"gs://{gcs_output_bucket}/{gcs_output_prefix}"
+        logger.info("+ Writing study_design files to GCS: %s", output_viallabel_name)
 
-    fractions_path = os.path.join(os.path.join(output_viallabel_name, "fractions.txt"))
-    fractions.to_csv(fractions_path, sep="\t", index=False)
+        write_gcs_tsv(gcs_output_bucket, f"{gcs_output_prefix}fractions.txt", fractions)
+        write_gcs_tsv(gcs_output_bucket, f"{gcs_output_prefix}references.txt", references)
+        write_gcs_tsv(gcs_output_bucket, f"{gcs_output_prefix}samples.txt", samples)
+        write_gcs_tsv(gcs_output_bucket, f"{gcs_output_prefix}{file_vial_metadata}", vial_metadata)
+    else:
+        if output_dir:
+            output_viallabel_name = os.path.join(output_dir, "study_design")
+        else:
+            output_viallabel_name = os.path.join(raw_folder, "study_design")
 
-    references_path = os.path.join(
-        os.path.join(output_viallabel_name, "references.txt"),
-    )
-    references.to_csv(references_path, sep="\t", index=False)
+        if not os.path.exists(output_viallabel_name):
+            os.makedirs(output_viallabel_name, exist_ok=True)
 
-    samples_path = os.path.join(output_viallabel_name, "samples.txt")
-    samples.to_csv(samples_path, sep="\t", index=False)
+        fractions.to_csv(os.path.join(output_viallabel_name, "fractions.txt"), sep="\t", index=False)
+        references.to_csv(os.path.join(output_viallabel_name, "references.txt"), sep="\t", index=False)
+        samples.to_csv(os.path.join(output_viallabel_name, "samples.txt"), sep="\t", index=False)
+        vial_metadata.to_csv(os.path.join(output_viallabel_name, file_vial_metadata), sep="\t", index=False)
 
-    vial_metadata_path = os.path.join(output_viallabel_name, file_vial_metadata)
-    vial_metadata.to_csv(vial_metadata_path, sep="\t", index=False)
-
-    logger.info("All files are out! Check them out at: %s", output_viallabel_name)
+    logger.info("")
+    logger.info("=" * 50)
+    logger.info("  Study design files written to: %s", output_viallabel_name)
+    logger.info("  - fractions.txt   (%d rows)", len(fractions))
+    logger.info("  - samples.txt     (%d rows)", len(samples))
+    logger.info("  - references.txt  (%d rows)", len(references))
+    logger.info("  - %s", file_vial_metadata)
+    logger.info("=" * 50)
 
 
 if __name__ == "__main__":
