@@ -78,5 +78,9 @@ caper list
 
 A number of scripts are available in this repo providing additional functionality to interact with GCP. Please, [check this file](scripts/scripts_readme.md) to find out more. 
 
+## License
+
+This project is licensed under the terms of the MIT License. See the [LICENSE.md](LICENSE.md) file for details.
+
 
 
